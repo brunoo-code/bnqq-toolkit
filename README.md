@@ -69,11 +69,11 @@ Diagnóstico:
 | Perfil | Alvo | Comportamento |
 |---|---|---|
 | `lowend` | PC fraco, 4–8 GB, HDD | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios incluídos. |
-| `laptop` | Notebook | Respeita bateria: no DC mantém downclock e economia. Não mexe em core parking nem HVCI. |
-| `desktop` | Desktop | Equilibrado. Sem desligar HVCI. |
-| `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off. |
-| `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot. |
-| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off. Risco alto, ganho real em CPU-bound. |
+| `laptop` | Notebook | Respeita bateria: no DC mantém downclock e economia. Não mexe em core parking nem HVCI. NDIS agressivo e afinidade de interrupção são ignorados automaticamente. |
+| `desktop` | Desktop | Equilibrado. Sem desligar HVCI. Inclui afinidade de interrupção se houver 8+ threads. |
+| `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off, MSI + prioridade de interrupção. |
+| `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot + RSS, TCP kernel, NTFS 8.3, ETW autologgers, BCD TSC. |
+| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off + NDIS agressivo. Risco alto, ganho real em CPU-bound. |
 
 O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` → `lowend`; resto → `gaming`.
 

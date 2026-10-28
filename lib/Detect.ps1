@@ -134,6 +134,7 @@ function Test-TweakApplicable {
     if ($req.Cpu -and $System.CpuVendor -ne $req.Cpu) { return $false }
 
     if ($req.MinRamGB -and $System.RamGB -lt $req.MinRamGB) { return $false }
+    if ($req.MinThreads -and $System.Threads -lt $req.MinThreads) { return $false }
     if ($req.MinBuild -and [int]$System.Build -lt $req.MinBuild) { return $false }
     if ($req.Storage -eq 'ssd' -and -not $System.HasSsd) { return $false }
     if ($req.Storage -eq 'hdd' -and -not $System.HasHdd) { return $false }

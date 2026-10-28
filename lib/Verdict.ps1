@@ -57,9 +57,16 @@ $script:Verdicts = @(
     @{ Id = 'gpu-preference'; Verdict = 'proven'; Impact = 'evita iGPU'; Why = 'Em notebook com video integrado e dedicado, o Windows pode escolher a iGPU. Forcar High performance garante a dGPU.' }
     @{ Id = 'display-optimizations'; Verdict = 'likely'; Impact = '1-3% / smooth'; Why = 'VRR otimizado e swap chain moderno em jogos de janela reduzem tearing e stutter. Sem efeito em fullscreen exclusivo.' }
     @{ Id = 'defender-cpu-limit'; Verdict = 'proven'; Impact = 'menos picos'; Why = 'Limita a varredura em background a 20% de CPU. Evita picos de 100% durante o jogo.' }
-    @{ Id = 'large-system-cache'; Verdict = 'neutral'; Impact = '0-1%'; Why = 'Aumenta cache de arquivos do kernel. Com 16 GB+ e inofensivo, mas o ganho em jogos e marginal.' }
+    @{ Id = 'large-system-cache'; Verdict = 'neutral'; Impact = '0-1%'; Why = 'LargeSystemCache=0 prioriza o working set dos jogos sobre o cache de arquivos do kernel. Com 16 GB+ o efeito e marginal, mas e o valor correto para desktop gamer.' }
     @{ Id = 'mitigations-off'; Verdict = 'proven'; Impact = '5-15% CPU'; Why = 'Mitigacoes de Spectre/Meltdown em software custam CPU em cada troca de contexto. Desligar devolve desempenho. Custo: exposicao a exploits de CPU.' }
     @{ Id = 'cstates-off'; Verdict = 'likely'; Impact = 'latencia'; Why = 'Nucleos nao entram em C-state profundo, reduzindo o tempo de wake. Nao aumenta FPS medio, mas corta stutter no primeiro input.' }
+    @{ Id = 'interrupt-affinity'; Verdict = 'likely'; Impact = '0.5-2 ms / 1% low'; Why = 'DPC/ISR de GPU, rede e USB deixam de preemptar os nucleos 0-1, onde o thread principal do jogo costuma rodar. Ganho aparece no 0.1% low, nao na media. So em desktop com 8+ threads.' }
+    @{ Id = 'ndis-offloads'; Verdict = 'likely'; Impact = '0.3-1.5 ms'; Why = 'Interrupt moderation agrupa pacotes antes de entregar ao kernel. Desligar entrega cada pacote imediatamente. Em notebook o modo agressivo (LSO/Flow Control) e ignorado para nao prejudicar bateria e throughput.' }
+    @{ Id = 'rss-tuning'; Verdict = 'likely'; Impact = 'jitter'; Why = 'RSS distribui o processamento de recepcao entre nucleos. Base 4 mantem a pilha de rede fora dos nucleos 0-1. So se aplica quando o driver expoe *RSS.' }
+    @{ Id = 'tcp-kernel'; Verdict = 'likely'; Impact = 'jitter'; Why = 'Timestamps e ECN adicionam cabecalho e logica de decisao. Autotuning normal evita crescimento agressivo de janela. DCA/NetDMA so existem em hardware antigo.' }
+    @{ Id = 'ntfs-shortnames'; Verdict = 'neutral'; Impact = 'I/O'; Why = 'Nomes 8.3 geram entradas extras na MFT para cada arquivo novo. Nao afeta arquivos ja existentes nem FPS diretamente.' }
+    @{ Id = 'etw-autologgers'; Verdict = 'likely'; Impact = '0-1% / I/O'; Why = 'Autologgers de telemetria gravam buffers ETW em disco durante a sessao. Desligar remove escrita e buffer de kernel.' }
+    @{ Id = 'bcd-timer'; Verdict = 'likely'; Impact = 'estabilidade'; Why = 'useplatformclock=No forca o TSC, que e o timer correto no Win11. tscsyncpolicy=Enhanced garante sincronia entre nucleos. Nao e o mesmo que o pacote placebo de HPET.' }
 )
 
 $script:Debunked = @(

@@ -46,7 +46,14 @@
                                     "hibernate-off",
                                     "sleep-policy",
                                     "gpu-preference",
-                                    "defender-cpu-limit"
+                                    "defender-cpu-limit",
+                                    "interrupt-affinity",
+                                    "ndis-offloads",
+                                    "rss-tuning",
+                                    "tcp-kernel",
+                                    "ntfs-shortnames",
+                                    "etw-autologgers",
+                                    "bcd-timer"
                                 ],
                      "laptop":  [
                                     "power-plan",
@@ -84,7 +91,14 @@
                                     "hags-on",
                                     "reserved-storage-off",
                                     "gpu-preference",
-                                    "defender-cpu-limit"
+                                    "defender-cpu-limit",
+                                    "interrupt-affinity",
+                                    "ndis-offloads",
+                                    "rss-tuning",
+                                    "tcp-kernel",
+                                    "ntfs-shortnames",
+                                    "etw-autologgers",
+                                    "bcd-timer"
                                 ],
                      "desktop":  [
                                      "power-plan",
@@ -133,7 +147,14 @@
                                      "gpu-preference",
                                      "display-optimizations",
                                      "defender-cpu-limit",
-                                     "large-system-cache"
+                                     "large-system-cache",
+                                     "interrupt-affinity",
+                                     "ndis-offloads",
+                                     "rss-tuning",
+                                     "tcp-kernel",
+                                     "ntfs-shortnames",
+                                     "etw-autologgers",
+                                     "bcd-timer"
                                  ],
                      "gaming":  [
                                     "power-plan",
@@ -190,7 +211,14 @@
                                     "gpu-preference",
                                     "display-optimizations",
                                     "defender-cpu-limit",
-                                    "large-system-cache"
+                                    "large-system-cache",
+                                    "interrupt-affinity",
+                                    "ndis-offloads",
+                                    "rss-tuning",
+                                    "tcp-kernel",
+                                    "ntfs-shortnames",
+                                    "etw-autologgers",
+                                    "bcd-timer"
                                 ],
                      "fresh":  [
                                    "power-plan",
@@ -248,7 +276,14 @@
                                    "gpu-preference",
                                    "display-optimizations",
                                    "defender-cpu-limit",
-                                   "large-system-cache"
+                                   "large-system-cache",
+                                   "interrupt-affinity",
+                                   "ndis-offloads",
+                                   "rss-tuning",
+                                   "tcp-kernel",
+                                   "ntfs-shortnames",
+                                   "etw-autologgers",
+                                   "bcd-timer"
                                ],
                      "extreme":  [
                                      "power-plan",
@@ -308,7 +343,14 @@
                                      "defender-cpu-limit",
                                      "large-system-cache",
                                      "mitigations-off",
-                                     "cstates-off"
+                                     "cstates-off",
+                                     "interrupt-affinity",
+                                     "ndis-offloads",
+                                     "rss-tuning",
+                                     "tcp-kernel",
+                                     "ntfs-shortnames",
+                                     "etw-autologgers",
+                                     "bcd-timer"
                                  ]
                  }
 }

@@ -163,7 +163,13 @@ function Restore-BnqqBackup {
             if (-not (Test-Path -LiteralPath $entry.Path)) {
                 New-Item -Path $entry.Path -Force | Out-Null
             }
-            New-ItemProperty -LiteralPath $entry.Path -Name $entry.Name -Value $entry.Value -PropertyType $entry.Kind -Force | Out-Null
+
+            $value = $entry.Value
+            if ($entry.Kind -eq 'Binary' -and $null -ne $value) {
+                $value = [byte[]]@($value | ForEach-Object { [byte]$_ })
+            }
+
+            New-ItemProperty -LiteralPath $entry.Path -Name $entry.Name -Value $value -PropertyType $entry.Kind -Force | Out-Null
         }
         else {
             Remove-ItemProperty -LiteralPath $entry.Path -Name $entry.Name -ErrorAction SilentlyContinue
@@ -196,8 +202,14 @@ function Restore-BnqqBackup {
     if ($meta.NetAdapter) {
         foreach ($prop in $meta.NetAdapter.PSObject.Properties) {
             try {
-                Set-NetAdapterAdvancedProperty -Name $prop.Value.Adapter -DisplayName $prop.Value.Display -DisplayValue $prop.Value.Value -ErrorAction Stop
-                Write-Bnqq ('Adaptador {0}: {1} -> {2}' -f $prop.Value.Adapter, $prop.Value.Display, $prop.Value.Value) 'OK'
+                if ($prop.Value.Keyword) {
+                    Set-NetAdapterAdvancedProperty -Name $prop.Value.Adapter -RegistryKeyword $prop.Value.Keyword -RegistryValue $prop.Value.Value -ErrorAction Stop
+                    Write-Bnqq ('Adaptador {0}: {1} -> {2}' -f $prop.Value.Adapter, $prop.Value.Keyword, $prop.Value.Value) 'OK'
+                }
+                else {
+                    Set-NetAdapterAdvancedProperty -Name $prop.Value.Adapter -DisplayName $prop.Value.Display -DisplayValue $prop.Value.Value -ErrorAction Stop
+                    Write-Bnqq ('Adaptador {0}: {1} -> {2}' -f $prop.Value.Adapter, $prop.Value.Display, $prop.Value.Value) 'OK'
+                }
             }
             catch {
                 Write-Bnqq ('Falha ao restaurar {0}' -f $prop.Value.Display) 'WARN'

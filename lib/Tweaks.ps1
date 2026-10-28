@@ -56,6 +56,7 @@ $script:TweakCatalog = @(
             Set-BnqqReg $base 'Priority' 6
             Set-BnqqReg $base 'Scheduling Category' 'High' 'String'
             Set-BnqqReg $base 'SFIO Priority' 'High' 'String'
+            Set-BnqqReg $base 'Clock Rate' 10000
         }
     },
     @{
@@ -367,6 +368,42 @@ $script:TweakCatalog = @(
         Id = 'cstates-off'; Area = 'CPU'; Risk = 'medium'; Reboot = $false
         Name = 'Desativar C-states (latencia de wake)'
         Apply = { Set-BnqqCStates -Disabled 1 }
+    },
+    @{
+        Id = 'interrupt-affinity'; Area = 'Latencia'; Risk = 'high'; Reboot = $true
+        Requires = @{ Chassis = 'desktop'; MinThreads = 8 }
+        Name = 'Afinidade de interrupcao: GPU/NIC/USB fora dos nucleos 0-1'
+        Apply = { Set-BnqqInterruptAffinity }
+    },
+    @{
+        Id = 'ndis-offloads'; Area = 'Rede'; Risk = 'medium'; Reboot = $true
+        Name = 'NDIS: interrupt moderation, EEE e Green off'
+        Apply = { Set-BnqqNdisOffloads }
+    },
+    @{
+        Id = 'rss-tuning'; Area = 'Rede'; Risk = 'medium'; Reboot = $true
+        Name = 'RSS: filas de recepcao balanceadas'
+        Apply = { Set-BnqqRssTuning }
+    },
+    @{
+        Id = 'tcp-kernel'; Area = 'Rede'; Risk = 'low'; Reboot = $false
+        Name = 'TCP kernel: timestamps/ECN off, autotuning normal'
+        Apply = { Set-BnqqTcpKernel }
+    },
+    @{
+        Id = 'ntfs-shortnames'; Area = 'Disco'; Risk = 'medium'; Reboot = $true
+        Name = 'NTFS: desativar nomes 8.3'
+        Apply = { Set-BnqqNtfsShortNames }
+    },
+    @{
+        Id = 'etw-autologgers'; Area = 'Processos'; Risk = 'low'; Reboot = $true
+        Name = 'ETW: desativar autologgers de telemetria'
+        Apply = { Set-BnqqEtwAutologgers }
+    },
+    @{
+        Id = 'bcd-timer'; Area = 'Latencia'; Risk = 'medium'; Reboot = $true
+        Name = 'BCD: TSC forcado e tscsyncpolicy Enhanced'
+        Apply = { Set-BnqqBcdTimer }
     }
 )
 
@@ -499,37 +536,31 @@ function Set-BnqqServices {
 
 function Set-BnqqNetworkAdapter {
     $rules = @(
-        @{ Display = 'Interrupt Moderation'; Value = 'Disabled' },
-        @{ Display = 'Energy-Efficient Ethernet'; Value = 'Disabled' },
-        @{ Display = 'Green Ethernet'; Value = 'Disabled' },
-        @{ Display = 'Advanced EEE'; Value = 'Disabled' },
-        @{ Display = 'Flow Control'; Value = 'Disabled' },
-        @{ Display = 'Wake on Magic Packet'; Value = 'Disabled' },
-        @{ Display = 'Wake on pattern match'; Value = 'Disabled' },
-        @{ Display = 'Ultra Low Power Mode'; Value = 'Disabled' },
-        @{ Display = 'Power Saving Mode'; Value = 'Disabled' }
+        @{ Key = '*InterruptModeration'; Value = 0 },
+        @{ Key = '*EEE'; Value = 0 },
+        @{ Key = 'AdvancedEEE'; Value = 0 },
+        @{ Key = 'EnableGreenEthernet'; Value = 0 },
+        @{ Key = '*WakeOnMagicPacket'; Value = 0 },
+        @{ Key = '*WakeOnPattern'; Value = 0 },
+        @{ Key = 'S5WakeOnLan'; Value = 0 }
     )
 
-    $store = @{}
     foreach ($adapter in @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' })) {
         $props = @(Get-NetAdapterAdvancedProperty -Name $adapter.Name -ErrorAction SilentlyContinue)
         foreach ($rule in $rules) {
-            $prop = $props | Where-Object { $_.DisplayName -eq $rule.Display } | Select-Object -First 1
+            $prop = $props | Where-Object { $_.RegistryKeyword -eq $rule.Key } | Select-Object -First 1
             if (-not $prop) { continue }
-            if ($prop.ValidDisplayValues -notcontains $rule.Value) { continue }
-            if ($prop.DisplayValue -eq $rule.Value) { continue }
+            if ([string]$prop.RegistryValue -eq [string]$rule.Value) { continue }
 
-            $key = '{0}|{1}' -f $adapter.Name, $prop.DisplayName
-            $store[$key] = [pscustomobject]@{ Adapter = $adapter.Name; Display = $prop.DisplayName; Value = $prop.DisplayValue }
+            Add-BnqqNetAdapterBackup -Adapter $adapter.Name -Keyword $rule.Key -Value $prop.RegistryValue
 
             try {
-                Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName $prop.DisplayName -DisplayValue $rule.Value -ErrorAction Stop
-                Write-Bnqq ('{0}: {1} -> {2}' -f $adapter.Name, $prop.DisplayName, $rule.Value) 'OK'
+                Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword $rule.Key -RegistryValue $rule.Value -ErrorAction Stop
+                Write-Bnqq ('{0}: {1} -> {2}' -f $adapter.Name, $rule.Key, $rule.Value) 'OK'
             }
             catch { }
         }
     }
-    if ($store.Count -gt 0) { Set-BnqqMeta 'NetAdapter' $store }
 }
 
 function Set-BnqqBrowserBackground {
@@ -827,8 +858,8 @@ function Set-BnqqDefenderCpuLimit {
 }
 
 function Set-BnqqLargeSystemCache {
-    Set-BnqqReg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' 'LargeSystemCache' 1
-    Write-Bnqq 'LargeSystemCache ativado' 'OK'
+    Set-BnqqReg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' 'LargeSystemCache' 0
+    Write-Bnqq 'LargeSystemCache=0: working set de jogos priorizado sobre cache de arquivos' 'OK'
 }
 
 function Set-BnqqMitigationsOff {

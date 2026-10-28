@@ -60,23 +60,23 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 
 ---
 
-## 4. Catálogo — 62 tweaks
+## 4. Catálogo — 69 tweaks
 
 | Área | Itens |
 |---|---|
 | CPU / energia | power-plan adaptativo, power-throttling-off, core-parking-off, win32-priority, mmcss-games, cstates-off* |
-| Latência | hvci-off, credential-guard-off, hypervisor-off, ndu-off, msi-mode, timer-defaults |
+| Latência | hvci-off, credential-guard-off, hypervisor-off, ndu-off, msi-mode, timer-defaults, interrupt-affinity (desktop 8+ threads), bcd-timer |
 | Memória | pagefile-managed, memory-compression-off, kernel-memory, large-system-cache |
 | GPU | hags-on, nvidia-max-perf, mpo-off, gpu-preference, display-optimizations |
 | Display | fse-forced, fullscreen-opt |
 | Input | mouse-accel-off, keyboard-response, usb-power-off, usb3-lpm-off, usb-suspend-off, pcie-aspm-off |
-| Rede | network-throttling, network-adapter, tcp-tuning, dns-fast, netbios-off, delivery-opt-off |
+| Rede | network-throttling, network-adapter, ndis-offloads, rss-tuning, tcp-tuning, tcp-kernel, dns-fast, netbios-off, delivery-opt-off |
 | Sistema | fast-startup-off, hibernate-off, visual-effects, sleep-policy, reserved-storage-off |
-| Debloat | debloat-appx, tasks-off, features-off, telemetry-off, privacy-lockdown |
+| Debloat | debloat-appx, tasks-off, features-off, telemetry-off, privacy-lockdown, etw-autologgers |
 | Serviços | services-low, services-medium, conditional-services |
 | Apps | browser-background-off, discord-tweaks, startup-trim, startup-launchers, steam-overlay-off, process-priority |
 | Segurança | defender-exclusions, defender-cpu-limit |
-| Disco | filesystem-tune |
+| Disco | filesystem-tune, ntfs-shortnames |
 | CPU (extremo) | mitigations-off* |
 
 `*` somente no perfil `extreme`.
@@ -87,12 +87,12 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 
 | Perfil | Tweaks | Comportamento |
 |---|---|---|
-| `lowend` | 45 | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios. |
-| `laptop` | 36 | Respeita bateria: no DC mantém downclock, ASPM e suspend USB. |
-| `desktop` | 47 | Equilibrado. Sem desligar HVCI. |
-| `gaming` | 55 | Agressivo: HVCI off, core parking off, memory compression off. |
-| `fresh` | 56 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI. |
-| `extreme` | 58 | `fresh` + mitigações de CPU off + C-states off. |
+| `lowend` | 52 | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios. |
+| `laptop` | 43 | Respeita bateria: no DC mantém downclock, ASPM e suspend USB; NDIS agressivo e afinidade de interrupção são ignorados. |
+| `desktop` | 54 | Equilibrado. Sem desligar HVCI. |
+| `gaming` | 62 | Agressivo: HVCI off, core parking off, memory compression off. |
+| `fresh` | 63 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI. |
+| `extreme` | 65 | `fresh` + mitigações de CPU off + C-states off. |
 
 ---
 
@@ -200,6 +200,7 @@ O que o `revert` **não** desfaz:
 bnqq.ps1
 config/profiles.json
 lib/Core.ps1
+lib/Kernel.ps1
 lib/Detect.ps1
 lib/Tweaks.ps1
 lib/Services.ps1
@@ -228,6 +229,65 @@ docs/RELATORIO.md   este documento
 
 ---
 
-## 14. Licença
+## 14. Módulos de baixo nível (v3.0)
+
+`lib/Kernel.ps1` adiciona a camada de barramento, interrupção e kernel dispatcher. Todos os tweaks passam pelo mesmo `Test-TweakApplicable`, gravam backup em JSON e são revertidos por `revert`.
+
+### 14.1 MSI e prioridade de interrupção
+
+- `Set-BnqqMsiPriority` grava `MSISupported=1` e `DevicePriority` (GPU High, NIC Normal, xHCI High) em `...\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties`.
+- `MessageNumberLimit` só é gravado quando ausente, e apenas para a GPU (`1`). Nunca sobrescreve o limite definido pelo driver.
+- Vale para qualquer desktop ou notebook: é uma configuração suportada pelo Windows e não altera integridade de boot.
+
+### 14.2 Afinidade de interrupção (somente desktop, 8+ threads)
+
+- `Set-BnqqInterruptAffinity` grava `DevicePolicy=4` e `AssignmentSetOverride` (REG_BINARY, bitmask de 8 bytes) em `...\Interrupt Management\Affinity Policy`.
+- Núcleos 0-3 ficam livres; GPU, rede e USB são distribuídos nos grupos seguintes.
+- **Filtros de segurança:** `Requires = @{ Chassis='desktop'; MinThreads=8 }` e uma segunda checagem em runtime (`Test-BnqqLaptop`). Em notebook ou CPU de 4 núcleos/8 threads, o tweak é ignorado.
+- Objetivo: evitar que DPC/ISR de rede e GPU preemptem o thread principal. O ganho esperado é no 0.1% low, não na média.
+
+### 14.3 NDIS por RegistryKeyword
+
+- O motor antigo casava `DisplayName` em inglês e falhava silenciosamente em Windows localizado. Agora usa `RegistryKeyword` (`*InterruptModeration`, `*EEE`, `EnableGreenEthernet`, `*LsoV2IPv4`, ...), neutro de idioma.
+- **Modo padrão (todos os perfis):** interrupt moderation, EEE, Advanced EEE, Green Ethernet, GigaLite e wake-on-LAN off.
+- **Modo agressivo (`extreme`):** adiciona Flow Control e LSO v2 off. Em notebook o modo agressivo é **ignorado automaticamente** para não prejudicar bateria e throughput.
+- Cada alteração grava o valor anterior em `Meta.NetAdapter` e o `revert` restaura por keyword.
+
+### 14.4 RSS
+
+- Ativa `*RSS` quando o driver expõe. Em desktop com 8+ threads define `BaseProcessorNumber=4` e `MaxProcessors=4`; em notebook as filas são mantidas.
+- Quando o driver não expõe `*RSS` (caso do Realtek 8125 em alguns drivers), o tweak registra "não suportado" e não falha.
+
+### 14.5 TCP kernel
+
+- `timestamps=disabled`, `ecncapability=disabled`, `autotuninglevel=normal`.
+- `congestionprovider=ctcp`, `dca` e `netdma` são tentados; se o build recusar, o log registra "não suportado" e o apply continua.
+- Não mexe em Nagle, `TcpAckFrequency` ou `TCPNoDelay` — jogos usam UDP e isso é placebo.
+
+### 14.6 NTFS e memória
+
+- `ntfs-shortnames`: `fsutil behavior set disable8dot3 1`. Afeta apenas arquivos novos.
+- `large-system-cache`: corrigido para `LargeSystemCache=0`, priorizando working set dos jogos em vez de cache de arquivos do kernel.
+- `kernel-memory` já mantinha `DisablePagingExecutive=1`.
+- **`IoPageLockLimit` não é implementado:** valor legado ignorado desde o Vista. Gravar seria placebo.
+
+### 14.7 ETW
+
+- `etw-autologgers` desliga sessões de autologger que casam `DiagTrack|DeviceCensus|CEIP|AutoLogger-Diagtrack`.
+- Sessões essenciais de Event Log não são tocadas.
+
+### 14.8 BCD
+
+- `bcd-timer`: `useplatformclock No` (TSC) e `tscsyncpolicy Enhanced`.
+- **`disabledynamictick Yes` não existe no catálogo público.** É global (afeta AC e DC) e no Windows 11 aumenta interrupções de timer. Ficaria em conflito direto com o requisito de não degradar notebooks em bateria.
+- **Timer resolution 0.5 ms não é implementado:** desde o Windows 10 2004 é por processo; forçar exigiria injeção no jogo, o que é incompatível com Vanguard/VAC.
+
+### 14.9 Anti-cheat
+
+Nenhum tweak ativa `testsigning`, desativa DEP/NX, quebra Secure Boot ou invalida assinatura. Não há hook, driver não assinado ou injeção em processo de jogo.
+
+---
+
+## 15. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

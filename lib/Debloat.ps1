@@ -300,22 +300,7 @@ function Set-BnqqNetbiosOff {
 }
 
 function Set-BnqqMsiMode {
-    $targets = @(Get-PnpDevice -Class Display, Net -Status OK -ErrorAction SilentlyContinue)
-    $changed = 0
-
-    foreach ($dev in $targets) {
-        if (-not $dev.InstanceId) { continue }
-        $path = 'HKLM:\SYSTEM\CurrentControlSet\Enum\{0}\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties' -f $dev.InstanceId
-        if (-not (Test-Path -LiteralPath $path)) { continue }
-
-        $current = (Get-ItemProperty -LiteralPath $path -Name MSISupported -ErrorAction SilentlyContinue).MSISupported
-        if ($current -eq 1) { continue }
-
-        Set-BnqqReg $path 'MSISupported' 1
-        $changed++
-    }
-
-    Write-Bnqq ('MSI mode ativado em {0} dispositivo(s)' -f $changed) 'OK'
+    Set-BnqqMsiPriority
 }
 
 function Set-BnqqNvidiaMaxPerf {

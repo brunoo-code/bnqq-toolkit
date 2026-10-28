@@ -14,6 +14,7 @@ param(
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 . (Join-Path $root 'lib\Core.ps1')
+. (Join-Path $root 'lib\Kernel.ps1')
 . (Join-Path $root 'lib\Detect.ps1')
 . (Join-Path $root 'lib\Tweaks.ps1')
 . (Join-Path $root 'lib\Services.ps1')
@@ -99,6 +100,7 @@ switch ($Command) {
     'report' {
         $r = Invoke-BnqqModules
         Show-BnqqModules -Report $r
+        Show-BnqqKernelAudit
         if (-not (Test-Path -LiteralPath $reportDir)) { New-Item -ItemType Directory -Force -Path $reportDir | Out-Null }
         $out = Join-Path $reportDir ('modules-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
         $r | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $out -Encoding UTF8
