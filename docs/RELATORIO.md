@@ -288,6 +288,109 @@ Nenhum tweak ativa `testsigning`, desativa DEP/NX, quebra Secure Boot ou invalid
 
 ---
 
-## 15. Licença
+## 15. Fase 2 — TUI, watcher ativo e choking de background
+
+A Fase 2 transforma o toolkit em um software interativo: menu, varredura com progresso, detecção de jogos em múltiplas fontes, watcher de plano de energia, perfil de GPU por vendor e tuning de I/O.
+
+### 15.1 Detecção de jogos
+
+A busca antiga usava `-Depth 4` a partir de `C:\Riot Games`. O executável do VALORANT fica 5 níveis abaixo:
+
+```
+C:\Riot Games\VALORANT\live\ShooterGame\Binaries\Win64\VALORANT-Win64-Shipping.exe
+```
+
+`Get-BnqqInstalledGameRoots` agora combina quatro fontes:
+
+1. **Registro Uninstall** (HKLM 64-bit, WOW6432Node e HKCU), com `InstallLocation` e `DisplayIcon`.
+2. **`C:\ProgramData\Riot Games\RiotClientInstalls.json`** — o Riot Client não registra o VALORANT no Uninstall, mas expõe `associated_client`, `rc_default` e `rc_live`.
+3. **Processos em execução** (`RiotClientServices`, `VALORANT`, `cs2`, `League`).
+4. **Caminhos conhecidos** em C:, D: e E:.
+
+A varredura final percorre cada raiz uma vez com `-Filter '*.exe' -Recurse -Depth 8` e deduplica por nome em hash set. Custo medido: **0,9 s** para CS2 + VALORANT + League of Legends.
+
+Isso corrige `fullscreen-opt`, `gpu-preference`, `defender-exclusions` e o watcher. As regras de `CpuPriorityClass` e MMCSS já eram por nome de executável, então não dependiam do caminho.
+
+### 15.2 TUI e Deep Scan
+
+`bnqq.ps1` sem parâmetros abre a TUI em host interativo. O menu:
+
+```
+[1] Deep Scan          varredura real em 10 etapas com Write-Progress
+[2] Aplicar perfil     lowend | laptop | desktop | gaming | fresh | extreme | auto
+[3] Reverter           restore do ultimo backup
+[4] Game watcher       status, instalar, instalar com pin fisico, remover
+[5] Relatorio modular  score por area
+[6] Veredito           proven | likely | neutral | debunked
+```
+
+O Deep Scan executa consultas reais (CIM, MSI, NDIS, SMART, serviços, tarefas, BCD) e só avança a barra depois de cada consulta. A saída mostra tier, CPU, RAM, GPU, display, interrupções, adaptadores, discos, jogos e anomalias.
+
+Anomalias verificadas:
+
+- **SMBIOS inconsistente** — placa Intel com CPU AMD, ou modelo que não corresponde ao vendor.
+- **Resizable BAR desativado** — BAR1 ≤ 1024 MB.
+- **VBS/HVCI ativo**, **pagefile ausente**, **RAM abaixo de 2933 MT/s**, **reinício pendente**.
+- **Executável de jogo registrado em pasta inexistente**.
+
+### 15.3 Choking de background
+
+| Item | Implementação | Efeito |
+|---|---|---|
+| Chrome/Edge/Brave | Políticas `HardwareAccelerationModeEnabled=0`, `BackgroundModeEnabled=0`, `StartupBoostEnabled=0` | Libera contexto gráfico e VRAM; impede renderer residente |
+| Atalhos | Flags `--disable-background-timer-throttling --disable-renderer-backgrounding --disable-software-rasterizer` em `.lnk` | Timers de background não acordam a CPU |
+| Discord | `enableHardwareAcceleration=false`, overlay e autostart off | Overlay não injeta hook |
+| Copilot/Recall | `TurnOffWindowsCopilot=1`, `DisableAIDataAnalysis=1`, `AllowRecallEnablement=0` | Remove modelos e indexação de IA |
+| Cortana | Remoção do AppX `Microsoft.549981C3F5F10` | Elimina processo residente |
+| Tarefas | `WindowsAI`, `Application Experience`, `CEIP` desativadas | Remove varreduras periódicas |
+| Defender | Exclusão das pastas reais dos jogos via `Get-BnqqGameExes` | Varredura em tempo real não inspeciona assets |
+
+**Decisão de engenharia:** o `Preferences` JSON do Chromium não é reescrito. O arquivo tem vários MB e o round-trip `ConvertFrom-Json | ConvertTo-Json` pode alterar tipos numéricos e corromper preferências. A política de registro é o mecanismo suportado, idempotente e reversível; os atalhos cobrem o resto.
+
+### 15.4 Dynamic Power & Process Affinity
+
+**Watcher (`bnqq-watch.ps1` + `lib/Watcher.ps1`):** polling de 2 s, tarefa de logon `BNQQ Game Watcher` com `RunLevel Highest`. Ao detectar `cs2.exe` ou `VALORANT-Win64-Shipping.exe`:
+
+1. Salva o GUID do plano ativo.
+2. Cria/reutiliza **BNQQ Ultimate** (duplicado do Ultimate Performance; fallback para High Performance).
+3. Aplica `PROCTHROTTLEMIN=100`, `PROCTHROTTLEMAX=100`, `CPMINCORES=100`, `CPMAXCORES=100`, `IDLEDISABLE=1`, `PERFBOOSTMODE=2`, `PERFBOOSTPOL=100`, `STANDBYIDLE=0`, `HIBERNATEIDLE=0`, `DISKIDLE=0`, `ASPM=0`.
+4. Com `-PinPhysical`, aplica `ProcessorAffinity` nos núcleos físicos.
+
+Ao fechar o jogo, restaura o plano anterior. Em notebook, `-RespectBattery` impede a troca na bateria.
+
+**Máscara física:** em 8C/16T com SMT adjacente, `0x5555` (CPUs 0,2,4,6,8,10,12,14). Teste contínuo confirmou troca para BNQQ Ultimate, afinidade `0x5555` e retorno ao plano anterior.
+
+**Correção técnica:** `Image File Execution Options\PerfOptions` **não tem valor de afinidade**. Aceita `CpuPriorityClass`, `IoPriority` e `PagePriority` — o projeto grava `3/3/5` para jogos e `5/1/1` para overlays. Afinidade real é runtime, via `Process.ProcessorAffinity`.
+
+**Custo:** pinar reduz contenção de SMT, mas reduz threads efetivas. `game-affinity` é opt-in no `extreme`, restrito a desktop com 8+ threads, e o veredito pede medição de 0.1% low. Em CPU híbrida (P/E cores) a máscara par/ímpar não é confiável.
+
+### 15.5 Perfil de GPU por vendor
+
+**NVIDIA:** `DisableDynamicPstate=1`; `ShaderCacheSize=0xFFFFFFFF` **somente se o valor já existir**; `nvidia-smi -pm 1` quando o driver aceita (em GeForce frequentemente retorna não suportado, logado como INFO).
+
+**AMD:** `EnableUlps=0`, `KMD_DeLagEnabled=1`, `PP_ThermalAutoThrottlingEnable=0`, `DisableDrmdmaPowerGating=1`.
+
+**Não implementado:** Reflex global não existe como chave de registro — é NVAPI, implementado pelo jogo. Filtragem de textura AMD é configuração do Radeon Software, não valor estável de `AMDKMDAG`. O relatório registra a limitação em vez de inventar chave.
+
+### 15.6 Armazenamento
+
+- **I/O queue depth:** `AdditionalCriticalWorkerThreads=8` e `AdditionalDelayedWorkerThreads=4` em `Session Manager\I/O System`. Exige reboot.
+- **TRIM:** `Optimize-Volume -ReTrim` em volumes NTFS fixos cujo `Get-PhysicalDisk` reporta SSD, com cronômetro por volume. Pode levar minutos em SSD cheio; é intencional e logado.
+
+### 15.7 Anti-cheat e reversibilidade
+
+Nada injeta código em processo de jogo, instala driver não assinado, ativa `testsigning`, desativa DEP/NX ou quebra Secure Boot. O watcher usa APIs públicas (`powercfg`, `ProcessorAffinity`). Registro volta pelo backup JSON; atalhos voltam por `Meta.Shortcuts`; o watcher é removido por `Unregister-ScheduledTask`.
+
+**Limites do revert:** AppX removido (Cortana, debloat) não é reinstalado; recursos opcionais não são reativados; o plano BNQQ Ultimate permanece inativo no sistema.
+
+### 15.8 Changelog 2.1
+
+| Versão | Entrega |
+|---|---|
+| 2.1 | TUI + Deep Scan com anomalias, detecção de jogos por Uninstall/Riot manifest/processo, choking de navegadores e IA, watcher BNQQ Ultimate com pin físico opcional, perfil NVIDIA/AMD, I/O worker threads, TRIM forçado |
+
+---
+
+## 16. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

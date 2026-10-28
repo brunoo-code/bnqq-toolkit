@@ -404,6 +404,54 @@ $script:TweakCatalog = @(
         Id = 'bcd-timer'; Area = 'Latencia'; Risk = 'medium'; Reboot = $true
         Name = 'BCD: TSC forcado e tscsyncpolicy Enhanced'
         Apply = { Set-BnqqBcdTimer }
+    },
+    @{
+        Id = 'browser-choking'; Area = 'Apps'; Risk = 'low'; Reboot = $false
+        Name = 'Navegadores: GPU liberada e background timer throttling'
+        Apply = { Set-BnqqBrowserChoking }
+    },
+    @{
+        Id = 'shortcut-flags'; Area = 'Apps'; Risk = 'low'; Reboot = $false
+        Name = 'Atalhos: flags anti-throttling para Discord/Chromium'
+        Apply = { Set-BnqqShortcutFlags }
+    },
+    @{
+        Id = 'ai-cleanup'; Area = 'Processos'; Risk = 'low'; Reboot = $false
+        Name = 'IA: Copilot, Recall, Cortana e tarefas de telemetria'
+        Apply = { Set-BnqqAiCleanup }
+    },
+    @{
+        Id = 'gpu-vendor-profile'; Area = 'GPU'; Risk = 'medium'; Reboot = $true
+        Name = 'GPU: perfil de vendor (NVIDIA P-state / AMD ULPS+Anti-Lag)'
+        Requires = @{ Chassis = 'desktop' }
+        Apply = { Set-BnqqGpuVendorProfile }
+    },
+    @{
+        Id = 'io-queue-depth'; Area = 'Disco'; Risk = 'low'; Reboot = $true
+        Name = 'I/O: worker threads extras para NVMe'
+        Requires = @{ Storage = 'ssd' }
+        Apply = { Set-BnqqIoQueueDepth }
+    },
+    @{
+        Id = 'ssd-trim'; Area = 'Disco'; Risk = 'low'; Reboot = $false
+        Name = 'TRIM forcado em todos os SSDs NTFS'
+        Requires = @{ Storage = 'ssd' }
+        Apply = { Invoke-BnqqSsdTrim }
+    },
+    @{
+        Id = 'game-watcher'; Area = 'CPU'; Risk = 'low'; Reboot = $false
+        Name = 'Watcher: plano Ultimate ao abrir CS2/Valorant'
+        Requires = @{ Chassis = 'desktop' }
+        Apply = {
+            if ($script:BnqqSystem -and $script:BnqqSystem.IsLaptop) { Install-BnqqWatcher -RespectBattery }
+            else { Install-BnqqWatcher }
+        }
+    },
+    @{
+        Id = 'game-affinity'; Area = 'CPU'; Risk = 'medium'; Reboot = $false
+        Name = 'Watcher + afinidade nos nucleos fisicos (sem SMT)'
+        Requires = @{ Chassis = 'desktop'; MinThreads = 8 }
+        Apply = { Install-BnqqWatcher -PinPhysical }
     }
 )
 
@@ -666,6 +714,11 @@ function Set-BnqqDefenderExclusions {
     $steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -Name SteamPath -ErrorAction SilentlyContinue).SteamPath
     if ($steam) { $candidates += (Join-Path $steam 'steamapps\common') }
 
+    foreach ($exe in @(Get-BnqqGameExes)) {
+        $dir = Split-Path -Parent $exe
+        if ($dir -and (Test-Path -LiteralPath $dir)) { $candidates += $dir }
+    }
+
     foreach ($c in $candidates) {
         if (Test-Path -LiteralPath $c) { $paths.Add($c) }
     }
@@ -698,7 +751,10 @@ function Set-BnqqProcessPriority {
 
     $base = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
     foreach ($exe in $map.Keys) {
-        Set-BnqqReg (Join-Path $base ('{0}\PerfOptions' -f $exe)) 'CpuPriorityClass' $map[$exe]
+        $path = Join-Path $base ('{0}\PerfOptions' -f $exe)
+        Set-BnqqReg $path 'CpuPriorityClass' $map[$exe]
+        Set-BnqqReg $path 'IoPriority' $(if ($map[$exe] -eq 3) { 3 } else { 1 })
+        Set-BnqqReg $path 'PagePriority' $(if ($map[$exe] -eq 3) { 5 } else { 1 })
     }
     Write-Bnqq 'Prioridade por processo configurada' 'OK'
 }
@@ -881,4 +937,110 @@ function Set-BnqqCStates {
     powercfg /setactive $guid 2>$null | Out-Null
 
     Write-Bnqq ('C-states: {0}' -f $(if ($Disabled) { 'desativados' } else { 'ativos' })) 'OK'
+}
+
+function Set-BnqqBrowserChoking {
+    $targets = @(
+        'HKLM:\SOFTWARE\Policies\Google\Chrome',
+        'HKLM:\SOFTWARE\Policies\Microsoft\Edge',
+        'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+    )
+
+    foreach ($path in $targets) {
+        Set-BnqqReg $path 'HardwareAccelerationModeEnabled' 0
+        Set-BnqqReg $path 'BackgroundModeEnabled' 0
+        Set-BnqqReg $path 'StartupBoostEnabled' 0
+    }
+
+    Write-Bnqq 'Navegadores: GPU liberada (HW accel off) e background mode off' 'OK'
+}
+
+function Set-BnqqShortcutFlags {
+    $targets = @('chrome.exe', 'msedge.exe', 'brave.exe', 'Discord.exe')
+    $flags = '--disable-background-timer-throttling --disable-renderer-backgrounding --disable-software-rasterizer'
+
+    $roots = @(
+        [Environment]::GetFolderPath('Desktop'),
+        (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'),
+        (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs')
+    )
+
+    $shell = New-Object -ComObject WScript.Shell
+    $store = @{}
+    $changed = 0
+
+    foreach ($root in $roots) {
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+
+        foreach ($lnk in @(Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -Depth 3 -ErrorAction SilentlyContinue)) {
+            try {
+                $shortcut = $shell.CreateShortcut($lnk.FullName)
+                $targetName = Split-Path -Leaf $shortcut.TargetPath
+                if ($targets -notcontains $targetName) { continue }
+                if ($shortcut.Arguments -match 'disable-background-timer-throttling') { continue }
+
+                $store[$lnk.FullName] = $shortcut.Arguments
+                $shortcut.Arguments = ($shortcut.Arguments + ' ' + $flags).Trim()
+                $shortcut.Save()
+                $changed++
+                Write-Bnqq ('Atalho ajustado: {0}' -f $lnk.Name) 'OK'
+            }
+            catch {
+                Write-Bnqq ('Atalho ignorado: {0}' -f $lnk.Name) 'WARN'
+            }
+        }
+    }
+
+    if ($changed -gt 0) { Set-BnqqMeta 'Shortcuts' $store }
+    if ($changed -eq 0) { Write-Bnqq 'Nenhum atalho de navegador/Discord elegivel' 'INFO' }
+}
+
+function Restore-BnqqShortcuts {
+    param($Store)
+
+    if (-not $Store) { return }
+
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($prop in $Store.PSObject.Properties) {
+        if (-not (Test-Path -LiteralPath $prop.Name)) { continue }
+        try {
+            $shortcut = $shell.CreateShortcut($prop.Name)
+            $shortcut.Arguments = $prop.Value
+            $shortcut.Save()
+            Write-Bnqq ('Atalho restaurado: {0}' -f (Split-Path -Leaf $prop.Name)) 'OK'
+        }
+        catch {
+            Write-Bnqq ('Falha ao restaurar atalho: {0}' -f (Split-Path -Leaf $prop.Name)) 'WARN'
+        }
+    }
+}
+
+function Set-BnqqAiCleanup {
+    Set-BnqqReg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'DisableAIDataAnalysis' 1
+    Set-BnqqReg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'AllowRecallEnablement' 0
+    Set-BnqqReg 'HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot' 'TurnOffWindowsCopilot' 1
+    Set-BnqqReg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot' 'TurnOffWindowsCopilot' 1
+
+    foreach ($pkg in @('Microsoft.549981C3F5F10')) {
+        Get-AppxPackage -AllUsers -Name $pkg -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+    }
+
+    $patterns = @(
+        '\Microsoft\Windows\WindowsAI\*',
+        '\Microsoft\Windows\Application Experience\*',
+        '\Microsoft\Windows\Customer Experience Improvement Program\*'
+    )
+
+    $disabled = 0
+    foreach ($pattern in $patterns) {
+        foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskPath -like $pattern -and $_.State -ne 'Disabled' })) {
+            try {
+                Disable-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop | Out-Null
+                $disabled++
+            }
+            catch { }
+        }
+    }
+
+    Write-Bnqq ('IA/telemetria: Copilot/Recall bloqueados, {0} tarefa(s) desativada(s)' -f $disabled) 'OK'
 }

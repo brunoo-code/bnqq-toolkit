@@ -60,6 +60,92 @@ function Get-BnqqSteamLibraries {
     return $paths
 }
 
+function Get-BnqqInstalledGameRoots {
+    $roots = New-Object System.Collections.Generic.List[string]
+
+    foreach ($lib in Get-BnqqSteamLibraries) {
+        $common = Join-Path $lib 'steamapps\common'
+        if (Test-Path -LiteralPath $common) { $roots.Add($common) }
+    }
+
+    $riotManifest = Join-Path $env:ProgramData 'Riot Games\RiotClientInstalls.json'
+    if (Test-Path -LiteralPath $riotManifest) {
+        try {
+            $manifest = Get-Content -LiteralPath $riotManifest -Raw -Encoding UTF8 | ConvertFrom-Json
+
+            if ($manifest.associated_client) {
+                foreach ($prop in $manifest.associated_client.PSObject.Properties) {
+                    $path = $prop.Name -replace '/', '\'
+                    if (Test-Path -LiteralPath $path) { $roots.Add($path) }
+                }
+            }
+
+            foreach ($key in @('rc_default', 'rc_live')) {
+                $exe = $manifest.$key
+                if ($exe) {
+                    $dir = Split-Path -Parent ($exe -replace '/', '\')
+                    if (Test-Path -LiteralPath $dir) { $roots.Add($dir) }
+                }
+            }
+        }
+        catch { }
+    }
+
+    $uninstall = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+    )
+
+    foreach ($key in $uninstall) {
+        foreach ($entry in @(Get-ChildItem -LiteralPath $key -ErrorAction SilentlyContinue)) {
+            $app = Get-ItemProperty -LiteralPath $entry.PSPath -ErrorAction SilentlyContinue
+            if (-not $app) { continue }
+            if ($app.DisplayName -notmatch 'VALORANT|Riot|Counter-Strike|Epic Games|Battle\.net|Ubisoft|EA app|Origin') { continue }
+
+            $candidates = @($app.InstallLocation)
+            if ($app.DisplayIcon) {
+                $icon = ($app.DisplayIcon -replace '"', '').Trim()
+                $icon = $icon -replace ',\d+$', ''
+                $candidates += (Split-Path -Parent $icon)
+            }
+
+            foreach ($candidate in $candidates) {
+                if ($candidate -and (Test-Path -LiteralPath $candidate)) { $roots.Add($candidate) }
+            }
+        }
+    }
+
+    foreach ($proc in @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path })) {
+        if ($proc.ProcessName -match 'VALORANT|cs2|RiotClient|League') {
+            $dir = Split-Path -Parent $proc.Path
+            if ($dir) { $roots.Add($dir) }
+        }
+    }
+
+    foreach ($r in @(
+        'C:\Riot Games'
+        'D:\Riot Games'
+        'E:\Riot Games'
+        'C:\Program Files\Riot Games'
+        'C:\Program Files (x86)\Riot Games'
+        'C:\Program Files\Epic Games'
+        'C:\Program Files (x86)\Epic Games'
+        'C:\Program Files (x86)\Battle.net'
+        'C:\Program Files (x86)\Ubisoft'
+        'C:\Program Files\Ubisoft'
+        'C:\Games'
+        'D:\Games'
+        'E:\Games'
+        'D:\SteamLibrary\steamapps\common'
+        'E:\SteamLibrary\steamapps\common'
+    )) {
+        if (Test-Path -LiteralPath $r) { $roots.Add($r) }
+    }
+
+    return @($roots | Sort-Object -Unique)
+}
+
 function Get-BnqqGameExes {
     $names = @(
         'cs2.exe'
@@ -85,34 +171,22 @@ function Get-BnqqGameExes {
         'warframe.x64.exe'
     )
 
-    $roots = New-Object System.Collections.Generic.List[string]
-    foreach ($lib in Get-BnqqSteamLibraries) {
-        $common = Join-Path $lib 'steamapps\common'
-        if (Test-Path -LiteralPath $common) { $roots.Add($common) }
-    }
-    foreach ($r in @(
-        'C:\Riot Games'
-        'C:\Program Files\Riot Games'
-        'C:\Program Files\Epic Games'
-        'C:\Program Files (x86)\Epic Games'
-        'C:\Program Files (x86)\Battle.net'
-        'C:\Program Files (x86)\Ubisoft'
-        'C:\Games'
-        'D:\Games'
-        'D:\SteamLibrary\steamapps\common'
-        'E:\SteamLibrary\steamapps\common'
-    )) {
-        if (Test-Path -LiteralPath $r) { $roots.Add($r) }
-    }
+    $targets = @{}
+    foreach ($name in $names) { $targets[$name.ToLowerInvariant()] = $true }
 
     $found = New-Object System.Collections.Generic.List[string]
 
-    foreach ($root in $roots) {
-        foreach ($name in $names) {
-            $hits = @(Get-ChildItem -LiteralPath $root -Filter $name -Recurse -Depth 4 -File -ErrorAction SilentlyContinue)
-            foreach ($h in $hits) {
-                if (-not $found.Contains($h.FullName)) { $found.Add($h.FullName) }
+    foreach ($root in Get-BnqqInstalledGameRoots) {
+        $hits = @(Get-ChildItem -LiteralPath $root -Filter '*.exe' -Recurse -Depth 8 -File -ErrorAction SilentlyContinue)
+        foreach ($hit in $hits) {
+            if (-not $targets.ContainsKey($hit.Name.ToLowerInvariant())) { continue }
+
+            $already = $false
+            foreach ($existing in $found) {
+                if ($existing -ieq $hit.FullName) { $already = $true; break }
             }
+
+            if (-not $already) { $found.Add($hit.FullName) }
         }
     }
 

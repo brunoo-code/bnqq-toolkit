@@ -222,6 +222,10 @@ function Restore-BnqqBackup {
         }
     }
 
+    if ($meta.Shortcuts) {
+        Restore-BnqqShortcuts -Store $meta.Shortcuts
+    }
+
     return $count
 }
 

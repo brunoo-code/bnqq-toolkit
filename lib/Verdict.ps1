@@ -67,6 +67,14 @@ $script:Verdicts = @(
     @{ Id = 'ntfs-shortnames'; Verdict = 'neutral'; Impact = 'I/O'; Why = 'Nomes 8.3 geram entradas extras na MFT para cada arquivo novo. Nao afeta arquivos ja existentes nem FPS diretamente.' }
     @{ Id = 'etw-autologgers'; Verdict = 'likely'; Impact = '0-1% / I/O'; Why = 'Autologgers de telemetria gravam buffers ETW em disco durante a sessao. Desligar remove escrita e buffer de kernel.' }
     @{ Id = 'bcd-timer'; Verdict = 'likely'; Impact = 'estabilidade'; Why = 'useplatformclock=No forca o TSC, que e o timer correto no Win11. tscsyncpolicy=Enhanced garante sincronia entre nucleos. Nao e o mesmo que o pacote placebo de HPET.' }
+    @{ Id = 'browser-choking'; Verdict = 'likely'; Impact = '0-3% GPU'; Why = 'Aceleracao de hardware do navegador mantem contexto grafico e processos de renderer vivos. Desligar libera GPU e reduz disputa por VRAM durante o jogo.' }
+    @{ Id = 'shortcut-flags'; Verdict = 'likely'; Impact = '0-2%'; Why = 'Flags de Chromium impedem throttling de timers e renderizacao em segundo plano. O navegador deixa de acordar a CPU enquanto o jogo esta em foco.' }
+    @{ Id = 'ai-cleanup'; Verdict = 'proven'; Impact = 'RAM/CPU'; Why = 'Copilot, Recall e tarefas de Application Experience mantem modelos e varreduras residentes. Bloquear remove CPU, disco e memoria de background.' }
+    @{ Id = 'gpu-vendor-profile'; Verdict = 'likely'; Impact = '0-5%'; Why = 'NVIDIA: P-state fixo evita downclock entre frames. AMD: ULPS off remove deep sleep e Anti-Lag reduz fila de apresentacao. Custo: consumo em idle.' }
+    @{ Id = 'io-queue-depth'; Verdict = 'likely'; Impact = 'I/O'; Why = 'Mais worker threads criticos absorvem picos de leitura assincrona de texturas em NVMe sem serializar no thread pool padrao.' }
+    @{ Id = 'ssd-trim'; Verdict = 'proven'; Impact = 'I/O'; Why = 'TRIM devolve blocos livres ao controlador. Sem ele, o SSD precisa apagar blocos durante o carregamento de texturas, gerando picos de latencia.' }
+    @{ Id = 'game-watcher'; Verdict = 'proven'; Impact = 'latencia'; Why = 'O plano Ultimate so entra quando o jogo abre e sai quando fecha. Core parking 0, C-states off e min 100% durante a partida, Balanced no resto.' }
+    @{ Id = 'game-affinity'; Verdict = 'likely'; Impact = '0.1% low'; Why = 'Pinar o processo nos nucleos fisicos (sem SMT) reduz contencao entre threads de render e siblings. Custo: menos threads efetivas; medir 0.1% low antes/depois.' }
 )
 
 $script:Debunked = @(
@@ -77,7 +85,7 @@ $script:Debunked = @(
     @{ Tweak = 'Desativar HPET no Gerenciador de Dispositivos'; Why = 'Duplicado do BCD. No Win11 e placebo ou prejudicial.' }
     @{ Tweak = 'Limpar standby list antes de jogar'; Why = 'Standby e cache de arquivos. Limpar forca releitura do disco.' }
     @{ Tweak = 'Prioridade Realtime no jogo'; Why = 'Pode travar input e audio do sistema. High e o teto seguro.' }
-    @{ Tweak = 'Afinidade fixa de CPU por processo'; Why = 'Impede o scheduler de migrar threads e piora 1% low.' }
+    @{ Tweak = 'Afinidade fixa em 1-2 nucleos'; Why = 'Impede o scheduler de migrar threads e concentra todo o jogo em poucos nucleos. O pin em todos os nucleos fisicos (game-affinity) e diferente e deve ser medido.' }
     @{ Tweak = 'Desativar SMT'; Why = 'Reduz threads disponiveis. Jogos modernos se beneficiam de SMT.' }
     @{ Tweak = 'Limpeza de registro'; Why = 'Sem ganho mensuravel. Risco de corromper chaves.' }
     @{ Tweak = 'DNS gamer'; Why = 'Nao altera rota nem latencia do servidor do jogo.' }

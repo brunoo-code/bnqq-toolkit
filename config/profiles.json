@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "2.0.0",
+    "version":  "2.1.0",
     "profiles":  {
                      "lowend":  [
                                     "power-plan",
@@ -53,7 +53,9 @@
                                     "tcp-kernel",
                                     "ntfs-shortnames",
                                     "etw-autologgers",
-                                    "bcd-timer"
+                                    "bcd-timer",
+                                    "ai-cleanup",
+                                    "io-queue-depth"
                                 ],
                      "laptop":  [
                                     "power-plan",
@@ -98,7 +100,8 @@
                                     "tcp-kernel",
                                     "ntfs-shortnames",
                                     "etw-autologgers",
-                                    "bcd-timer"
+                                    "bcd-timer",
+                                    "ai-cleanup"
                                 ],
                      "desktop":  [
                                      "power-plan",
@@ -154,7 +157,10 @@
                                      "tcp-kernel",
                                      "ntfs-shortnames",
                                      "etw-autologgers",
-                                     "bcd-timer"
+                                     "bcd-timer",
+                                     "browser-choking",
+                                     "ai-cleanup",
+                                     "io-queue-depth"
                                  ],
                      "gaming":  [
                                     "power-plan",
@@ -218,7 +224,13 @@
                                     "tcp-kernel",
                                     "ntfs-shortnames",
                                     "etw-autologgers",
-                                    "bcd-timer"
+                                    "bcd-timer",
+                                    "browser-choking",
+                                    "shortcut-flags",
+                                    "ai-cleanup",
+                                    "gpu-vendor-profile",
+                                    "io-queue-depth",
+                                    "game-watcher"
                                 ],
                      "fresh":  [
                                    "power-plan",
@@ -283,7 +295,13 @@
                                    "tcp-kernel",
                                    "ntfs-shortnames",
                                    "etw-autologgers",
-                                   "bcd-timer"
+                                   "bcd-timer",
+                                   "browser-choking",
+                                   "shortcut-flags",
+                                   "ai-cleanup",
+                                   "gpu-vendor-profile",
+                                   "io-queue-depth",
+                                   "ssd-trim"
                                ],
                      "extreme":  [
                                      "power-plan",
@@ -350,7 +368,14 @@
                                      "tcp-kernel",
                                      "ntfs-shortnames",
                                      "etw-autologgers",
-                                     "bcd-timer"
+                                     "bcd-timer",
+                                     "browser-choking",
+                                     "shortcut-flags",
+                                     "ai-cleanup",
+                                     "gpu-vendor-profile",
+                                     "io-queue-depth",
+                                     "ssd-trim",
+                                     "game-affinity"
                                  ]
                  }
 }

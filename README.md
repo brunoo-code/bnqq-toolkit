@@ -19,6 +19,9 @@ Packs tradicionais aplicam a mesma lista em qualquer máquina e vendem placebo. 
 ## Uso
 
 ```powershell
+# Interativo (menu + deep scan + watcher)
+.\bnqq.ps1
+
 # Analisar hardware, BIOS, OS e achados
 .\bnqq.ps1 scan
 
@@ -37,12 +40,20 @@ Packs tradicionais aplicam a mesma lista em qualquer máquina e vendem placebo. 
 .\bnqq.ps1 apply -Profile desktop
 .\bnqq.ps1 apply -Profile gaming
 .\bnqq.ps1 apply -Profile fresh
+.\bnqq.ps1 apply -Profile extreme
 
 # Ver o que seria feito
 .\bnqq.ps1 apply -WhatIf
 
 # Desfazer
 .\bnqq.ps1 revert
+
+# Watcher de jogos (plano Ultimate + afinidade fisica opcional)
+.\bnqq.ps1 watch
+.\bnqq.ps1 watch -WatcherAction install
+.\bnqq.ps1 watch -WatcherAction install -PinPhysical
+.\bnqq.ps1 watch -WatcherAction remove
+.\bnqq.ps1 watch -WatcherAction run
 ```
 
 Durante a partida:
@@ -72,8 +83,8 @@ Diagnóstico:
 | `laptop` | Notebook | Respeita bateria: no DC mantém downclock e economia. Não mexe em core parking nem HVCI. NDIS agressivo e afinidade de interrupção são ignorados automaticamente. |
 | `desktop` | Desktop | Equilibrado. Sem desligar HVCI. Inclui afinidade de interrupção se houver 8+ threads. |
 | `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off, MSI + prioridade de interrupção. |
-| `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot + RSS, TCP kernel, NTFS 8.3, ETW autologgers, BCD TSC. |
-| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off + NDIS agressivo. Risco alto, ganho real em CPU-bound. |
+| `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot + RSS, TCP kernel, NTFS 8.3, ETW autologgers, BCD TSC, choking de navegadores/IA, perfil de GPU, I/O e TRIM. |
+| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off + NDIS agressivo + watcher com pin fisico. Risco alto, ganho real em CPU-bound. |
 
 O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` → `lowend`; resto → `gaming`.
 
@@ -135,6 +146,19 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 **Segurança**
 - Pastas de jogos (Steam, Riot, Epic, Ubisoft, Battle.net) excluídas da varredura em tempo real
 
+**Background choking**
+- Navegadores: aceleração de hardware e background mode desligados por política
+- Atalhos de Chrome/Edge/Brave/Discord com flags anti-throttling (reversível)
+- Copilot, Recall, Cortana e tarefas de IA/telemetria desativados
+- Prioridade por processo com `CpuPriorityClass`, `IoPriority` e `PagePriority`
+
+**Watcher e I/O**
+- Plano `BNQQ Ultimate` ativado ao abrir CS2/Valorant e restaurado ao fechar
+- Pin opcional nos núcleos físicos (`0x5555` em 8C/16T com SMT)
+- Perfil NVIDIA/AMD por driver key
+- `AdditionalCriticalWorkerThreads=8` e `AdditionalDelayedWorkerThreads=4`
+- TRIM forçado em SSD NTFS
+
 ## O que ele NÃO faz
 
 Deliberadamente fora, por não ter efeito mensurável ou por prejudicar:
@@ -146,7 +170,7 @@ Deliberadamente fora, por não ter efeito mensurável ou por prejudicar:
 - Desativar Defender por completo
 - Prioridade Realtime para jogos
 - Desativar SMT
-- Afinidade fixa de CPU por processo
+- Afinidade fixa em 1–2 núcleos (o pin em todos os núcleos físicos é opt-in no `extreme` e deve ser medido)
 - Packs de DNS "gamer"
 
 ## Segurança
@@ -181,11 +205,16 @@ lib/Detect.ps1        deteccao de hardware, aplicabilidade, achados
 lib/Tweaks.ps1        catalogo de tweaks, plano de energia, rede
 lib/Services.ps1      catalogo de servicos e desativacao condicional
 lib/Debloat.ps1       AppX, tarefas, recursos, kernel, NVIDIA, privacidade
-lib/Tuning.ps1        input, fullscreen, TCP, DNS, tier, guia, bench
+lib/Tuning.ps1        input, fullscreen, TCP, DNS, tier, guia, bench, deteccao de jogos
 lib/Modules.ps1       analise modular com score
 lib/Verdict.ps1       classificacao por evidencia
 lib/Boost.ps1         focus, ProBalance, trim, stress
 lib/Peripherals.ps1   USB, HID, monitores
+lib/Tui.ps1           banner, menu, deep scan com anomalias
+lib/Watcher.ps1       plano Ultimate, afinidade fisica, tarefa de logon
+lib/Gpu.ps1           perfil NVIDIA/AMD por driver key
+lib/Storage.ps1       I/O worker threads e TRIM
+bnqq-watch.ps1        processo do watcher (logon)
 config/profiles.json  perfis
 docs/what-it-does.md  efeito e risco de cada tweak
 docs/RELATORIO.md     relatório técnico completo

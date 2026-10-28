@@ -1,17 +1,25 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'help')]
-    [string]$Command = 'scan',
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
     [string]$BackupFile,
+    [ValidateSet('status', 'install', 'remove', 'run')]
+    [string]$WatcherAction = 'status',
+    [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
     [switch]$NoElevate
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$script:BnqqRoot = $root
+
+if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
+    $Command = 'scan'
+}
 
 . (Join-Path $root 'lib\Core.ps1')
 . (Join-Path $root 'lib\Kernel.ps1')
@@ -24,6 +32,10 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $root 'lib\Verdict.ps1')
 . (Join-Path $root 'lib\Boost.ps1')
 . (Join-Path $root 'lib\Peripherals.ps1')
+. (Join-Path $root 'lib\Gpu.ps1')
+. (Join-Path $root 'lib\Storage.ps1')
+. (Join-Path $root 'lib\Watcher.ps1')
+. (Join-Path $root 'lib\Tui.ps1')
 
 $configPath = Join-Path $root 'config\profiles.json'
 $reportDir = Join-Path $root 'reports'
@@ -31,6 +43,7 @@ $backupDir = Join-Path $root 'backups'
 $script:FocusStateFile = Join-Path $backupDir 'focus-state.json'
 
 $needsAdmin = $Command -in @('apply', 'revert', 'debloat', 'focus', 'unfocus', 'rebalance', 'trim')
+if ($Command -eq 'watch' -and $WatcherAction -in @('install', 'remove')) { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -40,6 +53,10 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
         if ($SkipRestorePoint) { $forward += '-SkipRestorePoint' }
     }
     if ($Command -eq 'revert' -and $BackupFile) { $forward += @('-BackupFile', $BackupFile) }
+    if ($Command -eq 'watch') {
+        $forward += @('-WatcherAction', $WatcherAction)
+        if ($PinPhysical) { $forward += '-PinPhysical' }
+    }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -47,6 +64,7 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
 Start-BnqqLog -Directory $reportDir | Out-Null
 
 $system = Get-SystemInfo
+$script:BnqqSystem = $system
 $tier = Get-BnqqTier
 
 if ($Profile -eq 'auto') {
@@ -134,6 +152,22 @@ switch ($Command) {
         Show-BnqqStatus -System $system -Tier $tier
     }
 
+    'watch' {
+        switch ($WatcherAction) {
+            'install' {
+                if ($system.IsLaptop) { Install-BnqqWatcher -PinPhysical:$PinPhysical -RespectBattery }
+                else { Install-BnqqWatcher -PinPhysical:$PinPhysical }
+            }
+            'remove'  { Uninstall-BnqqWatcher }
+            'run'     { Start-BnqqWatcher -PinPhysical:$PinPhysical -RespectBattery:$system.IsLaptop }
+            default   { Show-BnqqWatcherStatus }
+        }
+    }
+
+    'menu' {
+        Invoke-BnqqTui
+    }
+
     'focus' { Start-BnqqFocus }
     'unfocus' { Stop-BnqqFocus }
     'trim' { Invoke-BnqqTrim | Out-Null }
@@ -150,6 +184,14 @@ switch ($Command) {
         Write-Host ''
         Write-Host '  BNQQ TOOLKIT' -ForegroundColor Cyan
         Write-Host '  Otimizacao real e reversivel para Windows 10/11' -ForegroundColor DarkGray
+        Write-Host ''
+        Write-Host '  INTERATIVO' -ForegroundColor White
+        Write-Host '    .\bnqq.ps1                    TUI: deep scan, apply, revert, watcher' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 menu               Mesmo que sem parametros' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 watch              Status do watcher de jogos' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 watch -WatcherAction install [-PinPhysical]' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 watch -WatcherAction remove' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 watch -WatcherAction run    Primeiro plano' -ForegroundColor Gray
         Write-Host ''
         Write-Host '  DIAGNOSTICO' -ForegroundColor White
         Write-Host '    .\bnqq.ps1 scan                 Hardware, BIOS, OS e achados' -ForegroundColor Gray
