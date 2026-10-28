@@ -1,4 +1,4 @@
-function New-BnqqFinding {
+﻿function New-BnqqFinding {
     param(
         [ValidateSet('critical', 'warn', 'info', 'ok')]
         [string]$Severity,
@@ -409,8 +409,9 @@ function Get-BnqqModuleNetwork {
         catch { }
     }
 
-    $tcp = (& netsh int tcp show global 2>$null) -join ' '
-    if ($tcp -match 'ECN.*enabled') {
+    $tcpLines = @(& netsh int tcp show global 2>$null)
+    $ecnLine = $tcpLines | Where-Object { $_ -match 'ECN' } | Select-Object -First 1
+    if ($ecnLine -and $ecnLine -match 'enabled') {
         $findings.Add((New-BnqqFinding 'info' 'ECN habilitado' 'Pode gerar retransmissoes em redes que nao suportam.' 'Desativar ecncapability.' 'Reduz picos de latencia'))
     }
 
