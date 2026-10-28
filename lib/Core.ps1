@@ -110,16 +110,21 @@ function Set-BnqqReg {
         $script:BnqqState.Backup[$key] = Get-RegSnapshot -Path $Path -Name $Name
     }
 
-    if (-not (Test-Path -LiteralPath $Path)) {
-        New-Item -Path $Path -Force | Out-Null
-    }
+    try {
+        if (-not (Test-Path -LiteralPath $Path)) {
+            New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
+        }
 
-    if ($null -eq $Value) {
-        Remove-ItemProperty -LiteralPath $Path -Name $Name -ErrorAction SilentlyContinue
-        return
-    }
+        if ($null -eq $Value) {
+            Remove-ItemProperty -LiteralPath $Path -Name $Name -ErrorAction SilentlyContinue
+            return
+        }
 
-    New-ItemProperty -LiteralPath $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
+        New-ItemProperty -LiteralPath $Path -Name $Name -Value $Value -PropertyType $Type -Force -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Bnqq ('Registro protegido ou invalido: {0} | {1}' -f $Path, $Name) 'WARN'
+    }
 }
 
 function Set-BnqqMeta {
