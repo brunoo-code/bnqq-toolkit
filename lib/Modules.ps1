@@ -284,6 +284,17 @@ function Get-BnqqModuleStorage {
         if ($d.MediaType -eq 'HDD') {
             $findings.Add((New-BnqqFinding 'warn' ('HDD presente: {0}' -f $d.FriendlyName) 'Jogos em HDD causam stutter de streaming.' 'Mover jogos para SSD.' 'Diferenca de 5-20x em tempo de carregamento'))
         }
+
+        try {
+            $rel = Get-StorageReliabilityCounter -PhysicalDisk $d -ErrorAction Stop
+            if ($rel.Wear -ne $null -and $rel.Wear -ge 80) {
+                $findings.Add((New-BnqqFinding 'warn' ('SSD {0} com {1}% de desgaste' -f $d.FriendlyName, $rel.Wear) 'Proximo do limite de escritas.' 'Planejar substituicao.' 'Evita falha durante uso'))
+            }
+            if ($rel.Temperature -ne $null -and $rel.Temperature -ge 65) {
+                $findings.Add((New-BnqqFinding 'warn' ('SSD {0} a {1} C' -f $d.FriendlyName, $rel.Temperature) 'NVMe acima de 65 C reduz velocidade por throttling.' 'Melhorar ventilacao ou dissipador.' 'Mantem escrita em pico'))
+            }
+        }
+        catch { }
     }
 
     $trim = (fsutil behavior query DisableDeleteNotify 2>$null) -join ' '
@@ -502,6 +513,36 @@ function Get-BnqqModuleOs {
 
     $svcDisabled = @(Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.StartType -eq 'Disabled' }).Count
 
+    $whea = 0
+    try {
+        $whea = @(Get-WinEvent -FilterHashtable @{
+            LogName      = 'System'
+            ProviderName = 'Microsoft-Windows-WHEA-Logger'
+            StartTime    = (Get-Date).AddDays(-7)
+        } -ErrorAction Stop).Count
+    }
+    catch { }
+
+    if ($whea -gt 0) {
+        $findings.Add((New-BnqqFinding 'critical' ('{0} erro(s) de hardware (WHEA) em 7 dias' -f $whea) 'Erros corrigiveis de CPU, RAM ou PCIe indicam instabilidade.' 'Rodar memtest e atualizar BIOS.' 'Evita crash e stutter'))
+    }
+
+    $bootMs = $null
+    try {
+        $boot = Get-WinEvent -LogName 'Microsoft-Windows-Diagnostics-Performance/Operational' -MaxEvents 30 -ErrorAction Stop |
+            Where-Object { $_.Id -eq 100 } | Select-Object -First 1
+        if ($boot) {
+            $xml = [xml]$boot.ToXml()
+            $node = $xml.Event.EventData.Data | Where-Object { $_.Name -eq 'BootTime' } | Select-Object -First 1
+            if ($node) { $bootMs = [int]$node.'#text' }
+        }
+    }
+    catch { }
+
+    if ($bootMs -ne $null -and $bootMs -gt 45000) {
+        $findings.Add((New-BnqqFinding 'warn' ('Boot de {0:N1}s' -f ($bootMs / 1000)) 'Acima de 45 s indica startup ou driver travando o boot.' 'Revisar inicializacao e drivers.' 'Menos tempo ate o jogo abrir'))
+    }
+
     return [pscustomobject]@{
         Module   = 'Sistema'
         Score    = Get-BnqqScore $findings
@@ -513,7 +554,9 @@ function Get-BnqqModuleOs {
             Startup = $startup.Count
             ServicesDisabled = $svcDisabled
             Bloat = $bloat.Count
-            Pending = [bool]$pending
+            Pending = [bool]($cbs -or $wu -or $driverPending)
+            Whea = $whea
+            BootMs = $bootMs
         }
     }
 }

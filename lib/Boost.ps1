@@ -249,12 +249,13 @@ function Start-BnqqFocus {
     Write-Bnqq ('Jogo: {0} (PID {1})' -f $game.ProcessName, $game.Id) 'STEP'
 
     $state = [pscustomobject]@{
-        Created   = (Get-Date).ToString('o')
-        Game      = $game.ProcessName
-        GamePid   = $game.Id
-        Suspended = @()
-        Lowered   = @()
-        PowerPlan = $null
+        Created        = (Get-Date).ToString('o')
+        Game           = $game.ProcessName
+        GamePid        = $game.Id
+        Suspended      = @()
+        Lowered        = @()
+        PausedServices = @()
+        PowerPlan      = $null
     }
 
     $suspended = New-Object System.Collections.Generic.List[object]
@@ -300,12 +301,24 @@ function Start-BnqqFocus {
         Write-Bnqq 'Nao foi possivel elevar a prioridade do jogo (anticheat?)' 'WARN'
     }
 
+    $pausedServices = New-Object System.Collections.Generic.List[object]
+    foreach ($name in @('DoSvc', 'BITS')) {
+        $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+        if (-not $svc -or $svc.Status -ne 'Running') { continue }
+        try {
+            Stop-Service -Name $name -Force -ErrorAction Stop
+            $pausedServices.Add([pscustomobject]@{ Name = $name })
+            Write-Bnqq ('Pausado durante a partida: {0}' -f $name) 'OK'
+        }
+        catch { }
+    }
+
     $scheme = (powercfg /getactivescheme) -join ' '
     $current = [regex]::Match($scheme, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}').Value
     $state.PowerPlan = $current
 
     $plan = (powercfg /list) -join "`n"
-    $m = [regex]::Match($plan, '(?m)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s+\((BNQQ Competitive|BNQQ Gaming)\)')
+    $m = [regex]::Match($plan, '(?m)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s+\((BNQQ [A-Za-z]+)\)')
     if ($m.Success) {
         powercfg /setactive $m.Groups[1].Value 2>$null | Out-Null
         Write-Bnqq ('Plano ativado: {0}' -f $m.Groups[2].Value) 'OK'
@@ -313,6 +326,7 @@ function Start-BnqqFocus {
 
     $state.Suspended = @($suspended)
     $state.Lowered = @($lowered)
+    $state.PausedServices = @($pausedServices)
 
     if (-not $script:FocusStateFile) {
         $script:FocusStateFile = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) 'backups\focus-state.json'
@@ -348,6 +362,14 @@ function Stop-BnqqFocus {
         try {
             $p.PriorityClass = $l.Previous
             [void](Set-BnqqIoPriority -ProcessId $l.Id -Level 'Normal')
+        }
+        catch { }
+    }
+
+    foreach ($s in @($state.PausedServices)) {
+        try {
+            Start-Service -Name $s.Name -ErrorAction Stop
+            Write-Bnqq ('Retomado: {0}' -f $s.Name) 'OK'
         }
         catch { }
     }

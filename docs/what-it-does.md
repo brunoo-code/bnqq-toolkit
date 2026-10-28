@@ -162,6 +162,42 @@ Preferencia global por desempenho maximo, telemetria e serviços de container de
 ### `privacy-lockdown`
 Copilot, Recall, widgets, sugestoes e "experiencias personalizadas" desativados.
 
+## GPU e display
+
+### `gpu-preference`
+Grava `GpuPreference=2` (High performance) em `HKCU\Software\Microsoft\DirectX\UserGpuPreferences` para cada executável de jogo encontrado.
+
+**Efeito:** em notebook com iGPU + dGPU, o Windows deixa de escolher o vídeo integrado. É a diferença entre 30 e 120 FPS em alguns notebooks.
+
+### `display-optimizations`
+`DirectXUserGlobalSettings` com `VRROptimizeEnable=1` e `SwapEffectUpgradeEnable=1`.
+
+**Efeito:** VRR gerenciado pelo DirectX e swap chain moderna em jogos de janela. Não muda nada em fullscreen exclusivo.
+
+### `defender-cpu-limit`
+`ScanAvgCPULoadFactor=20` (padrão 50).
+
+**Efeito:** a varredura em background nunca passa de 20% de CPU. Evita pico de 100% no meio da partida.
+
+## CPU (perfil `extreme`)
+
+### `mitigations-off`
+`FeatureSettingsOverride=3` e `FeatureSettingsOverrideMask=3`.
+
+**Efeito:** desliga as mitigações em software de Spectre/Meltdown. Em AMD Zen e Intel mais antigos, 5–15% de CPU em jogos CPU-bound. **Risco:** exposição a exploits de CPU. Requer reboot.
+
+### `cstates-off`
+`IDLEDISABLE=1` no plano de energia.
+
+**Efeito:** núcleos não entram em C-state profundo. Não aumenta FPS médio, mas corta o stutter do primeiro input depois de ociosidade. **Custo:** consumo e temperatura em idle.
+
+## Memoria
+
+### `large-system-cache` (16 GB+)
+`LargeSystemCache=1`.
+
+**Efeito:** cache de arquivos do kernel maior. Com folga de RAM é inofensivo; o ganho em jogos é marginal.
+
 ## Durante o jogo
 
 ### `focus`

@@ -73,6 +73,7 @@ Diagnóstico:
 | `desktop` | Desktop | Equilibrado. Sem desligar HVCI. |
 | `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off. |
 | `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot. |
+| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off. Risco alto, ganho real em CPU-bound. |
 
 O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` → `lowend`; resto → `gaming`.
 
@@ -124,6 +125,12 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 - MSI mode em GPU e rede
 - NVIDIA: preferência por performance máxima e telemetria off
 - Fullscreen exclusivo forçado
+- **GPU dedicada por jogo** (essencial em notebook com iGPU + dGPU)
+- **VRR otimizado e swap chain moderno** para jogos em janela
+
+**CPU (perfil `extreme`)**
+- Mitigações de Spectre/Meltdown desligadas — 5–15% de CPU em troca de exposição a exploits de CPU
+- C-states desligados — reduz latência de wake, sem ganho de FPS médio
 
 **Segurança**
 - Pastas de jogos (Steam, Riot, Epic, Ubisoft, Battle.net) excluídas da varredura em tempo real
@@ -150,6 +157,14 @@ Deliberadamente fora, por não ter efeito mensurável ou por prejudicar:
 - `revert` restaura tudo
 - Idempotente: rodar duas vezes não quebra
 - `focus` grava `backups/focus-state.json` e só retoma o que foi suspenso
+
+### O que o `revert` não desfaz
+
+- **`debloat-appx`** — apps removidos não voltam. Reinstale pela Store ou `winget`.
+- **`features-off`** — recursos do Windows precisam de `Enable-WindowsOptionalFeature -Online -FeatureName <nome> -All`.
+- **`mitigations-off`** — o `revert` restaura o registro, mas exige reboot para o kernel voltar a aplicar as mitigações.
+
+Tudo o mais (registro, serviços, plano de energia, rede, pagefile, tarefas) volta ao estado anterior.
 
 ## Requisitos
 

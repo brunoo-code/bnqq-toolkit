@@ -165,8 +165,10 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 apply -Profile desktop   equilibrado' -ForegroundColor DarkGray
         Write-Host '    .\bnqq.ps1 apply -Profile gaming    agressivo' -ForegroundColor DarkGray
         Write-Host '    .\bnqq.ps1 apply -Profile fresh     pos-formatacao, tudo' -ForegroundColor DarkGray
+        Write-Host '    .\bnqq.ps1 apply -Profile extreme   fresh + mitigacoes off (risco alto)' -ForegroundColor DarkGray
         Write-Host '    .\bnqq.ps1 apply -WhatIf        Mostra sem aplicar' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 revert               Desfaz o ultimo apply' -ForegroundColor Gray
+        Write-Host '                                    (nao reinstala apps removidos nem recursos)' -ForegroundColor DarkGray
         Write-Host ''
         Write-Host '  DURANTE O JOGO' -ForegroundColor White
         Write-Host '    .\bnqq.ps1 focus                Suspende background e prioriza o jogo' -ForegroundColor Gray

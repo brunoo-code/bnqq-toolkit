@@ -54,6 +54,12 @@ $script:Verdicts = @(
     @{ Id = 'dns-fast'; Verdict = 'neutral'; Impact = 'login'; Why = 'Afeta resolucao de nomes (login/loja), nao a latencia in-game.' }
     @{ Id = 'sleep-policy'; Verdict = 'neutral'; Impact = '0%'; Why = 'Evita suspensao durante downloads longos.' }
     @{ Id = 'features-off'; Verdict = 'neutral'; Impact = 'seguranca'; Why = 'Reduz superficie de ataque (SMB1, PS2). Nao muda FPS.' }
+    @{ Id = 'gpu-preference'; Verdict = 'proven'; Impact = 'evita iGPU'; Why = 'Em notebook com video integrado e dedicado, o Windows pode escolher a iGPU. Forcar High performance garante a dGPU.' }
+    @{ Id = 'display-optimizations'; Verdict = 'likely'; Impact = '1-3% / smooth'; Why = 'VRR otimizado e swap chain moderno em jogos de janela reduzem tearing e stutter. Sem efeito em fullscreen exclusivo.' }
+    @{ Id = 'defender-cpu-limit'; Verdict = 'proven'; Impact = 'menos picos'; Why = 'Limita a varredura em background a 20% de CPU. Evita picos de 100% durante o jogo.' }
+    @{ Id = 'large-system-cache'; Verdict = 'neutral'; Impact = '0-1%'; Why = 'Aumenta cache de arquivos do kernel. Com 16 GB+ e inofensivo, mas o ganho em jogos e marginal.' }
+    @{ Id = 'mitigations-off'; Verdict = 'proven'; Impact = '5-15% CPU'; Why = 'Mitigacoes de Spectre/Meltdown em software custam CPU em cada troca de contexto. Desligar devolve desempenho. Custo: exposicao a exploits de CPU.' }
+    @{ Id = 'cstates-off'; Verdict = 'likely'; Impact = 'latencia'; Why = 'Nucleos nao entram em C-state profundo, reduzindo o tempo de wake. Nao aumenta FPS medio, mas corta stutter no primeiro input.' }
 )
 
 $script:Debunked = @(

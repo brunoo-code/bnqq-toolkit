@@ -335,6 +335,38 @@ $script:TweakCatalog = @(
         Requires = @{ Storage = 'hdd' }
         Name = 'Desativar SysMain em disco mecanico'
         Apply = { Set-BnqqServices -Names @('SysMain') }
+    },
+    @{
+        Id = 'gpu-preference'; Area = 'GPU'; Risk = 'low'; Reboot = $false
+        Name = 'Fixar jogos na GPU dedicada'
+        Apply = { Set-BnqqGpuPreference }
+    },
+    @{
+        Id = 'display-optimizations'; Area = 'Display'; Risk = 'low'; Reboot = $false
+        Name = 'VRR e otimizacoes para jogos em janela'
+        Apply = { Set-BnqqDisplayOptimizations }
+    },
+    @{
+        Id = 'defender-cpu-limit'; Area = 'Seguranca'; Risk = 'low'; Reboot = $false
+        Name = 'Defender: limitar varredura a 20% de CPU'
+        Apply = { Set-BnqqDefenderCpuLimit }
+    },
+    @{
+        Id = 'large-system-cache'; Area = 'Memoria'; Risk = 'low'; Reboot = $true
+        Requires = @{ MinRamGB = 16 }
+        Name = 'LargeSystemCache (16 GB+)'
+        Apply = { Set-BnqqLargeSystemCache }
+    },
+    @{
+        Id = 'mitigations-off'; Area = 'CPU'; Risk = 'high'; Reboot = $true
+        Requires = @{ Chassis = 'desktop' }
+        Name = 'Desativar mitigacoes de CPU (Spectre/Meltdown)'
+        Apply = { Set-BnqqMitigationsOff }
+    },
+    @{
+        Id = 'cstates-off'; Area = 'CPU'; Risk = 'medium'; Reboot = $false
+        Name = 'Desativar C-states (latencia de wake)'
+        Apply = { Set-BnqqCStates -Disabled 1 }
     }
 )
 
@@ -734,4 +766,88 @@ function Invoke-BnqqApply {
     if ($reboot -gt 0) {
         Write-Bnqq 'Reinicie para aplicar os ajustes de kernel/driver' 'WARN'
     }
+}
+
+function Set-BnqqGpuPreference {
+    $base = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+    if (-not (Test-Path -LiteralPath $base)) { New-Item -Path $base -Force | Out-Null }
+
+    $paths = @(Get-BnqqGameExes)
+    if ($paths.Count -eq 0) {
+        Write-Bnqq 'Nenhum executavel de jogo encontrado para preferencia de GPU' 'INFO'
+        return
+    }
+
+    $added = 0
+    foreach ($p in $paths) {
+        $existing = $null
+        try { $existing = Get-ItemPropertyValue -LiteralPath $base -Name $p -ErrorAction Stop } catch { }
+
+        if ($existing -match 'GpuPreference=2') { continue }
+
+        $value = if ([string]::IsNullOrWhiteSpace($existing)) { 'GpuPreference=2;' }
+                 else { ($existing.TrimEnd(';') + ';GpuPreference=2;') }
+
+        Set-BnqqReg $base $p $value 'String'
+        $added++
+    }
+
+    Write-Bnqq ('{0} jogo(s) fixados na GPU dedicada' -f $added) 'OK'
+}
+
+function Set-BnqqDisplayOptimizations {
+    $base = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+    if (-not (Test-Path -LiteralPath $base)) { New-Item -Path $base -Force | Out-Null }
+
+    $existing = ''
+    try { $existing = Get-ItemPropertyValue -LiteralPath $base -Name 'DirectXUserGlobalSettings' -ErrorAction Stop } catch { }
+
+    $map = @{}
+    foreach ($part in ($existing -split ';')) {
+        if ($part -match '^([^=]+)=(.*)$') { $map[$Matches[1]] = $Matches[2] }
+    }
+
+    $map['VRROptimizeEnable'] = '1'
+    $map['SwapEffectUpgradeEnable'] = '1'
+
+    $value = (($map.GetEnumerator() | ForEach-Object { '{0}={1}' -f $_.Key, $_.Value }) -join ';') + ';'
+    Set-BnqqReg $base 'DirectXUserGlobalSettings' $value 'String'
+
+    Write-Bnqq 'VRR e otimizacoes para jogos em janela ativados' 'OK'
+}
+
+function Set-BnqqDefenderCpuLimit {
+    try {
+        Set-MpPreference -ScanAvgCPULoadFactor 20 -ErrorAction Stop
+        Write-Bnqq 'Defender: varredura limitada a 20% de CPU' 'OK'
+    }
+    catch {
+        Write-Bnqq ('Defender: nao foi possivel ajustar ({0})' -f $_.Exception.Message) 'WARN'
+    }
+}
+
+function Set-BnqqLargeSystemCache {
+    Set-BnqqReg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' 'LargeSystemCache' 1
+    Write-Bnqq 'LargeSystemCache ativado' 'OK'
+}
+
+function Set-BnqqMitigationsOff {
+    $base = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
+    Set-BnqqReg $base 'FeatureSettingsOverride' 3
+    Set-BnqqReg $base 'FeatureSettingsOverrideMask' 3
+    Write-Bnqq 'Mitigacoes de CPU desativadas (requer reboot)' 'OK'
+}
+
+function Set-BnqqCStates {
+    param([int]$Disabled = 1)
+
+    $scheme = (powercfg /getactivescheme) -join ' '
+    $guid = [regex]::Match($scheme, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}').Value
+    if (-not $guid) { throw 'Plano de energia ativo nao identificado' }
+
+    powercfg /setacvalueindex $guid SUB_PROCESSOR 5d76a2ca-e8c0-402f-a133-2158492d58ad $Disabled 2>$null | Out-Null
+    powercfg /setdcvalueindex $guid SUB_PROCESSOR 5d76a2ca-e8c0-402f-a133-2158492d58ad $Disabled 2>$null | Out-Null
+    powercfg /setactive $guid 2>$null | Out-Null
+
+    Write-Bnqq ('C-states: {0}' -f $(if ($Disabled) { 'desativados' } else { 'ativos' })) 'OK'
 }
