@@ -188,6 +188,7 @@ lib/Boost.ps1         focus, ProBalance, trim, stress
 lib/Peripherals.ps1   USB, HID, monitores
 config/profiles.json  perfis
 docs/what-it-does.md  efeito e risco de cada tweak
+docs/RELATORIO.md     relatório técnico completo
 ```
 
 ## Aviso
