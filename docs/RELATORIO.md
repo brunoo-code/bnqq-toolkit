@@ -1,4 +1,4 @@
-# BNQQ Toolkit — Relatório Técnico
+﻿# BNQQ Toolkit — Relatório Técnico
 
 Documento de referência do projeto público. Explica o que o toolkit é, como o motor adaptativo decide, o que cada perfil faz, o que foi medido e quais são os limites.
 
@@ -60,23 +60,23 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 
 ---
 
-## 4. Catálogo — 69 tweaks
+## 4. Catálogo — 77 tweaks
 
 | Área | Itens |
 |---|---|
-| CPU / energia | power-plan adaptativo, power-throttling-off, core-parking-off, win32-priority, mmcss-games, cstates-off* |
+| CPU / energia | power-plan adaptativo, power-throttling-off, core-parking-off, win32-priority, mmcss-games, cstates-off*, game-watcher, game-affinity* |
 | Latência | hvci-off, credential-guard-off, hypervisor-off, ndu-off, msi-mode, timer-defaults, interrupt-affinity (desktop 8+ threads), bcd-timer |
 | Memória | pagefile-managed, memory-compression-off, kernel-memory, large-system-cache |
-| GPU | hags-on, nvidia-max-perf, mpo-off, gpu-preference, display-optimizations |
+| GPU | hags-on, nvidia-max-perf, mpo-off, gpu-preference, display-optimizations, gpu-vendor-profile |
 | Display | fse-forced, fullscreen-opt |
 | Input | mouse-accel-off, keyboard-response, usb-power-off, usb3-lpm-off, usb-suspend-off, pcie-aspm-off |
 | Rede | network-throttling, network-adapter, ndis-offloads, rss-tuning, tcp-tuning, tcp-kernel, dns-fast, netbios-off, delivery-opt-off |
 | Sistema | fast-startup-off, hibernate-off, visual-effects, sleep-policy, reserved-storage-off |
 | Debloat | debloat-appx, tasks-off, features-off, telemetry-off, privacy-lockdown, etw-autologgers |
 | Serviços | services-low, services-medium, conditional-services |
-| Apps | browser-background-off, discord-tweaks, startup-trim, startup-launchers, steam-overlay-off, process-priority |
+| Apps | browser-background-off, browser-choking, shortcut-flags, ai-cleanup, discord-tweaks, startup-trim, startup-launchers, steam-overlay-off, process-priority |
 | Segurança | defender-exclusions, defender-cpu-limit |
-| Disco | filesystem-tune, ntfs-shortnames |
+| Disco | filesystem-tune, ntfs-shortnames, io-queue-depth, ssd-trim |
 | CPU (extremo) | mitigations-off* |
 
 `*` somente no perfil `extreme`.
@@ -87,12 +87,12 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 
 | Perfil | Tweaks | Comportamento |
 |---|---|---|
-| `lowend` | 52 | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios. |
-| `laptop` | 43 | Respeita bateria: no DC mantém downclock, ASPM e suspend USB; NDIS agressivo e afinidade de interrupção são ignorados. |
-| `desktop` | 54 | Equilibrado. Sem desligar HVCI. |
-| `gaming` | 62 | Agressivo: HVCI off, core parking off, memory compression off. |
-| `fresh` | 63 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI. |
-| `extreme` | 65 | `fresh` + mitigações de CPU off + C-states off. |
+| `lowend` | 54 | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios. |
+| `laptop` | 44 | Respeita bateria: no DC mantém downclock, ASPM e suspend USB; NDIS agressivo e afinidade de interrupção são ignorados. |
+| `desktop` | 57 | Equilibrado. Sem desligar HVCI. |
+| `gaming` | 68 | Agressivo: HVCI off, core parking off, memory compression off. |
+| `fresh` | 69 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI. |
+| `extreme` | 72 | `fresh` + mitigações de CPU off + C-states off. |
 
 ---
 
