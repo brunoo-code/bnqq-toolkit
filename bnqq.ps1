@@ -126,7 +126,7 @@ switch ($Command) {
     }
 
     'verdict' {
-        if ($Profile -eq 'all') { Show-BnqqVerdicts -ConfigPath $configPath }
+        if ($Profile -eq 'all' -or -not $PSBoundParameters.ContainsKey('Profile')) { Show-BnqqVerdicts -ConfigPath $configPath }
         else { Show-BnqqVerdicts -Profile $Profile -ConfigPath $configPath }
     }
 

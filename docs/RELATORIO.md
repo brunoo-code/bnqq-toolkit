@@ -383,7 +383,24 @@ Nada injeta código em processo de jogo, instala driver não assinado, ativa `te
 
 **Limites do revert:** AppX removido (Cortana, debloat) não é reinstalado; recursos opcionais não são reativados; o plano BNQQ Ultimate permanece inativo no sistema.
 
-### 15.8 Changelog 2.1
+### 15.8 Verificação na máquina de validação
+
+| Item | Resultado |
+|---|---|
+| `apply -Profile extreme` | 72 aplicáveis, 0 falhas, 26 exigem reboot |
+| Watcher | tarefa de logon em execução; `cs2.exe` → BNQQ Ultimate, afinidade `0x5555`, retorno ao plano anterior |
+| IFEO | `CpuPriorityClass=3`, `IoPriority=3`, `PagePriority=5` para CS2 e VALORANT |
+| MMCSS | GPU Priority 8, Priority 6, Clock Rate 10000, SystemResponsiveness 0 |
+| Navegadores | políticas de HW accel/background/startup boost = 0 |
+| IA | Copilot/Recall bloqueados, 1 tarefa de IA desativada |
+| I/O | worker threads 8/4 |
+| TRIM | C: 5,2 s · D: 2,7 s |
+| `report` | 98/100; único achado real é ReBAR desativado (BIOS) |
+| `deep` | 4467 MHz, DPC 0%, ISR 0,33%, GPU P0, PCIe Gen3 x16 |
+
+O `report` foi corrigido para ler ECN por linha: antes, o texto agregado de `netsh` fazia `ECN.*enabled` casar com linhas posteriores e gerar falso positivo.
+
+### 15.9 Changelog 2.1
 
 | Versão | Entrega |
 |---|---|
