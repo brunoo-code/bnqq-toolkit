@@ -486,9 +486,12 @@ function Get-BnqqModuleOs {
         $findings.Add((New-BnqqFinding 'warn' ('{0} itens na inicializacao' -f $startup.Count) 'Consomem RAM e CPU no boot.' 'Remover o que nao precisa.' 'Menos processos competindo'))
     }
 
-    $pending = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
-        ((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations)
-    if ($pending) {
+    $cbs = Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending'
+    $wu = Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
+    $pfro = @((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations)
+    $driverPending = @($pfro | Where-Object { $_ -match '\.sys$' }).Count -gt 0
+
+    if ($cbs -or $wu -or $driverPending) {
         $findings.Add((New-BnqqFinding 'info' 'Reinicio pendente' 'Ajustes de kernel/driver ainda nao aplicados.' 'Reiniciar.' 'Ativa tweaks pendentes'))
     }
 
