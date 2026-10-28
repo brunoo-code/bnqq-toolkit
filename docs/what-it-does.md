@@ -120,6 +120,68 @@ Exclui pastas de jogos da varredura em tempo real.
 
 **Efeito:** evita que o antivírus inspecione cada leitura de asset durante o jogo. **Risco:** arquivos nessas pastas não são verificados em tempo real.
 
+## Debloat e servicos
+
+### `services-medium`
+Servicos de medio risco, aplicados **somente** se o hardware correspondente nao existir: Spooler (sem impressora), Bluetooth (sem radio BT), WSL e Docker (sem instalacao detectada).
+
+**Efeito:** menos threads e handles em background. **Risco:** se voce instalar uma impressora depois, reative o Spooler.
+
+### `sysmain-off` (somente HDD)
+Desliga o SysMain apenas em disco mecanico.
+
+**Por que:** em HDD o prefetch ajuda; em SSD ele compete por I/O. Por isso a condicao e invertida em relacao ao que muitos packs fazem.
+
+### `debloat-appx`
+Remove uma lista curada de apps pre-instalados (jogos, noticias, clima, mapas, solitaire, Skype, OneNote, Teams consumer, etc.). Nao toca em Store, Calculator, Photos, Camera, Explorer.
+
+### `tasks-off`
+Desativa tarefas de telemetria e diagnostico por **prefixo de caminho**, nao por nome exato. Isso funciona em builds onde o nome real tem sufixo (ex.: `Microsoft Compatibility Appraiser Exp`).
+
+### `features-off`
+Desativa recursos opcionais nao usados: Work Folders, Simple TCP, TFTP, Printing XPS, Media Playback, Recall.
+
+### `filesystem-tune`
+`NtfsDisableLastAccessUpdate=1`, `NtfsMemoryUsage=2`.
+
+**Efeito:** menos escritas de metadados e cache NTFS maior.
+
+### `kernel-memory`
+`DisablePagingExecutive=1` e dump de kernel reduzido.
+
+**Efeito:** driver e kernel permanecem em RAM. **Custo:** ~100 MB de RAM. Requer reboot.
+
+### `msi-mode`
+Forca interrupcoes em modo MSI (message-signaled) em GPU e adaptador de rede.
+
+**Efeito:** interrupcoes por mensagem tem menos overhead que IRQ compartilhada. **Risco:** driver antigo pode nao suportar — teste antes.
+
+### `nvidia-max-perf` (somente NVIDIA)
+Preferencia global por desempenho maximo, telemetria e serviços de container desligados.
+
+### `privacy-lockdown`
+Copilot, Recall, widgets, sugestoes e "experiencias personalizadas" desativados.
+
+## Durante o jogo
+
+### `focus`
+Detecta o jogo em execucao, suspende navegadores, sincronizadores de nuvem, launchers e apps de mensagem, coloca Discord/Spotify/Steam webhelper em prioridade baixa, sobe o jogo para High e I/O High, e ativa o plano BNQQ.
+
+**Por que:** e o que Game Boosters pagos fazem, mas aqui e transparente e reversivel. `unfocus` retoma exatamente o que foi suspenso.
+
+### `rebalance` (ProBalance)
+Amostra CPU por processo a cada 1,5 s. Se um processo em background passa de 15% por 3 amostras, cai para BelowNormal e I/O Low. Volta ao normal quando esfria. Nunca toca no processo em primeiro plano.
+
+### `trim`
+`EmptyWorkingSet` em processos ociosos com mais de 150 MB.
+
+**Efeito:** libera working set sem matar nada. **Custo:** o app re-lê do disco na proxima interacao. Util em 8 GB.
+
+### `stress`
+Carga em todas as threads por 15 s e comparacao entre performance de pico e media.
+
+**Efeito:** mostra queda real de boost. Acima de 12% de queda ha throttling termico ou limite de VRM.
+
 ## Como verificar se funcionou
 
 Não confie em sensação. Meça antes e depois:

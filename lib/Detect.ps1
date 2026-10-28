@@ -136,6 +136,7 @@ function Test-TweakApplicable {
     if ($req.MinRamGB -and $System.RamGB -lt $req.MinRamGB) { return $false }
     if ($req.MinBuild -and [int]$System.Build -lt $req.MinBuild) { return $false }
     if ($req.Storage -eq 'ssd' -and -not $System.HasSsd) { return $false }
+    if ($req.Storage -eq 'hdd' -and -not $System.HasHdd) { return $false }
 
     return $true
 }

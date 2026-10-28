@@ -1,92 +1,118 @@
 $ErrorActionPreference = 'Continue'
 
-$script:State = @{
-    Log    = $null
-    Backup = @{}
-    Meta   = @{}
+$script:BnqqState = @{
+    LogFile = $null
+    Backup  = @{}
+    Meta    = @{}
 }
 
-function Test-Admin {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    (New-Object Security.Principal.WindowsPrincipal($id)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+function Test-BnqqAdmin {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Invoke-Elevation {
-    param([string]$Script, [string[]]$ScriptArgs = @())
+function Invoke-BnqqElevation {
+    param(
+        [string]$ScriptPath,
+        [string[]]$ScriptArgs = @()
+    )
 
-    if (Test-Admin) { return }
+    if (Test-BnqqAdmin) { return }
 
     $shell = (Get-Process -Id $PID).Path
-    $list = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$Script`"") + $ScriptArgs
-    Start-Process -FilePath $shell -ArgumentList $list -Verb RunAs
+    $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$ScriptPath`"") + $ScriptArgs
+    Start-Process -FilePath $shell -ArgumentList $argList -Verb RunAs
     exit 0
 }
 
-function Start-Log {
-    param([string]$Dir)
+function Start-BnqqLog {
+    param([string]$Directory)
 
-    if (-not (Test-Path -LiteralPath $Dir)) { New-Item -ItemType Directory -Force -Path $Dir | Out-Null }
-    $file = Join-Path $Dir ('bnqq-{0}.log' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-    Set-Content -LiteralPath $file -Value '' -Encoding UTF8
-    $script:State.Log = $file
-    return $file
+    if (-not (Test-Path -LiteralPath $Directory)) {
+        New-Item -ItemType Directory -Force -Path $Directory | Out-Null
+    }
+
+    $name = 'bnqq-{0}.log' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
+    $script:BnqqState.LogFile = Join-Path $Directory $name
+    Set-Content -LiteralPath $script:BnqqState.LogFile -Value '' -Encoding UTF8
+    return $script:BnqqState.LogFile
 }
 
-function Write-Step {
-    param([string]$Message)
-    Write-Log -Message $Message -Level 'STEP'
-}
-
-function Write-Log {
+function Write-Bnqq {
     param(
         [string]$Message,
         [ValidateSet('INFO', 'OK', 'WARN', 'ERR', 'STEP')]
         [string]$Level = 'INFO'
     )
 
-    $line = '[{0}][{1}] {2}' -f (Get-Date -Format 'HH:mm:ss'), $Level, $Message
+    $stamp = Get-Date -Format 'HH:mm:ss'
+    $line = '[{0}][{1}] {2}' -f $stamp, $Level, $Message
 
-    if ($script:State.Log) { Add-Content -LiteralPath $script:State.Log -Value $line -Encoding UTF8 }
+    if ($script:BnqqState.LogFile) {
+        Add-Content -LiteralPath $script:BnqqState.LogFile -Value $line -Encoding UTF8
+    }
 
     $color = switch ($Level) {
-        'OK' { 'Green' }
+        'OK'   { 'Green' }
         'WARN' { 'Yellow' }
-        'ERR' { 'Red' }
+        'ERR'  { 'Red' }
         'STEP' { 'Cyan' }
         default { 'Gray' }
     }
+
     Write-Host $line -ForegroundColor $color
 }
 
 function Get-RegSnapshot {
-    param([string]$Path, [string]$Name)
+    param(
+        [string]$Path,
+        [string]$Name
+    )
 
-    $snap = [pscustomobject]@{ Path = $Path; Name = $Name; Existed = $false; Kind = $null; Value = $null }
+    $snapshot = [pscustomobject]@{
+        Path    = $Path
+        Name    = $Name
+        Existed = $false
+        Kind    = $null
+        Value   = $null
+    }
 
-    if (-not (Test-Path -LiteralPath $Path)) { return $snap }
+    if (-not (Test-Path -LiteralPath $Path)) { return $snapshot }
 
     $key = Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue
-    if (-not $key) { return $snap }
+    if ($null -eq $key) { return $snapshot }
 
     try {
-        $snap.Kind = $key.GetValueKind($Name).ToString()
-        $snap.Value = $key.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-        $snap.Existed = $true
+        $kind = $key.GetValueKind($Name)
+        $snapshot.Existed = $true
+        $snapshot.Kind = $kind.ToString()
+        $snapshot.Value = $key.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
     }
-    catch { $snap.Existed = $false }
+    catch {
+        $snapshot.Existed = $false
+    }
 
-    return $snap
+    return $snapshot
 }
 
-function Set-Reg {
-    param([string]$Path, [string]$Name, $Value, [string]$Type = 'DWord')
+function Set-BnqqReg {
+    param(
+        [string]$Path,
+        [string]$Name,
+        $Value,
+        [string]$Type = 'DWord'
+    )
 
-    $id = '{0}|{1}' -f $Path, $Name
-    if (-not $script:State.Backup.ContainsKey($id)) {
-        $script:State.Backup[$id] = Get-RegSnapshot -Path $Path -Name $Name
+    $key = '{0}|{1}' -f $Path, $Name
+
+    if (-not $script:BnqqState.Backup.ContainsKey($key)) {
+        $script:BnqqState.Backup[$key] = Get-RegSnapshot -Path $Path -Name $Name
     }
 
-    if (-not (Test-Path -LiteralPath $Path)) { New-Item -Path $Path -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $Path)) {
+        New-Item -Path $Path -Force | Out-Null
+    }
 
     if ($null -eq $Value) {
         Remove-ItemProperty -LiteralPath $Path -Name $Name -ErrorAction SilentlyContinue
@@ -96,89 +122,108 @@ function Set-Reg {
     New-ItemProperty -LiteralPath $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
 }
 
-function Set-Meta {
+function Set-BnqqMeta {
     param([string]$Key, $Value)
-    $script:State.Meta[$Key] = $Value
+    $script:BnqqState.Meta[$Key] = $Value
 }
 
-function Save-Backup {
-    param([string]$Dir)
+function Save-BnqqBackup {
+    param([string]$Directory)
 
-    if ($script:State.Backup.Count -eq 0 -and $script:State.Meta.Count -eq 0) { return $null }
-    if (-not (Test-Path -LiteralPath $Dir)) { New-Item -ItemType Directory -Force -Path $Dir | Out-Null }
+    if ($script:BnqqState.Backup.Count -eq 0 -and $script:BnqqState.Meta.Count -eq 0) { return $null }
 
-    $file = Join-Path $Dir ('backup-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-    [pscustomobject]@{
+    if (-not (Test-Path -LiteralPath $Directory)) {
+        New-Item -ItemType Directory -Force -Path $Directory | Out-Null
+    }
+
+    $name = 'backup-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
+    $file = Join-Path $Directory $name
+
+    $payload = [pscustomobject]@{
         Created = (Get-Date).ToString('o')
-        Entries = @($script:State.Backup.Values)
-        Meta    = $script:State.Meta
-    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $file -Encoding UTF8
+        Entries = @($script:BnqqState.Backup.Values)
+        Meta    = $script:BnqqState.Meta
+    }
 
+    $payload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $file -Encoding UTF8
     return $file
 }
 
-function Restore-Backup {
+function Restore-BnqqBackup {
     param([string]$File)
 
-    $data = Get-Content -LiteralPath $File -Raw -Encoding UTF8 | ConvertFrom-Json
+    $raw = Get-Content -LiteralPath $File -Raw -Encoding UTF8
+    $payload = $raw | ConvertFrom-Json
     $count = 0
 
-    foreach ($e in @($data.Entries)) {
-        if ($null -eq $e) { continue }
+    foreach ($entry in @($payload.Entries)) {
+        if ($null -eq $entry) { continue }
 
-        if ($e.Existed) {
-            if (-not (Test-Path -LiteralPath $e.Path)) { New-Item -Path $e.Path -Force | Out-Null }
-            New-ItemProperty -LiteralPath $e.Path -Name $e.Name -Value $e.Value -PropertyType $e.Kind -Force | Out-Null
+        if ($entry.Existed) {
+            if (-not (Test-Path -LiteralPath $entry.Path)) {
+                New-Item -Path $entry.Path -Force | Out-Null
+            }
+            New-ItemProperty -LiteralPath $entry.Path -Name $entry.Name -Value $entry.Value -PropertyType $entry.Kind -Force | Out-Null
         }
         else {
-            Remove-ItemProperty -LiteralPath $e.Path -Name $e.Name -ErrorAction SilentlyContinue
+            Remove-ItemProperty -LiteralPath $entry.Path -Name $entry.Name -ErrorAction SilentlyContinue
         }
         $count++
     }
 
-    $meta = $data.Meta
+    $meta = $payload.Meta
 
     if ($meta.PowerPlanId) {
         powercfg /setactive $meta.PowerPlanId 2>$null | Out-Null
-        Write-Log 'Plano de energia anterior reativado' 'OK'
+        Write-Bnqq ('Plano de energia restaurado: {0}' -f $meta.PowerPlanId) 'OK'
+    }
+
+    if ($meta.PagefileAutoManaged -eq $true) {
+        $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
+        if ($cs) {
+            Set-CimInstance -InputObject $cs -Property @{ AutomaticManagedPagefile = $true } -ErrorAction SilentlyContinue
+            Write-Bnqq 'Gerenciamento automatico de pagefile reativado' 'OK'
+        }
     }
 
     if ($meta.Services) {
-        foreach ($s in $meta.Services.PSObject.Properties) {
-            Set-Service -Name $s.Name -StartupType $s.Value -ErrorAction SilentlyContinue
+        foreach ($svc in $meta.Services.PSObject.Properties) {
+            Set-Service -Name $svc.Name -StartupType $svc.Value -ErrorAction SilentlyContinue
+            Write-Bnqq ('Servico {0} -> {1}' -f $svc.Name, $svc.Value) 'OK'
         }
-        Write-Log 'Servicos restaurados' 'OK'
     }
 
     if ($meta.NetAdapter) {
-        foreach ($p in $meta.NetAdapter.PSObject.Properties) {
+        foreach ($prop in $meta.NetAdapter.PSObject.Properties) {
             try {
-                Set-NetAdapterAdvancedProperty -Name $p.Value.Adapter -DisplayName $p.Value.Display -DisplayValue $p.Value.Value -ErrorAction Stop
+                Set-NetAdapterAdvancedProperty -Name $prop.Value.Adapter -DisplayName $prop.Value.Display -DisplayValue $prop.Value.Value -ErrorAction Stop
+                Write-Bnqq ('Adaptador {0}: {1} -> {2}' -f $prop.Value.Adapter, $prop.Value.Display, $prop.Value.Value) 'OK'
             }
-            catch { }
+            catch {
+                Write-Bnqq ('Falha ao restaurar {0}' -f $prop.Value.Display) 'WARN'
+            }
         }
-        Write-Log 'Adaptador de rede restaurado' 'OK'
     }
 
     return $count
 }
 
-function New-RestorePoint {
-    param([string]$Description = 'BNQQ Toolkit')
+function New-BnqqRestorePoint {
+    param([string]$Description = 'BNQQ Optimizer')
 
     try {
         Enable-ComputerRestore -Drive "$env:SystemDrive\" -ErrorAction SilentlyContinue
         Checkpoint-Computer -Description $Description -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop
-        Write-Log 'Ponto de restauracao criado' 'OK'
+        Write-Bnqq 'Ponto de restauracao criado' 'OK'
         return $true
     }
     catch {
-        Write-Log ('Ponto de restauracao indisponivel: {0}' -f $_.Exception.Message) 'WARN'
+        Write-Bnqq ('Ponto de restauracao indisponivel: {0}' -f $_.Exception.Message) 'WARN'
         return $false
     }
 }
 
-function Test-Cmd {
+function Test-BnqqCmd {
     param([string]$Name)
-    [bool](Get-Command -Name $Name -ErrorAction SilentlyContinue)
+    return [bool](Get-Command -Name $Name -ErrorAction SilentlyContinue)
 }
