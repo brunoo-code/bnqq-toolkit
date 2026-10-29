@@ -100,6 +100,8 @@ function Set-BnqqLatencyTcp {
 }
 
 function Set-BnqqLatencyPower {
+    param([switch]$ForceDeepIdleDisable)
+
     if (-not (Test-BnqqAdmin)) { throw 'Latencia de energia: exige elevacao' }
 
     $proc = '54533251-82be-4824-96c1-47b60b740d00'
@@ -120,13 +122,26 @@ function Set-BnqqLatencyPower {
     $guid = [regex]::Match($scheme, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}').Value
     if (-not $guid) { throw 'Plano de energia ativo nao identificado' }
 
-    $values = @(
-        @($proc, $idleDisable, 1),
-        @($proc, $idleDemote, 100),
-        @($proc, $idlePromote, 100),
-        @($ir, $coalescing, 0),
-        @($ir, $resiliency, 0)
-    )
+    if ($ForceDeepIdleDisable) {
+        $values = @(
+            @($proc, $idleDisable, 1),
+            @($proc, $idleDemote, 100),
+            @($proc, $idlePromote, 100),
+            @($ir, $coalescing, 0),
+            @($ir, $resiliency, 0)
+        )
+    }
+    else {
+        # Default seguro: nao desliga C-states. Apenas garante que uma aplicacao
+        # anterior do modo agressivo nao deixou o plano com IDLEDISABLE=1.
+        $values = @(
+            @($proc, $idleDisable, 0),
+            @($proc, $idleDemote, 40),
+            @($proc, $idlePromote, 60),
+            @($ir, $coalescing, 0),
+            @($ir, $resiliency, 0)
+        )
+    }
     $failed = 0
     foreach ($v in $values) {
         & powercfg /setacvalueindex $guid $v[0] $v[1] $v[2] 2>$null | Out-Null
@@ -138,16 +153,23 @@ function Set-BnqqLatencyPower {
     if ($failed -gt 0) {
         Write-Bnqq ('Energia: {0} valor(es) recusado(s); COALTIME/PROCIR podem nao existir neste plano/firmware' -f $failed) 'WARN'
     }
+    elseif ($ForceDeepIdleDisable) {
+        Write-Bnqq 'Energia AVANCADA: idle disable, demote/promote 100, IO coalescing 0 e resiliency timer 0' 'WARN'
+    }
     else {
-        Write-Bnqq 'Energia: idle disable, demote/promote 100, IO coalescing 0 e resiliency timer 0' 'OK'
+        Write-Bnqq 'Energia segura: idle enable, demote 40/promote 60; C-states nao foram desativados' 'OK'
     }
     Write-Bnqq 'Energia: C-states efetivos dependem do firmware AMD; o Windows apenas solicita idle disable' 'INFO'
 }
 
 function Set-BnqqLatencyTune {
-    param([switch]$Remove)
+    param(
+        [switch]$Remove,
+        [switch]$ForceDeepIdleDisable
+    )
 
     if (-not (Test-BnqqAdmin)) { throw 'Latencia: exige elevacao' }
+    if (-not $Remove) { Assert-BnqqHeavyQa }
 
     if ($Remove) {
         Set-BnqqReg 'HKLM:\SOFTWARE\Microsoft\Windows\Dwm' 'OverlayTestMode' $null
@@ -183,6 +205,6 @@ function Set-BnqqLatencyTune {
     Set-BnqqReg 'HKLM:\SOFTWARE\Microsoft\Windows\Dwm' 'OverlayTestMode' 5 'DWord'
     Write-Bnqq 'MPO: OverlayTestMode=5 (DWM sem multiplane overlay)' 'OK'
     Set-BnqqLatencyTcp
-    Set-BnqqLatencyPower
+    Set-BnqqLatencyPower -ForceDeepIdleDisable:$ForceDeepIdleDisable
     Write-Bnqq 'Latencia: reboot necessario para MPO e parte do driver de rede' 'WARN'
 }

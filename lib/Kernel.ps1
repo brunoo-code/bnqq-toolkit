@@ -332,6 +332,8 @@ function Set-BnqqPremiumNetworkOffloads {
 }
 
 function Set-BnqqPremiumPowerSettings {
+    param([switch]$ForceDeepIdleDisable)
+
     if (-not (Test-BnqqAdmin)) { throw 'Exige elevacao' }
 
     $sub = '54533251-82be-4824-96c1-47b60b740d00'
@@ -344,16 +346,22 @@ function Set-BnqqPremiumPowerSettings {
 
     & powercfg -attributes $sub $demote -ATTRIB_HIDE 2>$null | Out-Null
     & powercfg -attributes $sub $promote -ATTRIB_HIDE 2>$null | Out-Null
-    & powercfg -attributes $sub $idleDisable -ATTRIB_HIDE 2>$null | Out-Null
-    & powercfg -attributes $ir $coalescing -ATTRIB_HIDE 2>$null | Out-Null
-    & powercfg -attributes $ir $resiliency -ATTRIB_HIDE 2>$null | Out-Null
-
     Set-BnqqPowerValue $sub $demote 100
     Set-BnqqPowerValue $sub $promote 100
-    Set-BnqqPowerValue $sub $idleDisable 1
-    Set-BnqqPowerValue $ir $coalescing 0
-    Set-BnqqPowerValue $ir $resiliency 0
-    Write-Bnqq 'Premium: idle demote/promote 100 e idle disable 1 no plano ativo' 'OK'
+
+    if ($ForceDeepIdleDisable) {
+        & powercfg -attributes $sub $idleDisable -ATTRIB_HIDE 2>$null | Out-Null
+        & powercfg -attributes $ir $coalescing -ATTRIB_HIDE 2>$null | Out-Null
+        & powercfg -attributes $ir $resiliency -ATTRIB_HIDE 2>$null | Out-Null
+        Set-BnqqPowerValue $sub $idleDisable 1
+        Set-BnqqPowerValue $ir $coalescing 0
+        Set-BnqqPowerValue $ir $resiliency 0
+        Write-Bnqq 'Premium: modo AVANCADO com idle disable e resiliency timer 0' 'WARN'
+    }
+    else {
+        Set-BnqqPowerValue $sub $idleDisable 0
+        Write-Bnqq 'Premium: idle demote/promote 100; C-states permanecem habilitados' 'OK'
+    }
 }
 
 function Set-BnqqBcdTimer {

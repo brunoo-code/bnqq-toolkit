@@ -143,6 +143,8 @@ function Set-BnqqDisplayCompensation {
 }
 
 function Set-BnqqPowerCompensation {
+    param([switch]$ForceDeepIdleDisable)
+
     if (-not (Test-BnqqAdmin)) { throw 'Exige elevacao para ajustar energia' }
 
     $guid = [regex]::Match(((powercfg /getactivescheme) -join ' '), '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}').Value
@@ -154,11 +156,16 @@ function Set-BnqqPowerCompensation {
     powercfg /setactive $guid 2>$null | Out-Null
 
     Set-BnqqCoreParking 100
-    Set-BnqqPremiumPowerSettings
-    Set-BnqqCStates 1
+    Set-BnqqPremiumPowerSettings -ForceDeepIdleDisable:$ForceDeepIdleDisable
+    if ($ForceDeepIdleDisable) { Set-BnqqCStates 1 } else { Set-BnqqCStates 0 }
     Set-BnqqReg 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling' 'PowerThrottlingOff' 1 'DWord'
 
-    Write-Bnqq 'Power: core parking off, min/max 100%, idle demote/promote 100, C-states off' 'OK'
+    if ($ForceDeepIdleDisable) {
+        Write-Bnqq 'Power AVANCADO: core parking off, min/max 100%, C-states off' 'WARN'
+    }
+    else {
+        Write-Bnqq 'Power seguro: core parking off, min/max 100%, C-states habilitados' 'OK'
+    }
     Write-Bnqq 'Power: C-states efetivos dependem do firmware AMD; o Windows apenas solicita idle disable' 'INFO'
 }
 

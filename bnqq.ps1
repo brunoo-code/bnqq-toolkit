@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'memtune', 'lasso', 'latency', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'memtune', 'lasso', 'latency', 'heavyqa', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -53,6 +53,9 @@ param(
     [string]$LassoAction = 'status',
     [ValidateSet('status', 'apply', 'remove')]
     [string]$LatencyAction = 'status',
+    [switch]$ForceDeepIdleDisable,
+    [ValidateRange(5, 30)][int]$HeavyMinutes = 10,
+    [int]$HeavyThreads = 0,
     [ValidateSet('status', 'apply')]
     [string]$LargePagesAction = 'status',
     [ValidateSet('status', 'apply')]
@@ -103,6 +106,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Storage.ps1')
 . (Join-Path $root 'lib\Timer.ps1')
 . (Join-Path $root 'lib\Stability.ps1')
+. (Join-Path $root 'lib\HeavyQA.ps1')
 . (Join-Path $root 'lib\Qos.ps1')
 . (Join-Path $root 'lib\Audio.ps1')
 . (Join-Path $root 'lib\ProTier.ps1')
@@ -156,6 +160,7 @@ if ($Command -eq 'framebench') { $needsAdmin = $true }
 if ($Command -eq 'memtune' -and $MemoryAction -in @('apply', 'remove', 'purge')) { $needsAdmin = $true }
 if ($Command -eq 'lasso' -and $LassoAction -in @('apply', 'remove', 'start', 'stop')) { $needsAdmin = $true }
 if ($Command -eq 'latency' -and $LatencyAction -in @('apply', 'remove')) { $needsAdmin = $true }
+if ($Command -eq 'heavyqa') { $needsAdmin = $true }
 if ($Command -eq 'silicon' -and $SiliconAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
@@ -202,6 +207,8 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'memtune') { $forward += @('-MemoryAction', $MemoryAction) }
     if ($Command -eq 'lasso') { $forward += @('-LassoAction', $LassoAction) }
     if ($Command -eq 'latency') { $forward += @('-LatencyAction', $LatencyAction) }
+    if ($Command -eq 'latency' -and $ForceDeepIdleDisable) { $forward += '-ForceDeepIdleDisable' }
+    if ($Command -eq 'heavyqa') { $forward += @('-HeavyMinutes', $HeavyMinutes, '-HeavyThreads', $HeavyThreads) }
     if ($Command -eq 'largepages') { $forward += @('-LargePagesAction', $LargePagesAction) }
     if ($Command -eq 'gpupstate') { $forward += @('-GpuPStateAction', $GpuPStateAction) }
     if ($Command -eq 'netqos') { $forward += @('-NetQosAction', $NetQosAction) }
@@ -497,10 +504,14 @@ switch ($Command) {
 
     'latency' {
         switch ($LatencyAction) {
-            'apply' { Set-BnqqLatencyTune }
+            'apply' { Set-BnqqLatencyTune -ForceDeepIdleDisable:$ForceDeepIdleDisable }
             'remove' { Set-BnqqLatencyTune -Remove }
         }
         Show-BnqqLatencyTuneStatus
+    }
+
+    'heavyqa' {
+        Test-BnqqHeavyQA -Minutes $HeavyMinutes -Threads $HeavyThreads | Out-Null
     }
     'bcd' { Show-BnqqBcd }
 
@@ -566,6 +577,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 latency            MPO, TCP e idle/coalescing' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 latency -LatencyAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 latency -LatencyAction remove' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 heavyqa              CPU+I/O 10 min + WHEA (gate obrigatorio)' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 heavyqa -HeavyMinutes 15' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 latency -LatencyAction apply -ForceDeepIdleDisable' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray
         Write-Host ''

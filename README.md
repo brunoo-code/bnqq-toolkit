@@ -126,12 +126,24 @@ Diagnóstico:
 ```powershell
 .\bnqq.ps1 latency
 .\bnqq.ps1 latency -LatencyAction apply
+.\bnqq.ps1 latency -LatencyAction apply -ForceDeepIdleDisable
 .\bnqq.ps1 latency -LatencyAction remove
+.\bnqq.ps1 heavyqa -HeavyMinutes 10
 ```
 
 - **MPO:** `OverlayTestMode=5` em DWM; o ganho depende da GPU/monitor e é reversível.
 - **Rede:** `NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=0`, `TcpAckFrequency=1` e `TCPNoDelay=1` nas interfaces ativas. Afeta TCP; o gameplay do CS2 usa UDP, então não é tweak de hitreg.
-- **Energia:** `IDLEDISABLE=1`, demote/promote 100 e `COALTIME=0`/`PROCIR=0` em Idle Resiliency. C-states efetivos dependem do firmware AMD.
+- **Energia segura (default):** `IDLEDISABLE=0`, demote/promote 40/60. O modo `IDLEDISABLE=1` + `COALTIME=0` + `PROCIR=0` só roda com `-ForceDeepIdleDisable` e exige Heavy QA aprovado nas últimas 24 h. C-states efetivos dependem do firmware AMD.
+
+## Heavy QA obrigatorio
+
+Antes de habilitar `IDLEDISABLE`/`COALTIME`/`PROCIR`, rode:
+
+```powershell
+.\bnqq.ps1 heavyqa -HeavyMinutes 10
+```
+
+O teste satura CPU, adiciona I/O contínuo, mantém cauda idle e verifica WHEA 18/19. O certificado `reports\heavyqa-*.json` vale 24 h e é exigido por `latency -LatencyAction apply`. Sem PASS, o modo avançado é bloqueado. Isso reduz risco; não garante 100% em silício marginal.
 
 ## Process Lasso / foreground quantum
 
@@ -300,7 +312,7 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 - AMD: `EnableUlps=0` + Anti-Lag via perfil de vendor existente.
 - Discord: atalho com `--disable-gpu`; comunicação em prioridade baixa (`CpuPriorityClass=5`, `IoPriority=1`, `PagePriority=1`).
 - Rede: checksum offload IP/TCP/UDP v4/v6 e LSO desligados no adaptador físico.
-- Energia: idle demote/promote 100 e `IDLEDISABLE=1`.
+- Energia: idle demote/promote 100; `IDLEDISABLE=1` só no modo avançado com Heavy QA aprovado.
 - Deep Scan `[1]`: QA de IRQ, SMT e timer; em idle informa que o watcher aplicará 0,5 ms no jogo.
 
 ## Ultimate — Super Pack e QA in-game
@@ -606,6 +618,7 @@ lib/MemoryGuard.ps1   memtune, kernel em RAM, compressão e purga de standby
 lib/Allowlist.ps1     HWID SHA-256 e consulta da allowlist Raw
 lib/ProcessLasso.ps1  Lasso WMI, prioridade/afinidade e quantum
 lib/LatencyTune.ps1   MPO, TCP e idle/coalescing pre-reboot
+lib/HeavyQA.ps1      CPU+I/O+WHEA gate para ajustes avancados
 lib/BnqqProcessLasso.cs motor C# WMI de process-start
 lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher
