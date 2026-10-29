@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -16,6 +16,8 @@ param(
     [int]$AudioCore = 5,
     [ValidateSet('status', 'apply', 'remove')]
     [string]$ProTierAction = 'status',
+    [ValidateSet('status', 'apply', 'remove')]
+    [string]$GodAction = 'status',
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -47,6 +49,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Qos.ps1')
 . (Join-Path $root 'lib\Audio.ps1')
 . (Join-Path $root 'lib\ProTier.ps1')
+. (Join-Path $root 'lib\GodTier.ps1')
 . (Join-Path $root 'lib\Watcher.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -59,6 +62,7 @@ $needsAdmin = $Command -in @('apply', 'revert', 'debloat', 'focus', 'unfocus', '
 if ($Command -eq 'watch' -and $WatcherAction -in @('install', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'audio' -and $AudioAction -in @('install', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'pro' -and $ProTierAction -in @('apply', 'remove')) { $needsAdmin = $true }
+if ($Command -eq 'god' -and $GodAction -in @('apply', 'remove')) { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -77,6 +81,9 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     }
     if ($Command -eq 'pro') {
         $forward += @('-ProTierAction', $ProTierAction)
+    }
+    if ($Command -eq 'god') {
+        $forward += @('-GodAction', $GodAction)
     }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
@@ -228,6 +235,18 @@ switch ($Command) {
         }
     }
 
+    'god' {
+        switch ($GodAction) {
+            'apply' {
+                Set-BnqqGodTier
+                $saved = Save-BnqqBackup -Directory $backupDir
+                if ($saved) { Write-Bnqq ('Backup: {0}' -f $saved) 'OK' }
+            }
+            'remove' { Reset-BnqqGodTier }
+            default { Show-BnqqGodTierStatus }
+        }
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -262,6 +281,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 pro                  Pro-Tier: rede, USB suspend e dynamic tick' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 pro -ProTierAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 pro -ProTierAction remove' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 god                  God-Tier: CFG por jogo, paging e prioridade' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 god -GodAction apply' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 god -GodAction remove' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

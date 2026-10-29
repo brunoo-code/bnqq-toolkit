@@ -117,6 +117,7 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `qos` | Políticas DSCP 46 e estado do QoS Packet Scheduler |
 | `audio` | Isolamento do audiodg e Audio Enhancements; install/remove |
 | `pro` | Pro-Tier: rede/MMCSS, USB selective suspend e dynamic tick opt-in |
+| `god` | God-Tier: CFG por jogo, paging, prioridade e auditoria shader |
 | `build.ps1` | Gera `dist\BNQQ_Optimizer.exe` com UAC e TUI |
 | `bench` | CPU, fila e disco |
 | `bcd` | Estado do boot |
@@ -222,6 +223,7 @@ lib/Stability.ps1
 lib/Qos.ps1
 lib/Audio.ps1
 lib/ProTier.ps1
+lib/GodTier.ps1
 bnqq-watch.ps1
 bnqq-audio.ps1
 build.ps1
@@ -516,8 +518,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 108.032 bytes |
-| Build público | 88.576 bytes |
+| Build privado | 110.592 bytes |
+| Build público | 90.624 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -597,6 +599,47 @@ O dynamic tick não foi deixado ativo na máquina de validação; está disponí
 
 ---
 
-## 19. Licença
+## 19. God-Tier — CFG, kernel e auditoria
+
+### 19.1 CFG por jogo
+
+`Set-ProcessMitigation -Name <exe> -Disable CFG` é aplicado somente a `cs2.exe` e `VALORANT-Win64-Shipping.exe`, sem `-System`. A reversão usa `-Enable CFG`. O cmdlet foi validado em um executável de teste; não foi aplicado aos jogos na máquina de validação para não arriscar anti-cheat. É opt-in de `god apply` e reduz a mitigação de exploits por jogo.
+
+### 19.2 FSO e shader cache
+
+`AppCompatFlags\Layers` já contém `~ DISABLEDXMAXIMIZEDWINDOWEDMODE` para os dois jogos; o módulo verifica e reaplica de forma idempotente.
+
+Não existe DWORD público/suportado em `nvlddmkm` para tamanho do shader cache; o controle real é do NVIDIA App/perfil do driver. O módulo audita `DXCache`, `GLCache` e `D3DSCache` (5760,1 MB nesta máquina) e não injeta valor inventado. O comando `cache` limpa os caches.
+
+### 19.3 Paging e prioridade
+
+| Item | Antes | God-Tier |
+|---|---|---|
+| `DisablePagingExecutive` | 1 | 1 |
+| `Win32PrioritySeparation` | 26 (`0x1A`) | **38 (`0x26`)** |
+| FSO CS2/Valorant | presente | mantido |
+
+`god remove` volta a prioridade para 26 e reabilita CFG.
+
+### 19.4 Auditoria
+
+Verificados: paging, FSO, network throttling/responsiveness, USB selective suspend, MSI/IRQ, NDIS/RSS, TCP ECN/timestamps, ETW autologgers e timer 0,5 ms. Não adicionados: Nagle/TcpAckFrequency (UDP), HPET forçado, timer global, DWORD NVIDIA inventado, dynamic tick em perfis padrão.
+
+### 19.5 TUI e build
+
+- Banner **`BNQQ OPTIMIZER v4.0 God-Tier`**.
+- Deep Scan com painel `GOD-TIER / KERNEL`.
+- TUI pública `[12]`; privada `[15]`.
+- Build `4.0.0`, release `v4.0-godtier`.
+
+### 19.6 Changelog 4.0 God-Tier
+
+| Versão | Entrega |
+|---|---|
+| 4.0 | CFG por jogo opt-in, FSO verificado, paging/prioridade 0x26, auditoria de shader cache, Deep Scan God-Tier, TUI v4.0, build e release `v4.0-godtier` |
+
+---
+
+## 20. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

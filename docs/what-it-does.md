@@ -86,6 +86,13 @@ Aplica `NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=0`, USB select
 
 **Efeito:** remove limites de rede/MMCSS e micro-suspensão USB; dynamic tick reduz interrupções de timer. **Custo:** dynamic tick pode reduzir FPS no Windows 11 e afeta AC/DC; é opt-in. Reverta com `pro -ProTierAction remove`.
 
+## God-Tier
+
+### `god -GodAction apply`
+Aplica `DisablePagingExecutive=1`, `Win32PrioritySeparation=0x26`, CFG desativado por jogo (`cs2.exe`/`VALORANT-Win64-Shipping.exe`) e FSO `~ DISABLEDXMAXIMIZEDWINDOWEDMODE`.
+
+**Efeito:** kernel/drivers residentes em RAM, quantum de foreground e CFG por jogo. **Custo:** CFG por jogo reduz mitigação de exploits e é opt-in por risco de anti-cheat; `god remove` reabilita. O tamanho do shader cache NVIDIA não tem DWORD suportado em `nvlddmkm`; o módulo audita os caches e não injeta valor inventado.
+
 ## Sistema
 
 ### `gamedvr-off` / `gamemode-on`

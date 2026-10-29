@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  v3.1 Pro  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v4.0 God-Tier  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -237,6 +237,9 @@ function Invoke-BnqqDeepScan {
         }
     }
 
+    $god = Get-BnqqGodTierStatus
+    Show-BnqqGodTierStatus -Status $god
+
     Write-Host ''
 }
 
@@ -255,6 +258,7 @@ function Invoke-BnqqTui {
         Write-Host '  [9] QoS / DSCP 46' -ForegroundColor White
         Write-Host '  [10] Audio / audiodg' -ForegroundColor White
         Write-Host '  [11] Pro-Tier (rede/energia)' -ForegroundColor White
+        Write-Host '  [12] God-Tier (CFG/memória)' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -310,6 +314,13 @@ function Invoke-BnqqTui {
                 $sub = Read-Host '  [1] Aplicar [2] Remover [0] Voltar'
                 if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction apply }
                 elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction remove }
+            }
+            '12' {
+                $god = Get-BnqqGodTierStatus
+                Show-BnqqGodTierStatus -Status $god
+                $sub = Read-Host '  [1] Aplicar [2] Remover [0] Voltar'
+                if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') god -GodAction apply }
+                elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') god -GodAction remove }
             }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }

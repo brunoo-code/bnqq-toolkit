@@ -89,6 +89,9 @@ Diagnóstico:
 .\bnqq.ps1 pro        # Pro-Tier: rede, USB suspend e dynamic tick
 .\bnqq.ps1 pro -ProTierAction apply
 .\bnqq.ps1 pro -ProTierAction remove
+.\bnqq.ps1 god        # God-Tier: CFG por jogo, paging e prioridade
+.\bnqq.ps1 god -GodAction apply
+.\bnqq.ps1 god -GodAction remove
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
@@ -171,6 +174,29 @@ O módulo `lib/ProTier.ps1` concentra ajustes opt-in que não entram nos perfis 
 A opção `[1] Deep Scan` verifica os valores e pergunta se deseja aplicar; a opção `[11]` mostra o painel com aplicar/remover. Exige UAC e reboot.
 
 **Aviso:** `disabledynamictick Yes` pode reduzir FPS no Windows 11; é opt-in, fora dos perfis padrão. O `pro remove` restaura os valores padrão de rede/USB e libera o dynamic tick. Dynamic tick afeta AC e DC; em notebook, avalie o custo de bateria.
+
+## God-Tier — kernel e CFG
+
+Módulo opt-in `lib/GodTier.ps1`:
+
+| Item | Implementação |
+|---|---|
+| CFG por jogo | `Set-ProcessMitigation` para `cs2.exe` e `VALORANT-Win64-Shipping.exe` |
+| FSO | `~ DISABLEDXMAXIMIZEDWINDOWEDMODE` nas Layers |
+| Paging | `DisablePagingExecutive=1` |
+| Prioridade | `Win32PrioritySeparation=0x26` (38) |
+
+```powershell
+.\bnqq.ps1 god
+.\bnqq.ps1 god -GodAction apply
+.\bnqq.ps1 god -GodAction remove
+```
+
+CFG é desativado somente nos dois jogos, nunca globalmente; é opt-in por risco de anti-cheat/segurança. O `god remove` reabilita CFG e volta a prioridade para 26 decimal.
+
+**Shader cache:** não há DWORD público/suportado em `nvlddmkm` para tamanho; o controle fica no NVIDIA App/perfil do driver. O módulo audita `DXCache`, `GLCache` e `D3DSCache` e não injeta valor inventado; o `cache` limpa os caches.
+
+O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`. Banner: **`BNQQ OPTIMIZER v4.0 God-Tier`**.
 
 ## Perfis
 
@@ -320,6 +346,7 @@ lib/Stability.ps1     carga C# + WHEA 18/19 para Curve Optimizer
 lib/Qos.ps1           politicas DSCP 46 e status do Packet Scheduler
 lib/Audio.ps1         audiodg, Audio Enhancements e tarefa de audio
 lib/ProTier.ps1       rede/MMCSS, USB suspend e dynamic tick opt-in
+lib/GodTier.ps1       CFG por jogo, FSO, paging, prioridade e auditoria shader
 lib/Tui.ps1           banner, menu, deep scan com anomalias
 lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key
