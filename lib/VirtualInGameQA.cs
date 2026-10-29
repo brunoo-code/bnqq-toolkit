@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
@@ -57,7 +57,7 @@ public static class VirtualInGameQA
         }
 
         Console.WriteLine("engine=BNQQ VirtualInGameQA");
-        Console.WriteLine("version=1.2.0");
+        Console.WriteLine("version=1.3.0");
         Console.WriteLine("duration_s=" + _seconds.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("tick_rate=" + _tickRate.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("threads=" + _threads.ToString(CultureInfo.InvariantCulture));

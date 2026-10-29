@@ -1,4 +1,4 @@
-﻿# BNQQ Optimizer v1.2.0 — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v1.3.0 — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
@@ -53,6 +53,9 @@ O público tem a mesma base em outra ordem:
 - **[17] MSI / PCIe** — MSI e afinidade de GPU/rede.
 - **[18] Compensação VBS / HVCI** — mantém a virtualização ligada e reduz latência por input, background, energia, TCP e MSI.
 - **[19] Virtual QA C#** — motor sintético de 128 ticks/s; valida timer e máscaras sem jogo real.
+- **[20] HID / USB Runtime** — filas seguras, aceleração off, USB sem suspensão e afinidade de interrupção.
+- **[21] ETW / DPC / DWM** — monitor leve de DPC/ISR/DWM com JSON em `reports`.
+- **[22] Preflight Segurança** — Secure Boot, TPM, VBS e HVCI antes do perfil valorant.
 
 ## O que usar antes de uma partida
 

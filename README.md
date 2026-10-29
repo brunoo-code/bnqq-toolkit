@@ -255,6 +255,33 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 
 O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4369→4355 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
 
+## v1.3.0 — Runtime Latency, ETW e HID
+
+Fase de runtime, sem reiniciar o Windows para o que é possível aplicar em tempo real. VBS/HVCI continuam obrigatórios e não são contornados.
+
+- **HID/USB:** filas `mouclass`/`kbdclass` mantidas em 20 pacotes (piso seguro para mouse 8 kHz), aceleração off, USB sem suspensão, MSI/prioridade e afinidade nas controladoras PCI USB. A fila de classe é driver de boot: o valor novo só entra no próximo boot.
+- **Watcher com foco:** detecta `GetForegroundWindow`; ao focar CS2/Valorant aplica QoS DSCP 46 via `New-NetQosPolicy` no `ActiveStore`, padding de working set do processo e purge de standby se a RAM livre cair abaixo de 4 GB.
+- **ETW/PDH:** `lib/EtwMonitor.ps1` amostra DPC, ISR, interrupções e CPU/working set do DWM; gera JSON em `reports`. É um monitor leve de contadores ETW/PDH, não um ETL completo do WPR.
+- **Preflight:** antes de aplicar o perfil `valorant`, valida Secure Boot, TPM, VBS e HVCI; sem conformidade, o perfil é bloqueado.
+- **Virtual QA:** motor C# 128 ticks/s, física, memória e loopback, com timer de 0,500 ms e máscaras `0x5555`/`0xAAAA`.
+
+```powershell
+.\bnqq.ps1 hid
+.\bnqq.ps1 hid -HidAction apply
+.\bnqq.ps1 etw -EtwSeconds 15
+.\bnqq.ps1 preflight
+.\bnqq.ps1 virtualqa -VirtualSeconds 30
+```
+
+TUI privada `[23] HID`, `[24] ETW`, `[25] Preflight`; pública `[20]/[21]/[22]`.
+
+### Limitações
+
+- Working set padding mantém páginas mais tempo, mas o Windows ainda pode trimar sob pressão; não é garantia de RAM física permanente.
+- QoS DSCP só tem efeito se o caminho de rede respeitar EF; não reduz ping físico.
+- ETW/PDH leve não substitui WPR/WPA para análise profunda de DPC/ISR.
+- `preflight` exige UAC para ler Secure Boot/TPM.
+- Nada de hook, patch de driver ou bypass de anti-cheat.
 ## v1.2.0 — Compensação VBS/HVCI
 
 Esta versão **mantém VBS e HVCI ligados**. Não existe bypass de estado do Vanguard: o modo `compensate` reduz fontes de latência e organiza CPU, input, rede e GPU sem tocar no anti-cheat.

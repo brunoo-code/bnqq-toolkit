@@ -209,6 +209,8 @@ function Start-BnqqWatcher {
     $backgroundPinned = @{}
     $lastStandbyPurge = $null
     $standbyWarned = $false
+    $runtimeState = $null
+    $runtimePid = $null
     $mask = [int64]0
     if ($PinPhysical) { $mask = Get-BnqqPhysicalCoreMask }
 
@@ -272,6 +274,20 @@ function Start-BnqqWatcher {
                     }
                 }
 
+                try {
+                    $foregroundPid = Get-BnqqForegroundPid
+                    $foregroundGame = $running | Where-Object { $_.Id -eq $foregroundPid } | Select-Object -First 1
+                    if ($foregroundGame -and $runtimePid -ne $foregroundGame.Id) {
+                        if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
+                        $runtimePid = $foregroundGame.Id
+                        $runtimeState = Set-BnqqRuntimeLatency -Process $foregroundGame
+                        Write-Bnqq ('Runtime foco: {0} QoS={1} working set={2}' -f $foregroundGame.ProcessName, $runtimeState.QoS, [bool]$runtimeState.WorkingSet) 'OK'
+                    }
+                }
+                catch {
+                    Write-Bnqq ('Runtime foco indisponivel: {0}' -f $_.Exception.Message) 'WARN'
+                }
+
                 $freeGB = Get-BnqqFreeMemoryGB
                 if ($null -ne $freeGB -and $freeGB -lt $StandbyThresholdGB) {
                     $canPurge = (-not $lastStandbyPurge) -or (((Get-Date) - $lastStandbyPurge).TotalSeconds -ge 60)
@@ -293,6 +309,7 @@ function Start-BnqqWatcher {
                 $active = $false
                 try { Clear-BnqqTimerResolution | Out-Null }
                 catch { Write-Bnqq ('Timer resolution clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
+                if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState; $runtimeState = $null; $runtimePid = $null }
                 if ($gpuLocked) {
                     try {
                         if (Clear-BnqqGpuClockLock -Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }
@@ -314,6 +331,7 @@ function Start-BnqqWatcher {
         }
     }
     finally {
+        if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
         try { Clear-BnqqTimerResolution | Out-Null } catch { }
         if ($gpuLocked) { try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { } }
         foreach ($backgroundId in @($backgroundPinned.Keys)) {

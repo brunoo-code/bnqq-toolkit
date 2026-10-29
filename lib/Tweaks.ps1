@@ -830,6 +830,16 @@ function Invoke-BnqqApply {
     $ids = Get-BnqqProfile -Name $Profile -ConfigPath $ConfigPath
     if ($ids.Count -eq 0) { throw 'Perfil vazio ou configuracao ausente' }
 
+    if (Get-Command Get-BnqqSecurityPreflight -ErrorAction SilentlyContinue) {
+        $preflight = Get-BnqqSecurityPreflight
+        if ($Profile -eq 'valorant' -and -not $preflight.ReadyForVanguard) {
+            throw 'Perfil valorant bloqueado: Secure Boot, TPM, VBS e HVCI precisam estar prontos'
+        }
+        if ($preflight.VanguardInstalled -and -not $preflight.ReadyForVanguard) {
+            Write-Bnqq 'Preflight: anti-cheat detectado e conformidade incompleta; revise antes de jogar' 'WARN'
+        }
+    }
+
     $catalog = Get-BnqqCatalog
     $selected = @($catalog | Where-Object { $ids -contains $_.Id })
     if ($selected.Count -eq 0) { throw 'Nenhum tweak corresponde ao perfil' }

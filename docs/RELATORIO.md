@@ -526,8 +526,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 138.240 bytes |
-| Build público | 118.272 bytes |
+| Build privado | 145.408 bytes |
+| Build público | 125.440 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -845,3 +845,79 @@ TUI privada `[21]/[22]`; pública `[18]/[19]`; build `1.2.0`; tag `v1.2.0`.
 - C-states efetivos dependem do firmware AMD/B550M.
 - Cache de shader “ilimitado” não tem registro suportado; o driver controla.
 - O QA virtual valida estabilidade sintética, não substitui um jogo real.
+
+---
+
+## 26. v1.3.0 — Runtime Latency, ETW e HID
+
+### 26.1 Escopo
+
+Fase de runtime e validação. VBS/HVCI permanecem ligados; não há hook, patch de driver, bypass de Vanguard ou falsificação de Secure Boot/TPM.
+
+### 26.2 Módulos
+
+| # | Módulo | Implementação |
+|---|---|---|
+| 1 | HID/USB runtime | filas `mouclass`/`kbdclass` em 20 pacotes, aceleração off, USB sem suspensão, MSI/prioridade e afinidade das controladoras |
+| 2 | Watcher foco/QoS | `GetForegroundWindow` no watcher; QoS DSCP 46 no `ActiveStore`, padding de working set e purge de standby no foco do jogo |
+| 3 | ETW/PDH | `lib/EtwMonitor.ps1`: DPC, ISR, interrupções, CPU/working set do DWM e JSON em `reports` |
+| 4 | Preflight | `lib/Preflight.ps1`: Secure Boot, TPM, VBS e HVCI; bloqueia o perfil `valorant` sem conformidade |
+| 5 | Virtual QA | motor C# 128 ticks/s com física, memória e loopback |
+| 6 | Build/relatório | binários privado/público, documentação e tag |
+
+### 26.3 HID e runtime
+
+A fila de `mouclass.sys`/`kbdclass.sys` foi mantida em **20 pacotes**. Esse é o piso seguro adotado para mouse de 8 kHz; abaixo disso o risco de perda de eventos cresce. Como são drivers de boot, o novo valor de fila só entra no próximo boot. As controladoras USB AMD apareceram com MSI=1, prioridade 3, policy 4 e máscara `0x8000` (CPU 15). Isso não muda o polling do mouse; polling é hardware/firmware.
+
+O teste direto de `Set-BnqqRuntimeLatency` confirmou:
+
+```text
+QoS runtime: DSCP 46
+Working set: min 210 MB / max 466 MB
+```
+
+### 26.4 Preflight elevado
+
+```text
+Secure Boot  ativo
+TPM          presente e pronto
+VBS runtime  rodando
+HVCI         rodando
+Vanguard     detectado
+Conformidade  PRONTA
+```
+
+### 26.5 Virtual QA — 30 s
+
+```text
+Ticks            3841 (128.0 Hz)
+Jitter           avg 0.0 us · max 0.1 us
+Fisica / memoria 3265487500 ops / 654132000 ops
+Rede             2927 pacotes loopback
+Timer            0,500 ms  [0.5 ms OK]
+Afinidade jogo   0x5555  [0x5555 OK]
+Afinidade SMT    0xAAAA  [0xAAAA OK]
+Motor afinidade  0x5555  [OK]
+Watcher detectou sim
+Veredito         ESTAVEL
+```
+
+### 26.6 TUI e comandos
+
+```powershell
+.\bnqq.ps1 hid
+.\bnqq.ps1 hid -HidAction apply
+.\bnqq.ps1 etw -EtwSeconds 15
+.\bnqq.ps1 preflight
+.\bnqq.ps1 virtualqa -VirtualSeconds 30
+```
+
+TUI privada `[23] HID`, `[24] ETW`, `[25] Preflight`; pública `[20]/[21]/[22]`.
+
+### 26.7 Limitações
+
+- Working set padding não garante páginas permanentemente na RAM; o Windows pode trimar sob pressão.
+- QoS DSCP depende do caminho de rede respeitar EF e não reduz ping físico.
+- O monitor ETW/PDH é leve e não substitui WPR/WPA para análise de DPC/ISR.
+- O preflight exige UAC para Secure Boot/TPM.
+- O teste virtual não substitui partida real; não houve teste in-game manual nesta fase.

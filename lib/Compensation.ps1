@@ -199,7 +199,12 @@ function Set-BnqqCompensation {
     if (-not (Test-BnqqAdmin)) { throw 'Exige elevacao para aplicar a compensacao VBS/HVCI' }
 
     Set-BnqqVbsOn
+    $preflight = Get-BnqqSecurityPreflight
+    if (-not $preflight.ReadyForVanguard) {
+        Write-Bnqq 'Preflight: Secure Boot/TPM/VBS/HVCI ainda nao estao 100% prontos; reboot ou ajuste de firmware pode ser necessario' 'WARN'
+    }
     Set-BnqqInputCompensation
+    Set-BnqqHidRuntime -QueueSize 20
     Set-BnqqBackgroundCulling
     Set-BnqqDisplayCompensation
     Set-BnqqPowerCompensation
@@ -274,7 +279,9 @@ function Show-BnqqCompensationStatus {
         Write-Host ('    TCP {0,-20} Ack={1} NoDelay={2}' -f $row.Name, $row.Ack, $row.NoDelay) -ForegroundColor Gray
     }
     Write-Host ('    Shader cache {0} MB (driver controla o tamanho)' -f $Status.Shader.TotalMB) -ForegroundColor Gray
-    Write-Host ('    MSI GPU={0} · rede={1}' -f $Status.Msi.Rows[0].Msi, $Status.Msi.Rows[1].Msi) -ForegroundColor Gray
+    $gpuMsi = if ($Status.Msi.Rows.Count -ge 1) { $Status.Msi.Rows[0].Msi } else { 'n/d' }
+    $nicMsi = if ($Status.Msi.Rows.Count -ge 2) { $Status.Msi.Rows[1].Msi } else { 'n/d' }
+    Write-Host ('    MSI GPU={0} · rede={1}' -f $gpuMsi, $nicMsi) -ForegroundColor Gray
     Write-Host '    VBS/HVCI nao sao desligados por este modo; nao existe bypass de estado' -ForegroundColor DarkGray
     Write-Host ''
 }

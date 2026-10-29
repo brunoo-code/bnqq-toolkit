@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -37,6 +37,11 @@ param(
     [int]$VirtualSeconds = 30,
     [int]$VirtualTicks = 128,
     [int]$VirtualThreads = 0,
+    [ValidateSet('status', 'apply')]
+    [string]$HidAction = 'status',
+    [int]$HidQueueSize = 20,
+    [int]$EtwSeconds = 10,
+    [int]$EtwIntervalMs = 500,
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -85,6 +90,10 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Acpi.ps1')
 . (Join-Path $root 'lib\Msi.ps1')
 . (Join-Path $root 'lib\Compensation.ps1')
+. (Join-Path $root 'lib\HidRuntime.ps1')
+. (Join-Path $root 'lib\RuntimeLatency.ps1')
+. (Join-Path $root 'lib\EtwMonitor.ps1')
+. (Join-Path $root 'lib\Preflight.ps1')
 . (Join-Path $root 'lib\VirtualQA.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -104,6 +113,8 @@ if ($Command -eq 'acpi' -and $AcpiAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'msi' -and $MsiAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'compensate' -and $CompensateAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'virtualqa') { $needsAdmin = $true }
+if ($Command -eq 'hid' -and $HidAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'preflight') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -142,6 +153,8 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'msi') { $forward += @('-MsiAction', $MsiAction) }
     if ($Command -eq 'compensate') { $forward += @('-CompensateAction', $CompensateAction) }
     if ($Command -eq 'virtualqa') { $forward += @('-VirtualSeconds', $VirtualSeconds, '-VirtualTicks', $VirtualTicks, '-VirtualThreads', $VirtualThreads) }
+    if ($Command -eq 'hid') { $forward += @('-HidAction', $HidAction, '-HidQueueSize', $HidQueueSize) }
+    if ($Command -eq 'etw') { $forward += @('-EtwSeconds', $EtwSeconds, '-EtwIntervalMs', $EtwIntervalMs) }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -344,6 +357,18 @@ switch ($Command) {
         Invoke-BnqqVirtualQa -Seconds $VirtualSeconds -Ticks $VirtualTicks -Threads $VirtualThreads
     }
 
+    'hid' {
+        if ($HidAction -eq 'apply') { Set-BnqqHidRuntime -QueueSize $HidQueueSize; Get-BnqqHidRuntimeStatus | Format-List } else { Get-BnqqHidRuntimeStatus | Format-List }
+    }
+
+    'etw' {
+        Start-BnqqEtwMonitor -Seconds $EtwSeconds -IntervalMs $EtwIntervalMs | Out-Null
+    }
+
+    'preflight' {
+        Show-BnqqSecurityPreflight
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -392,6 +417,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 msi -MsiAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 compensate           VBS/HVCI + input + background + rede' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 virtualqa            Motor C# sintetico 128 ticks' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 hid                  Pilha HID, filas e USB MSI' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 etw                  DPC/ISR/DWM em tempo real' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 preflight            Secure Boot, TPM, VBS e HVCI' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray
