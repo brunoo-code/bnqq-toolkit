@@ -45,7 +45,22 @@ Desliga `EnhancedPowerManagementEnabled` e `AllowIdleIrpInD3` em dispositivos US
 ### `usb-suspend-off`
 Suspensão seletiva USB desligada no plano de energia.
 
+### `keyboard-response`
+`Keyboard Response` com `Flags=122` (FilterKeys off), repeat 200/6, bounce 0 e delay 0; `KeyboardDelay=0` e `KeyboardSpeed=31`.
+
+**Efeito:** remove o atraso do FilterKeys e acelera a repetição. Não altera polling do teclado.
+
+### `input-queue` (perfis altos)
+`MouseDataQueueSize=20` e `KeyboardDataQueueSize=20`.
+
+**Efeito:** reduz o buffer HID. É o menor valor considerado seguro; pode descartar input sob carga extrema. Exige reboot e tem risco médio.
+
 ## Rede
+
+### `qos-dscp`
+Políticas locais em `HKLM\SOFTWARE\Policies\Microsoft\Windows\QoS` para `cs2.exe` e `VALORANT-Win64-Shipping.exe`, UDP, DSCP 46 (EF), sem throttle.
+
+**Efeito:** marca os pacotes para prioridade se o roteador/caminho respeitar EF. Não reduz latência física e não garante prioridade fim a fim. A política é lida no boot ou após `gpupdate /force`.
 
 ### `network-throttling`
 `NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=10`.
@@ -217,6 +232,14 @@ Amostra CPU por processo a cada 1,5 s. Se um processo em background passa de 15%
 Carga em todas as threads por 15 s e comparacao entre performance de pico e media.
 
 **Efeito:** mostra queda real de boost. Acima de 12% de queda ha throttling termico ou limite de VRM.
+
+### `stability`
+Carga sintética em todas as threads por 3–5 min e auditoria de eventos WHEA 18/19.
+
+**Efeito:** valida Curve Optimizer/undervolt. Evento novo aborta e pede para reduzir o CO; sem evento, confirma estabilidade sob carga. Não substitui horas de jogo.
+
+### `timer`
+O watcher solicita `NtSetTimerResolution(5000)` durante o jogo e libera ao fechar. A chamada é feita no processo do watcher, sem injeção no jogo. `.\bnqq.ps1 timer` mostra o valor atual.
 
 ## Como verificar se funcionou
 

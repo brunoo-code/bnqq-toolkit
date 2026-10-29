@@ -113,6 +113,7 @@ function Show-BnqqWatcherStatus {
 
     Write-Host ('    Jogo ativo   {0}' -f $(if (Get-Process -Name 'cs2', 'VALORANT-Win64-Shipping' -ErrorAction SilentlyContinue) { 'sim' } else { 'nao' })) -ForegroundColor Gray
     Write-Host ('    Plano atual  {0}' -f (Get-BnqqActivePlanGuid)) -ForegroundColor Gray
+    Show-BnqqTimerStatus
     Write-Host ''
 }
 
@@ -133,13 +134,27 @@ function Install-BnqqWatcher {
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable
 
+    Stop-ScheduledTask -TaskName 'BNQQ Game Watcher' -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*bnqq-watch.ps1*' } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 500
+
     Register-ScheduledTask -TaskName 'BNQQ Game Watcher' -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force | Out-Null
     Start-ScheduledTask -TaskName 'BNQQ Game Watcher' -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+
+    $task = Get-BnqqWatcherTask
+    if (-not $task -or $task.State -ne 'Running') {
+        Start-ScheduledTask -TaskName 'BNQQ Game Watcher' -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        $task = Get-BnqqWatcherTask
+    }
 
     Set-BnqqMeta 'WatcherInstalled' $true
     Set-BnqqMeta 'WatcherPinPhysical' ([bool]$PinPhysical)
     Set-BnqqMeta 'WatcherRespectBattery' ([bool]$RespectBattery)
-    Write-Bnqq ('Watcher instalado (pin fisico: {0}, bateria: {1})' -f [bool]$PinPhysical, [bool]$RespectBattery) 'OK'
+    Write-Bnqq ('Watcher instalado (pin fisico: {0}, bateria: {1}, estado: {2})' -f [bool]$PinPhysical, [bool]$RespectBattery, $(if ($task) { $task.State } else { 'ausente' })) 'OK'
 }
 
 function Uninstall-BnqqWatcher {
@@ -178,38 +193,48 @@ function Start-BnqqWatcher {
 
     Write-Bnqq ('Watcher iniciado: intervalo {0}s, pin fisico {1}, respeitar bateria {2}' -f $IntervalSeconds, [bool]$PinPhysical, [bool]$RespectBattery) 'STEP'
 
-    while ($true) {
-        $running = @(Get-Process -Name $games -ErrorAction SilentlyContinue)
+    try {
+        while ($true) {
+            $running = @(Get-Process -Name $games -ErrorAction SilentlyContinue)
 
-        if ($running.Count -gt 0 -and -not $active) {
-            $onBattery = $false
-            if ($RespectBattery) {
-                $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($battery -and $battery.BatteryStatus -ne 2) { $onBattery = $true }
+            if ($running.Count -gt 0 -and -not $active) {
+                $onBattery = $false
+                if ($RespectBattery) {
+                    $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($battery -and $battery.BatteryStatus -ne 2) { $onBattery = $true }
+                }
+
+                if ($onBattery) {
+                    Write-Bnqq 'Watcher: em bateria, mantendo o plano atual' 'INFO'
+                }
+                else {
+                    $previousPlan = Get-BnqqActivePlanGuid
+                    $guid = New-BnqqUltimatePlan
+                    Set-BnqqUltimatePlanValues -Guid $guid
+                    $active = $true
+                    Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
+                    try { Set-BnqqTimerResolution -Desired 5000 | Out-Null }
+                    catch { Write-Bnqq ('Timer resolution indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
+                }
+
+                if ($PinPhysical -and $mask -ne 0) {
+                    foreach ($p in $running) { Set-BnqqProcessAffinity -Process $p -Mask $mask }
+                }
+            }
+            elseif ($running.Count -eq 0 -and $active) {
+                if ($previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
+                $active = $false
+                try { Clear-BnqqTimerResolution | Out-Null }
+                catch { Write-Bnqq ('Timer resolution clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
+                Write-Bnqq 'Jogos fechados: plano anterior restaurado' 'OK'
             }
 
-            if ($onBattery) {
-                Write-Bnqq 'Watcher: em bateria, mantendo o plano atual' 'INFO'
-            }
-            else {
-                $previousPlan = Get-BnqqActivePlanGuid
-                $guid = New-BnqqUltimatePlan
-                Set-BnqqUltimatePlanValues -Guid $guid
-                $active = $true
-                Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
-            }
-
-            if ($PinPhysical -and $mask -ne 0) {
-                foreach ($p in $running) { Set-BnqqProcessAffinity -Process $p -Mask $mask }
-            }
+            if ($Once) { break }
+            Start-Sleep -Seconds $IntervalSeconds
         }
-        elseif ($running.Count -eq 0 -and $active) {
-            if ($previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
-            $active = $false
-            Write-Bnqq 'Jogos fechados: plano anterior restaurado' 'OK'
-        }
-
-        if ($Once) { break }
-        Start-Sleep -Seconds $IntervalSeconds
+    }
+    finally {
+        try { Clear-BnqqTimerResolution | Out-Null } catch { }
+        if ($active -and $previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
     }
 }

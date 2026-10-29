@@ -60,17 +60,17 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 
 ---
 
-## 4. Catálogo — 77 tweaks
+## 4. Catálogo — 79 tweaks
 
 | Área | Itens |
 |---|---|
 | CPU / energia | power-plan adaptativo, power-throttling-off, core-parking-off, win32-priority, mmcss-games, cstates-off*, game-watcher, game-affinity* |
 | Latência | hvci-off, credential-guard-off, hypervisor-off, ndu-off, msi-mode, timer-defaults, interrupt-affinity (desktop 8+ threads), bcd-timer |
 | Memória | pagefile-managed, memory-compression-off, kernel-memory, large-system-cache |
-| GPU | hags-on, nvidia-max-perf, mpo-off, gpu-preference, display-optimizations, gpu-vendor-profile |
+| GPU | hags-on, nvidia-max-perf, mpo-off, gpu-preference, display-optimizations, gpu-vendor-profile, auditoria HDCP (somente leitura) |
 | Display | fse-forced, fullscreen-opt |
-| Input | mouse-accel-off, keyboard-response, usb-power-off, usb3-lpm-off, usb-suspend-off, pcie-aspm-off |
-| Rede | network-throttling, network-adapter, ndis-offloads, rss-tuning, tcp-tuning, tcp-kernel, dns-fast, netbios-off, delivery-opt-off |
+| Input | mouse-accel-off, keyboard-response, input-queue, usb-power-off, usb3-lpm-off, usb-suspend-off, pcie-aspm-off |
+| Rede | network-throttling, network-adapter, ndis-offloads, rss-tuning, tcp-tuning, tcp-kernel, qos-dscp, dns-fast, netbios-off, delivery-opt-off |
 | Sistema | fast-startup-off, hibernate-off, visual-effects, sleep-policy, reserved-storage-off |
 | Debloat | debloat-appx, tasks-off, features-off, telemetry-off, privacy-lockdown, etw-autologgers |
 | Serviços | services-low, services-medium, conditional-services |
@@ -90,9 +90,9 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `lowend` | 54 | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios. |
 | `laptop` | 44 | Respeita bateria: no DC mantém downclock, ASPM e suspend USB; NDIS agressivo e afinidade de interrupção são ignorados. |
 | `desktop` | 57 | Equilibrado. Sem desligar HVCI. |
-| `gaming` | 68 | Agressivo: HVCI off, core parking off, memory compression off. |
-| `fresh` | 69 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI. |
-| `extreme` | 72 | `fresh` + mitigações de CPU off + C-states off. |
+| `gaming` | 70 | Agressivo: HVCI off, core parking off, memory compression off, filas HID e QoS. |
+| `fresh` | 71 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI, filas HID e QoS. |
+| `extreme` | 74 | `fresh` + mitigações de CPU off + C-states off. |
 
 ---
 
@@ -111,6 +111,9 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `rebalance` | ProBalance por 60 s |
 | `trim` | Libera working set de apps ociosos |
 | `stress` | Boost sustentado e throttling |
+| `stability` | 3–5 min de carga + WHEA 18/19 (Curve Optimizer) |
+| `timer` | Timer resolution atual; watcher aplica 0,5 ms durante o jogo |
+| `qos` | Políticas DSCP 46 e estado do QoS Packet Scheduler |
 | `bench` | CPU, fila e disco |
 | `bcd` | Estado do boot |
 | `guide` | Ajustes in-game que dão FPS de verdade |
@@ -210,6 +213,9 @@ lib/Modules.ps1
 lib/Verdict.ps1
 lib/Boost.ps1
 lib/Peripherals.ps1
+lib/Timer.ps1
+lib/Stability.ps1
+lib/Qos.ps1
 docs/what-it-does.md
 docs/RELATORIO.md   este documento
 ```
@@ -408,6 +414,62 @@ O `report` foi corrigido para ler ECN por linha: antes, o texto agregado de `net
 
 ---
 
-## 16. Licença
+## 16. Fase 4 — estabilidade, timer, HID e QoS
+
+### 16.1 Estabilidade PBO com WHEA
+
+`lib/Stability.ps1` compila um gerador de carga inteiro em C# (`Add-Type`) e inicia uma thread por processador lógico. O módulo registra o horário de início, consulta o log `System` por eventos `Microsoft-Windows-WHEA-Logger` IDs **18** e **19** durante a carga e espera 5 s após o fim. Eventos antigos não contam; se o log não puder ser lido, o veredito é `Indeterminado`.
+
+- Falha: `Instabilidade detectada no Undervolt! Reduza o Curve Optimizer na BIOS (ex: de -15 para -10)`.
+- Sucesso: `Sistema 100% Estável no Curve Optimizer`.
+- JSON: `reports/stability-<data>.json`, com janela, threads, eventos e veredito.
+
+```powershell
+.\bnqq.ps1 stability
+.\bnqq.ps1 stability -StabilityMinutes 3
+.\bnqq.ps1 stability -StabilitySeconds 30 -StabilityThreads 8
+```
+
+O teste é sintético; não substitui horas de jogo e não detecta falhas que não gerem WHEA.
+
+### 16.2 Timer resolution dinâmico
+
+`lib/Timer.ps1` usa `NtQueryTimerResolution` e `NtSetTimerResolution` via P/Invoke em `ntdll.dll`. O watcher solicita 5000 (0,5 ms) quando detecta `cs2.exe`/`VALORANT-Win64-Shipping.exe` e libera quando nenhum jogo resta. A chamada ocorre no processo do watcher, não no jogo: sem injeção, hook ou driver. O `finally` libera a referência no encerramento. O comando `timer` mostra o valor atual; não há tweak de HPET/BCD associado.
+
+### 16.3 HID
+
+`keyboard-response` grava `Keyboard Response` com `Flags=122`, `AutoRepeatDelay=200`, `AutoRepeatRate=6`, `BounceTime=0` e `DelayBeforeAcceptance=0`, além de `KeyboardDelay=0` e `KeyboardSpeed=31`. `input-queue` reduz as filas `MouseDataQueueSize`/`KeyboardDataQueueSize` de 100 para **20**; é o menor valor considerado seguro, pode descartar input sob carga extrema, exige reboot e tem risco médio. Não altera driver, polling rate ou firmware.
+
+### 16.4 QoS DSCP 46
+
+`lib/Qos.ps1` cria políticas locais em `HKLM\SOFTWARE\Policies\Microsoft\Windows\QoS` para `cs2.exe` e `VALORANT-Win64-Shipping.exe`, UDP, DSCP **46** (EF), sem throttle. `qos` mostra as políticas e o QoS Packet Scheduler. A política é lida no boot ou após `gpupdate /force`; `Get-NetQosPolicy` pode ficar vazio até lá. DSCP só ajuda se o roteador/caminho respeitar EF; não reduz latência física.
+
+### 16.5 MPO e HDCP
+
+MPO já é tratado por `OverlayTestMode=5` nos perfis altos. HDCP não possui API/registro público suportado para desativação na NVIDIA; `Get-BnqqHdcpStatus` faz apenas auditoria (`sem controle HDCP suportado`) e não aplica hack não documentado que possa quebrar vídeo/DRM.
+
+### 16.6 Verificação na máquina de validação
+
+| Item | Resultado |
+|---|---|
+| `apply -Profile extreme` | 74 tweaks, 0 falhas, 28 exigem reboot |
+| Estabilidade | 180 s, 16 threads, 0 eventos WHEA 18/19, veredito estável |
+| Timer | 15,625 ms em repouso → 0,500 ms com jogo → liberado ao fechar |
+| Keyboard Response | Flags 122, repeat 200/6, bounce 0, delay 0 |
+| Filas HID | mouse 20 / teclado 20 |
+| QoS | duas políticas DSCP 46 gravadas; `ms_pacer` ativo em 2 adaptadores |
+| HDCP | sem controle suportado; não aplicado |
+| `report` | 99/100; GPU 94/100 por HDCP/ReBAR informativos, sem ação prioritária |
+| Watcher | tarefa em execução, pin físico ativo, timer integrado |
+
+### 16.7 Changelog 2.3
+
+| Versão | Entrega |
+|---|---|
+| 2.3 | Estabilidade PBO com WHEA 18/19, timer 0,5 ms via watcher, Keyboard Response completo, filas HID 20, QoS DSCP 46, auditoria HDCP, comandos `stability`/`timer`/`qos` e opções 7–9 na TUI |
+
+---
+
+## 17. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

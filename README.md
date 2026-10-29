@@ -15,6 +15,9 @@ Packs tradicionais aplicam a mesma lista em qualquer máquina e vendem placebo. 
 - **Modo focus** estilo Game Booster: suspende background, prioriza o jogo e restaura depois
 - **ProBalance**: rebaixa temporariamente processos que roubam CPU, sem tocar no jogo
 - **Stress test**: mede se o boost da CPU se sustenta ou se há throttling térmico
+- **Estabilidade PBO**: 3–5 min de carga em todas as threads + auditoria WHEA 18/19 para validar Curve Optimizer
+- **Timer dinâmico**: watcher solicita 0,5 ms durante o jogo e libera ao fechar, sem injetar no processo
+- **HID e QoS**: Keyboard Response, filas de mouse/teclado e DSCP 46 para CS2/Valorant
 
 ## Uso
 
@@ -70,10 +73,42 @@ Diagnóstico:
 ```powershell
 .\bnqq.ps1 status     # resumo do que esta ativo
 .\bnqq.ps1 stress     # boost sustentado e throttling
+.\bnqq.ps1 stability  # 5 min de carga + WHEA 18/19 (Curve Optimizer)
+.\bnqq.ps1 stability -StabilityMinutes 3
+.\bnqq.ps1 timer      # timer resolution atual (0.5 ms com watcher)
+.\bnqq.ps1 qos        # politicas DSCP 46 e QoS Packet Scheduler
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
 ```
+
+## Fase 4 — estabilidade, timer, HID e QoS
+
+### Estabilidade PBO (WHEA)
+
+`stability` compila um gerador de carga C# e satura todos os processadores lógicos por 3–5 minutos. O módulo consulta o log `System` por eventos `Microsoft-Windows-WHEA-Logger` IDs **18** e **19** antes/depois da carga. Se aparecer evento novo, a carga é abortada e o aviso é vermelho:
+
+`Instabilidade detectada no Undervolt! Reduza o Curve Optimizer na BIOS (ex: de -15 para -10)`
+
+Sem evento: `Sistema 100% Estável no Curve Optimizer`. Se o Event Viewer não puder ser lido, o veredito é `Indeterminado` — o módulo não presume estabilidade. O JSON fica em `reports/stability-<data>.json`. O teste é sintético; não substitui horas de jogo e não detecta falhas que não gerem WHEA.
+
+### Timer resolution dinâmico
+
+O watcher usa `NtSetTimerResolution(5000, true, ...)` quando detecta `cs2.exe` ou `VALORANT-Win64-Shipping.exe`, e libera a referência quando nenhum jogo resta. A chamada é feita no processo do watcher, **não** no jogo: não há injeção, hook ou driver. O `finally` libera o timer se o watcher for encerrado. `.\bnqq.ps1 timer` mostra o valor atual. Não há tweak de HPET/BCD associado.
+
+### HID
+
+`keyboard-response` grava `Keyboard Response` com `Flags=122` (FilterKeys off), `AutoRepeatDelay=200`, `AutoRepeatRate=6`, `BounceTime=0` e `DelayBeforeAcceptance=0`, além de `KeyboardDelay=0` e `KeyboardSpeed=31`.
+
+`input-queue` reduz as filas `MouseDataQueueSize` e `KeyboardDataQueueSize` de 100 para **20**. É o menor valor considerado seguro; filas menores podem descartar input sob carga extrema. Exige reboot e tem risco médio. Não altera driver, polling rate ou firmware.
+
+### QoS DSCP 46
+
+`qos-dscp` cria políticas locais em `HKLM\SOFTWARE\Policies\Microsoft\Windows\QoS` para `cs2.exe` e `VALORANT-Win64-Shipping.exe`, UDP, DSCP **46** (EF), sem throttle. `.\bnqq.ps1 qos` mostra as políticas e o QoS Packet Scheduler. A política é lida no boot ou após `gpupdate /force`; `Get-NetQosPolicy` pode ficar vazio até lá. DSCP só ajuda se o roteador/caminho respeitar EF; não reduz latência física.
+
+### MPO e HDCP
+
+MPO já é tratado por `OverlayTestMode=5` nos perfis altos. HDCP não possui API/registro público suportado para desativação na NVIDIA; o módulo faz apenas auditoria (`sem controle HDCP suportado`) e não aplica hack não documentado que possa quebrar vídeo/DRM.
 
 ## Perfis
 
@@ -82,7 +117,7 @@ Diagnóstico:
 | `lowend` | PC fraco, 4–8 GB, HDD | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios incluídos. |
 | `laptop` | Notebook | Respeita bateria: no DC mantém downclock e economia. Não mexe em core parking nem HVCI. NDIS agressivo e afinidade de interrupção são ignorados automaticamente. |
 | `desktop` | Desktop | Equilibrado. Sem desligar HVCI. Inclui afinidade de interrupção se houver 8+ threads. |
-| `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off, MSI + prioridade de interrupção. |
+| `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off, MSI + prioridade de interrupção, filas HID 20 e QoS DSCP 46. |
 | `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot + RSS, TCP kernel, NTFS 8.3, ETW autologgers, BCD TSC, choking de navegadores/IA, perfil de GPU, I/O e TRIM. |
 | `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off + NDIS agressivo + watcher com pin fisico. Risco alto, ganho real em CPU-bound. |
 
@@ -98,6 +133,8 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 
 **Entrada**
 - Aceleração do mouse desligada, curvas planas (1:1)
+- Keyboard Response: FilterKeys off, repeat 200/6, rate 31
+- Filas HID de mouse/teclado em 20 pacotes (perfis altos; exige reboot)
 - Suspensão seletiva USB desligada
 - Suspensão de energia em dispositivos USB/HID desligada
 - USB 3 Link Power Management desligado
@@ -107,6 +144,7 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 - Throttling de rede multimídia removido
 - Interrupt moderation, EEE, flow control e wake-on desligados no adaptador físico
 - TCP: ECN e timestamps off, RTO 2000 ms
+- QoS DSCP 46 (EF) para CS2 e Valorant (política local; exige reboot)
 - DNS Cloudflare 1.1.1.1
 
 **Sistema**
@@ -210,8 +248,11 @@ lib/Modules.ps1       analise modular com score
 lib/Verdict.ps1       classificacao por evidencia
 lib/Boost.ps1         focus, ProBalance, trim, stress
 lib/Peripherals.ps1   USB, HID, monitores
+lib/Timer.ps1         NtSetTimerResolution/NtQueryTimerResolution
+lib/Stability.ps1     carga C# + WHEA 18/19 para Curve Optimizer
+lib/Qos.ps1           politicas DSCP 46 e status do Packet Scheduler
 lib/Tui.ps1           banner, menu, deep scan com anomalias
-lib/Watcher.ps1       plano Ultimate, afinidade fisica, tarefa de logon
+lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key
 lib/Storage.ps1       I/O worker threads e TRIM
 bnqq-watch.ps1        processo do watcher (logon)

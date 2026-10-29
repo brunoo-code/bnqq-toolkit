@@ -235,6 +235,11 @@ function Get-BnqqModuleGpu {
         $findings.Add((New-BnqqFinding 'info' 'MPO ativo' 'Multiplane overlay pode causar flicker e stutter em algumas GPUs.' 'Ativar OverlayTestMode=5 se houver stutter.' 'Corrige stutter em cenarios especificos'))
     }
 
+    $hdcp = Get-BnqqHdcpStatus
+    if (-not $hdcp.Controllable) {
+        $findings.Add((New-BnqqFinding 'info' 'HDCP sem controle suportado' $hdcp.Action 'Nao aplicar hack de registro nao documentado.' 'Evita quebrar saida de video/DRM'))
+    }
+
     $bar1 = $null
     if (Test-BnqqCmd 'nvidia-smi') {
         $q = (& nvidia-smi -q 2>$null) -join "`n"
@@ -243,7 +248,14 @@ function Get-BnqqModuleGpu {
     }
 
     if ($bar1 -and $smi -and $bar1 -lt 1024 -and [int]$smi.MemTotal -ge 6000) {
-        $findings.Add((New-BnqqFinding 'warn' ('ReBAR desativado (BAR1 {0} MB)' -f $bar1) 'A GPU expoe apenas 256 MB de BAR.' 'Ativar Resizable BAR / Above 4G na BIOS.' '2-8% em jogos com muitos assets'))
+        $gpuName = if ($smi) { $smi.Name } else { $gpu.Name }
+        $rebarUnsupported = $gpuName -match 'RTX\s+20\d0|GTX\s+16\d0|GTX\s+10\d0'
+        if ($rebarUnsupported) {
+            $findings.Add((New-BnqqFinding 'info' ('ReBAR nao suportado pela GPU (BAR1 {0} MB)' -f $bar1) 'Turing/Pascal nao expoem Resizable BAR oficial.' 'Nenhuma acao de software; limitacao de GPU/vBIOS.' 'Sem ganho possivel neste hardware'))
+        }
+        else {
+            $findings.Add((New-BnqqFinding 'warn' ('ReBAR desativado (BAR1 {0} MB)' -f $bar1) 'A GPU expoe apenas 256 MB de BAR.' 'Ativar Resizable BAR / Above 4G na BIOS.' '2-8% em jogos com muitos assets'))
+        }
     }
 
     return [pscustomobject]@{
@@ -259,6 +271,7 @@ function Get-BnqqModuleGpu {
             Pcie = if ($smi) { 'Gen{0} x{1}' -f $smi.Gen, $smi.Width } else { $null }
             Hags = $hags
             Mpo = $mpo
+            Hdcp = $hdcp.Status
             Bar1MB = $bar1
         }
     }

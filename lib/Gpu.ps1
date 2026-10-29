@@ -17,6 +17,41 @@ function Get-BnqqGpuDriverKeys {
     return @(Get-ChildItem -LiteralPath $base -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' })
 }
 
+function Get-BnqqHdcpStatus {
+    foreach ($key in Get-BnqqGpuDriverKeys) {
+        $desc = (Get-ItemProperty -LiteralPath $key.PSPath -Name DriverDesc -ErrorAction SilentlyContinue).DriverDesc
+        if ($desc -notmatch 'NVIDIA') { continue }
+
+        $reg = Get-Item -LiteralPath $key.PSPath -ErrorAction SilentlyContinue
+        $values = @()
+        if ($reg) {
+            $values = @($reg.GetValueNames() | Where-Object { $_ -match '(?i)hdcp' } | ForEach-Object {
+                [pscustomobject]@{
+                    Name  = $_
+                    Value = $reg.GetValue($_, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                }
+            })
+        }
+
+        $status = if ($values.Count -gt 0) { 'registro presente; desativacao nao suportada' } else { 'sem controle HDCP suportado' }
+        return [pscustomobject]@{
+            Controllable = $false
+            Adapter      = $desc
+            Status       = $status
+            Values       = $values
+            Action       = 'Nao alterado: NVIDIA nao expoe API/registro publico para desativar HDCP'
+        }
+    }
+
+    return [pscustomobject]@{
+        Controllable = $false
+        Adapter      = $null
+        Status       = 'adaptador NVIDIA nao localizado'
+        Values       = @()
+        Action       = 'Nada a alterar'
+    }
+}
+
 function Get-BnqqNvidiaSmi {
     $cmd = Get-Command nvidia-smi -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }

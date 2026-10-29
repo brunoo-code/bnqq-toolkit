@@ -23,6 +23,13 @@ function Set-BnqqKeyboardResponse {
     Set-BnqqReg $kb 'KeyboardDelay' '0' 'String'
     Set-BnqqReg $kb 'KeyboardSpeed' '31' 'String'
 
+    $response = 'HKCU:\Control Panel\Accessibility\Keyboard Response'
+    Set-BnqqReg $response 'Flags' '122' 'String'
+    Set-BnqqReg $response 'AutoRepeatDelay' '200' 'String'
+    Set-BnqqReg $response 'AutoRepeatRate' '6' 'String'
+    Set-BnqqReg $response 'BounceTime' '0' 'String'
+    Set-BnqqReg $response 'DelayBeforeAcceptance' '0' 'String'
+
     foreach ($acc in @('StickyKeys', 'ToggleKeys', 'FilterKeys')) {
         $path = 'HKCU:\Control Panel\Accessibility\{0}' -f $acc
         if ($acc -eq 'StickyKeys') { Set-BnqqReg $path 'Flags' '506' 'String' }
@@ -30,7 +37,13 @@ function Set-BnqqKeyboardResponse {
         if ($acc -eq 'FilterKeys') { Set-BnqqReg $path 'Flags' '122' 'String' }
     }
 
-    Write-Bnqq 'Teclado: repeat delay 0, rate 31, teclas de aderencia sem atalho' 'OK'
+    Write-Bnqq 'Teclado: FilterKeys off, repeat 200/6, rate 31' 'OK'
+}
+
+function Set-BnqqInputQueue {
+    Set-BnqqReg 'HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters' 'MouseDataQueueSize' 20 'DWord'
+    Set-BnqqReg 'HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters' 'KeyboardDataQueueSize' 20 'DWord'
+    Write-Bnqq 'Filas HID: mouse 20 / teclado 20 pacotes (reboot)' 'OK'
 }
 
 function Set-BnqqBackgroundAppsOff {

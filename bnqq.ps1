@@ -1,11 +1,14 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
     [string]$BackupFile,
+    [int]$StabilityMinutes = 5,
+    [int]$StabilitySeconds = 0,
+    [int]$StabilityThreads = 0,
     [ValidateSet('status', 'install', 'remove', 'run')]
     [string]$WatcherAction = 'status',
     [switch]$PinPhysical,
@@ -34,6 +37,9 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Peripherals.ps1')
 . (Join-Path $root 'lib\Gpu.ps1')
 . (Join-Path $root 'lib\Storage.ps1')
+. (Join-Path $root 'lib\Timer.ps1')
+. (Join-Path $root 'lib\Stability.ps1')
+. (Join-Path $root 'lib\Qos.ps1')
 . (Join-Path $root 'lib\Watcher.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -174,6 +180,14 @@ switch ($Command) {
     'rebalance' { Invoke-BnqqRebalance -Seconds 60 }
     'stress' { Invoke-BnqqStress -Seconds 15 }
 
+    'stability' {
+        Test-BnqqStability -Minutes $StabilityMinutes -Seconds $StabilitySeconds -Threads $StabilityThreads -ReportDir $reportDir
+    }
+
+    'timer' { Show-BnqqTimerStatus }
+
+    'qos' { Show-BnqqQosStatus }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -198,6 +212,10 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 report               Score por area com prioridades' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 verdict              O que funciona e o que e placebo' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 stress               Boost sustentado e throttling' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 stability            5 min de carga + WHEA 18/19 (Curve Optimizer)' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 stability -StabilityMinutes 3' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 timer                Timer resolution atual (0.5 ms com watcher)' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 qos                  Politicas DSCP 46 e QoS Packet Scheduler' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

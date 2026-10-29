@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "2.1.0",
+    "version":  "2.3.0",
     "profiles":  {
                      "lowend":  [
                                     "power-plan",
@@ -230,7 +230,9 @@
                                     "ai-cleanup",
                                     "gpu-vendor-profile",
                                     "io-queue-depth",
-                                    "game-watcher"
+                                    "game-watcher",
+                                    "input-queue",
+                                    "qos-dscp"
                                 ],
                      "fresh":  [
                                    "power-plan",
@@ -301,7 +303,9 @@
                                    "ai-cleanup",
                                    "gpu-vendor-profile",
                                    "io-queue-depth",
-                                   "ssd-trim"
+                                   "ssd-trim",
+                                   "input-queue",
+                                   "qos-dscp"
                                ],
                      "extreme":  [
                                      "power-plan",
@@ -375,7 +379,9 @@
                                      "gpu-vendor-profile",
                                      "io-queue-depth",
                                      "ssd-trim",
-                                     "game-affinity"
+                                     "game-affinity",
+                                     "input-queue",
+                                     "qos-dscp"
                                  ]
                  }
 }

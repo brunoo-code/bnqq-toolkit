@@ -293,8 +293,13 @@ $script:TweakCatalog = @(
     },
     @{
         Id = 'keyboard-response'; Area = 'Input'; Risk = 'low'; Reboot = $false
-        Name = 'Teclado: repeat delay 0 e rate maximo'
+        Name = 'Teclado: FilterKeys off, repeat 200/6 e rate 31'
         Apply = { Set-BnqqKeyboardResponse }
+    },
+    @{
+        Id = 'input-queue'; Area = 'Input'; Risk = 'medium'; Reboot = $true
+        Name = 'Filas HID: 20 pacotes no mouse e no teclado'
+        Apply = { Set-BnqqInputQueue }
     },
     @{
         Id = 'background-apps-off'; Area = 'Processos'; Risk = 'low'; Reboot = $false
@@ -315,6 +320,11 @@ $script:TweakCatalog = @(
         Id = 'tcp-tuning'; Area = 'Rede'; Risk = 'low'; Reboot = $false
         Name = 'TCP: ECN e timestamps off, RTO 2000 ms'
         Apply = { Set-BnqqTcpTuning }
+    },
+    @{
+        Id = 'qos-dscp'; Area = 'Rede'; Risk = 'low'; Reboot = $true
+        Name = 'QoS: DSCP 46 (EF) para CS2 e Valorant'
+        Apply = { Set-BnqqQosDscp }
     },
     @{
         Id = 'dns-fast'; Area = 'Rede'; Risk = 'low'; Reboot = $false
