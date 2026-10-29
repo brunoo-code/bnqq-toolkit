@@ -22,26 +22,34 @@ function Get-BnqqFrameStats {
     $rows = @(Import-Csv -LiteralPath $CsvPath)
     $invariant = [Globalization.CultureInfo]::InvariantCulture
     $numberStyle = [Globalization.NumberStyles]::Float
-    $frames = @()
+    $frames = New-Object 'System.Collections.Generic.List[object]'
     foreach ($row in $rows) {
         $ms = 0.0
         if (-not [double]::TryParse([string]$row.MsBetweenPresents, $numberStyle, $invariant, [ref]$ms)) { continue }
         if ($ms -le 0) { continue }
         $time = 0.0
         [double]::TryParse([string]$row.TimeInMs, $numberStyle, $invariant, [ref]$time) | Out-Null
-        $frames += [pscustomobject]@{ TimeMs = $time; Ms = $ms }
+        $frames.Add([pscustomobject]@{ TimeMs = $time; Ms = $ms })
     }
     if ($frames.Count -eq 0) { throw 'CSV sem frames validos' }
 
+    $skipMs = 0.0
     if ($SkipSeconds -gt 0) {
-        $start = ($frames | Measure-Object TimeMs -Minimum).Minimum + ($SkipSeconds * 1000)
-        $frames = @($frames | Where-Object { $_.TimeMs -ge $start })
+        $firstTime = ($frames | Measure-Object TimeMs -Minimum).Minimum
+        $skipMs = $firstTime + ($SkipSeconds * 1000)
     }
-    if ($frames.Count -eq 0) { throw 'Nenhum frame apos o warmup' }
 
-    $times = @($frames | ForEach-Object { [double]$_.Ms })
-    $sorted = @($times | Sort-Object -Descending)
+    $times = New-Object 'System.Collections.Generic.List[double]'
+    foreach ($frame in $frames) {
+        if ($frame.TimeMs -lt $skipMs) { continue }
+        $times.Add([double]$frame.Ms)
+    }
+    if ($times.Count -eq 0) { throw 'Nenhum frame apos o warmup' }
+
     $count = $times.Count
+    $sorted = $times.ToArray()
+    [Array]::Sort($sorted)
+    [Array]::Reverse($sorted)
     $count1 = [math]::Max(1, [int][math]::Ceiling($count * 0.01))
     $count01 = [math]::Max(1, [int][math]::Ceiling($count * 0.001))
     $avgMs = ($times | Measure-Object -Average).Average
