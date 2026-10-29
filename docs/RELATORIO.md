@@ -526,8 +526,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 145.408 bytes |
-| Build público | 125.440 bytes |
+| Build privado | 151.552 bytes |
+| Build público | 132.096 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -921,3 +921,74 @@ TUI privada `[23] HID`, `[24] ETW`, `[25] Preflight`; pública `[20]/[21]/[22]`.
 - O monitor ETW/PDH é leve e não substitui WPR/WPA para análise de DPC/ISR.
 - O preflight exige UAC para Secure Boot/TPM.
 - O teste virtual não substitui partida real; não houve teste in-game manual nesta fase.
+
+---
+
+## 27. v1.3.1 — Deep Freeze, Large Pages e P-State
+
+### 27.1 Módulos
+
+| # | Módulo | Implementação |
+|---|---|---|
+| 1 | Versionamento | `v1.3.1` em banner, build, config, guia e README |
+| 2 | Deep Freeze | suspensão/resumo via `NtSuspendProcess`/`NtResumeProcess` no foco do jogo |
+| 3 | Large Pages | concessão de `SeLockMemoryPrivilege` via política local |
+| 4 | GPU P-State | leitura de P-State e lock de clock máximo por `nvidia-smi` |
+| 5 | Perfis + E2E | working set 192 MB CS2 / 256 MB Valorant; log de latência E2E |
+| 6 | NDIS/ETW | auditoria DSCP/firewall e WPR opcional |
+| 7 | QA/build | motor C# e binários finais |
+
+### 27.2 Deep Freeze
+
+Arquivo: `lib/DeepFreeze.ps1`
+
+- Suspende Steam WebHelper, Discord, navegadores, updaters, OneDrive/Dropbox e launchers.
+- Exclui `explorer`, Riot Client, Vanguard, áudio, DWM e processos de segurança.
+- Retoma no Alt+Tab e ao fechar o jogo.
+- Teste nativo em processo PowerShell: `SuspendStatus=0`, `ResumeStatus=0`.
+
+O watcher instala com `-DeepFreeze` e passa a usar poll de 1 s para detectar perda de foco.
+
+### 27.3 Large Pages
+
+`SeLockMemoryPrivilege` foi concedido para `BNQY\bruno`; a mudança exige logoff/reboot para o token refletir. O privilégio **não força** CS2/Valorant a usar `VirtualAlloc(MEM_LARGE_PAGES)`; ele apenas permite que a aplicação solicite.
+
+### 27.4 GPU P-State
+
+Estado real:
+
+```text
+P-State  P0
+Clock    1935 MHz / memória 7000 MHz
+```
+
+O controle efetivo é `nvidia-smi -lgc max -pm 1`. Não foi baixado NVIDIA Inspector; P-State 0 não tem API pública garantida via NVAPI.
+
+### 27.5 Rede / WPR
+
+Auditoria: 2 políticas DSCP, 2 adaptadores com `ms_pacer`, 0 regras de firewall BNQQ. Nenhum firewall foi desativado. WPR de 5 s gerou ETL em `reports`; o stop foi lento porque o WPR consolida o trace.
+
+### 27.6 QA virtual — 30 s
+
+```text
+Ticks            3841 (128.0 Hz)
+Jitter           avg 0.0 us · max 0.0 us
+Fisica / memoria 3201050000 ops / 640044000 ops
+Rede             1615 pacotes loopback
+Timer            0,500 ms  [0.5 ms OK]
+Afinidade jogo   0x5555  [0x5555 OK]
+Afinidade SMT    0xAAAA  [0xAAAA OK]
+Motor afinidade  0x5555  [OK]
+Watcher detectou sim
+Veredito         ESTAVEL
+```
+
+### 27.7 Limitações
+
+- Deep Freeze pausa processos; Alt+Tab pode demorar até o próximo ciclo de 1 s.
+- Suspender apps pode quebrar downloads/updaters; é opt-in e exclui anti-cheat/shell.
+- Large Pages depende da aplicação e do token pós-logon.
+- P-State 0 é observado; o clock máximo é o controle real.
+- DSCP no fio não foi validado.
+- WPR é pesado e pode afetar o próprio resultado.
+- Não houve teste in-game real nesta fase.

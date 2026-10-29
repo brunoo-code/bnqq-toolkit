@@ -1,4 +1,4 @@
-﻿# BNQQ Optimizer v1.3.0 — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v1.3.1 — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
@@ -56,6 +56,9 @@ O público tem a mesma base em outra ordem:
 - **[20] HID / USB Runtime** — filas seguras, aceleração off, USB sem suspensão e afinidade de interrupção.
 - **[21] ETW / DPC / DWM** — monitor leve de DPC/ISR/DWM com JSON em `reports`.
 - **[22] Preflight Segurança** — Secure Boot, TPM, VBS e HVCI antes do perfil valorant.
+- **[23] Large Pages 2 MB** — concede `SeLockMemoryPrivilege`.
+- **[24] GPU P-State** — P-State real e clock máximo via `nvidia-smi`.
+- **[25] Rede / DSCP / Firewall** — auditoria e regras UDP sem desativar o firewall.
 
 ## O que usar antes de uma partida
 

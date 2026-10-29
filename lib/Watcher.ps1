@@ -133,7 +133,7 @@ function Show-BnqqWatcherStatus {
 }
 
 function Install-BnqqWatcher {
-    param([switch]$PinPhysical, [switch]$RespectBattery)
+    param([switch]$PinPhysical, [switch]$RespectBattery, [switch]$DeepFreeze)
 
     $root = $script:BnqqRoot
     if (-not $root) { throw 'Raiz do projeto nao definida' }
@@ -144,6 +144,7 @@ function Install-BnqqWatcher {
     $arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $script
     if ($PinPhysical) { $arguments += ' -PinPhysical' }
     if ($RespectBattery) { $arguments += ' -RespectBattery' }
+    if ($DeepFreeze) { $arguments += ' -DeepFreeze' }
 
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
@@ -169,6 +170,7 @@ function Install-BnqqWatcher {
     Set-BnqqMeta 'WatcherInstalled' $true
     Set-BnqqMeta 'WatcherPinPhysical' ([bool]$PinPhysical)
     Set-BnqqMeta 'WatcherRespectBattery' ([bool]$RespectBattery)
+    Set-BnqqMeta 'WatcherDeepFreeze' ([bool]$DeepFreeze)
     Write-Bnqq ('Watcher instalado (pin fisico: {0}, bateria: {1}, estado: {2})' -f [bool]$PinPhysical, [bool]$RespectBattery, $(if ($task) { $task.State } else { 'ausente' })) 'OK'
 }
 
@@ -197,6 +199,7 @@ function Start-BnqqWatcher {
         [int]$IntervalSeconds = 2,
         [switch]$PinPhysical,
         [switch]$RespectBattery,
+        [switch]$DeepFreeze,
         [switch]$Once,
         [double]$StandbyThresholdGB = 4
     )
@@ -211,8 +214,10 @@ function Start-BnqqWatcher {
     $standbyWarned = $false
     $runtimeState = $null
     $runtimePid = $null
+    $focusActive = $false
     $mask = [int64]0
     if ($PinPhysical) { $mask = Get-BnqqPhysicalCoreMask }
+    $loopInterval = if ($DeepFreeze -and $IntervalSeconds -gt 1) { 1 } else { $IntervalSeconds }
 
     try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { }
     Write-Bnqq ('Watcher iniciado: intervalo {0}s, pin fisico {1}, respeitar bateria {2}' -f $IntervalSeconds, [bool]$PinPhysical, [bool]$RespectBattery) 'STEP'
@@ -277,11 +282,25 @@ function Start-BnqqWatcher {
                 try {
                     $foregroundPid = Get-BnqqForegroundPid
                     $foregroundGame = $running | Where-Object { $_.Id -eq $foregroundPid } | Select-Object -First 1
-                    if ($foregroundGame -and $runtimePid -ne $foregroundGame.Id) {
-                        if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
-                        $runtimePid = $foregroundGame.Id
-                        $runtimeState = Set-BnqqRuntimeLatency -Process $foregroundGame
-                        Write-Bnqq ('Runtime foco: {0} QoS={1} working set={2}' -f $foregroundGame.ProcessName, $runtimeState.QoS, [bool]$runtimeState.WorkingSet) 'OK'
+                    if ($foregroundGame) {
+                        if (-not $focusActive -or $runtimePid -ne $foregroundGame.Id) {
+                            $focusTimer = [Diagnostics.Stopwatch]::StartNew()
+                            if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
+                            $runtimePid = $foregroundGame.Id
+                            $profile = Get-BnqqGameRuntimeProfile -Process $foregroundGame
+                            $runtimeState = Set-BnqqRuntimeLatency -Process $foregroundGame -ExtraMB $profile.WorkingSetExtraMB
+                            $frozen = 0
+                            if ($DeepFreeze) { $frozen = Freeze-BnqqBackground }
+                            $focusTimer.Stop()
+                            $focusActive = $true
+                            Write-Bnqq ('Runtime foco: {0} [{1}] QoS={2} working set={3} freeze={4} E2E={5} ms' -f $foregroundGame.ProcessName, $profile.Game, $runtimeState.QoS, [bool]$runtimeState.WorkingSet, $frozen, $focusTimer.ElapsedMilliseconds) 'OK'
+                        }
+                        if ($DeepFreeze -and $focusActive) { Freeze-BnqqBackground | Out-Null }
+                    }
+                    elseif ($focusActive) {
+                        if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
+                        $focusActive = $false
+                        Write-Bnqq 'Runtime: foco perdido, Deep Freeze liberado' 'OK'
                     }
                 }
                 catch {
@@ -309,7 +328,9 @@ function Start-BnqqWatcher {
                 $active = $false
                 try { Clear-BnqqTimerResolution | Out-Null }
                 catch { Write-Bnqq ('Timer resolution clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
+                if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
                 if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState; $runtimeState = $null; $runtimePid = $null }
+                $focusActive = $false
                 if ($gpuLocked) {
                     try {
                         if (Clear-BnqqGpuClockLock -Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }
@@ -327,10 +348,11 @@ function Start-BnqqWatcher {
             }
 
             if ($Once) { break }
-            Start-Sleep -Seconds $IntervalSeconds
+            Start-Sleep -Seconds $loopInterval
         }
     }
     finally {
+        if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
         if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
         try { Clear-BnqqTimerResolution | Out-Null } catch { }
         if ($gpuLocked) { try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { } }

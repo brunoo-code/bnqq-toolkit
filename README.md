@@ -255,7 +255,36 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 
 O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4369→4355 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
 
-## v1.3.0 — Runtime Latency, ETW e HID
+## v1.3.1 — Deep Freeze, Large Pages e P-State
+
+Fase hard-runtime com foco em foco de janela, memória e GPU. VBS/HVCI continuam ligados.
+
+- **Deep Freeze:** watcher suspende processos não essenciais no foco do jogo e retoma ao Alt+Tab ou fechar. Ficam fora por padrão: `explorer`, Riot Client, Vanguard, áudio, DWM e processos de segurança. A lista inclui Steam WebHelper, Discord, navegadores, OneDrive, Dropbox, updaters e launchers.
+- **Large Pages:** `SeLockMemoryPrivilege` é concedido via política local; o jogo ainda precisa chamar `VirtualAlloc(MEM_LARGE_PAGES)`. O Windows não força large pages em CS2/Valorant.
+- **GPU P-State:** leitura real por `nvidia-smi --query-gpu=pstate`; lock de clock máximo com `nvidia-smi -lgc`. P-State 0 não tem API pública garantida e o NVIDIA Inspector não é baixado automaticamente.
+- **Perfis dinâmicos:** working set extra de 192 MB para CS2 e 256 MB para Valorant; watcher registra `E2E` em ms entre foco detectado e QoS/working set/Deep Freeze aplicados.
+- **Rede/NDIS:** auditoria de DSCP, `ms_pacer`, regras de firewall e criação opcional de regra UDP outbound dos jogos. O firewall não é desativado; DSCP no fio não é validado sem captura externa.
+- **WPR:** `etw -EtwWpr` inicia uma sessão curta do Windows Performance Recorder e salva `.etl` em `reports`, além do sampler leve de DPC/ISR/DWM.
+
+```powershell
+.\bnqq.ps1 watch -WatcherAction install -PinPhysical -WatcherDeepFreeze
+.\bnqq.ps1 largepages
+.\bnqq.ps1 largepages -LargePagesAction apply
+.\bnqq.ps1 gpupstate
+.\bnqq.ps1 netqos
+.\bnqq.ps1 etw -EtwSeconds 15 -EtwWpr
+```
+
+TUI privada `[26] Large Pages`, `[27] GPU P-State`, `[28] Rede/DSCP`; pública `[23]/[24]/[25]`.
+
+### Limitações
+
+- Suspender processos pode atrasar Alt+Tab e quebrar apps; Deep Freeze é opt-in e exclui anti-cheat/shell.
+- O watcher detecta foco por polling de 1 s quando Deep Freeze está ligado; “instantâneo” não é garantido.
+- Large Pages exige suporte da aplicação; conceder o privilégio não altera automaticamente o jogo.
+- P-State 0 é observado, não forçado por NVAPI; o clock máximo é o controle real.
+- DSCP e firewall não garantem prioridade no roteador.
+- WPR é pesado e pode alterar o próprio resultado; use sessões curtas.## v1.3.0 — Runtime Latency, ETW e HID
 
 Fase de runtime, sem reiniciar o Windows para o que é possível aplicar em tempo real. VBS/HVCI continuam obrigatórios e não são contornados.
 

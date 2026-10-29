@@ -215,8 +215,8 @@ function Set-BnqqCompensation {
 
     $task = Get-BnqqWatcherTask
     $action = if ($task -and $task.Actions.Count -gt 0) { [string]$task.Actions[0].Arguments } else { '' }
-    if (-not $task -or $action -notmatch '-PinPhysical') {
-        Install-BnqqWatcher -PinPhysical
+    if (-not $task -or $action -notmatch '-PinPhysical' -or $action -notmatch '-DeepFreeze') {
+        Install-BnqqWatcher -PinPhysical -DeepFreeze
     }
     elseif ($task.State -ne 'Running') {
         Start-ScheduledTask -TaskName 'BNQQ Game Watcher' -ErrorAction SilentlyContinue

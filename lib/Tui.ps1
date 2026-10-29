@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v1.3.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.3.1  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -272,6 +272,9 @@ function Invoke-BnqqTui {
         Write-Host '  [20] HID / USB Runtime' -ForegroundColor White
         Write-Host '  [21] ETW / DPC / DWM' -ForegroundColor White
         Write-Host '  [22] Preflight Seguranca' -ForegroundColor White
+        Write-Host '  [23] Large Pages 2 MB' -ForegroundColor White
+        Write-Host '  [24] GPU P-State' -ForegroundColor White
+        Write-Host '  [25] Rede / DSCP / Firewall' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -365,6 +368,17 @@ function Invoke-BnqqTui {
             }
             '21' { Start-BnqqEtwMonitor -Seconds 10 -IntervalMs 500 | Out-Null }
             '22' { Show-BnqqSecurityPreflight }
+            '23' {
+                Show-BnqqLargePageStatus
+                $sub = Read-Host '  [1] Conceder privilegio [0] Voltar'
+                if ($sub -eq '1') { Set-BnqqLargePagePrivilege | Out-Null; Show-BnqqLargePageStatus }
+            }
+            '24' {
+                Show-BnqqGpuPState
+                $sub = Read-Host '  [1] Travar clock maximo [0] Voltar'
+                if ($sub -eq '1') { Set-BnqqGpuPState | Out-Null; Show-BnqqGpuPState }
+            }
+            '25' { Show-BnqqNetworkAudit }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }
         }

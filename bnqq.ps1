@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -42,7 +42,15 @@ param(
     [int]$HidQueueSize = 20,
     [int]$EtwSeconds = 10,
     [int]$EtwIntervalMs = 500,
+    [switch]$EtwWpr,
+    [ValidateSet('status', 'apply')]
+    [string]$LargePagesAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$GpuPStateAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$NetQosAction = 'status',
     [switch]$PinPhysical,
+    [switch]$WatcherDeepFreeze,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
     [switch]$NoElevate
@@ -94,6 +102,9 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\RuntimeLatency.ps1')
 . (Join-Path $root 'lib\EtwMonitor.ps1')
 . (Join-Path $root 'lib\Preflight.ps1')
+. (Join-Path $root 'lib\LargePages.ps1')
+. (Join-Path $root 'lib\GpuPState.ps1')
+. (Join-Path $root 'lib\NetworkAudit.ps1')
 . (Join-Path $root 'lib\VirtualQA.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -115,6 +126,10 @@ if ($Command -eq 'compensate' -and $CompensateAction -eq 'apply') { $needsAdmin 
 if ($Command -eq 'virtualqa') { $needsAdmin = $true }
 if ($Command -eq 'hid' -and $HidAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'preflight') { $needsAdmin = $true }
+if ($Command -eq 'largepages' -and $LargePagesAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'gpupstate' -and $GpuPStateAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'netqos' -and $NetQosAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'etw' -and $EtwWpr) { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -127,6 +142,7 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'watch') {
         $forward += @('-WatcherAction', $WatcherAction)
         if ($PinPhysical) { $forward += '-PinPhysical' }
+        if ($WatcherDeepFreeze) { $forward += '-WatcherDeepFreeze' }
     }
     if ($Command -eq 'audio') {
         $forward += @('-AudioAction', $AudioAction, '-AudioCore', $AudioCore)
@@ -154,7 +170,10 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'compensate') { $forward += @('-CompensateAction', $CompensateAction) }
     if ($Command -eq 'virtualqa') { $forward += @('-VirtualSeconds', $VirtualSeconds, '-VirtualTicks', $VirtualTicks, '-VirtualThreads', $VirtualThreads) }
     if ($Command -eq 'hid') { $forward += @('-HidAction', $HidAction, '-HidQueueSize', $HidQueueSize) }
-    if ($Command -eq 'etw') { $forward += @('-EtwSeconds', $EtwSeconds, '-EtwIntervalMs', $EtwIntervalMs) }
+    if ($Command -eq 'etw') { $forward += @('-EtwSeconds', $EtwSeconds, '-EtwIntervalMs', $EtwIntervalMs); if ($EtwWpr) { $forward += '-EtwWpr' } }
+    if ($Command -eq 'largepages') { $forward += @('-LargePagesAction', $LargePagesAction) }
+    if ($Command -eq 'gpupstate') { $forward += @('-GpuPStateAction', $GpuPStateAction) }
+    if ($Command -eq 'netqos') { $forward += @('-NetQosAction', $NetQosAction) }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -254,11 +273,11 @@ switch ($Command) {
     'watch' {
         switch ($WatcherAction) {
             'install' {
-                if ($system.IsLaptop) { Install-BnqqWatcher -PinPhysical:$PinPhysical -RespectBattery }
-                else { Install-BnqqWatcher -PinPhysical:$PinPhysical }
+                if ($system.IsLaptop) { Install-BnqqWatcher -PinPhysical:$PinPhysical -RespectBattery -DeepFreeze:$WatcherDeepFreeze }
+                else { Install-BnqqWatcher -PinPhysical:$PinPhysical -DeepFreeze:$WatcherDeepFreeze }
             }
             'remove'  { Uninstall-BnqqWatcher }
-            'run'     { Start-BnqqWatcher -PinPhysical:$PinPhysical -RespectBattery:$system.IsLaptop }
+            'run'     { Start-BnqqWatcher -PinPhysical:$PinPhysical -RespectBattery:$system.IsLaptop -DeepFreeze:$WatcherDeepFreeze }
             default   { Show-BnqqWatcherStatus }
         }
     }
@@ -362,11 +381,26 @@ switch ($Command) {
     }
 
     'etw' {
-        Start-BnqqEtwMonitor -Seconds $EtwSeconds -IntervalMs $EtwIntervalMs | Out-Null
+        Start-BnqqEtwMonitor -Seconds $EtwSeconds -IntervalMs $EtwIntervalMs -Wpr:$EtwWpr | Out-Null
     }
 
     'preflight' {
         Show-BnqqSecurityPreflight
+    }
+
+    'largepages' {
+        if ($LargePagesAction -eq 'apply') { Set-BnqqLargePagePrivilege | Out-Null }
+        Show-BnqqLargePageStatus
+    }
+
+    'gpupstate' {
+        if ($GpuPStateAction -eq 'apply') { Set-BnqqGpuPState | Out-Null }
+        Show-BnqqGpuPState
+    }
+
+    'netqos' {
+        if ($NetQosAction -eq 'apply') { Set-BnqqGameFirewallAllow }
+        Show-BnqqNetworkAudit
     }
 
     'guide' { Show-BnqqGuide }
@@ -384,7 +418,7 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1                    TUI: deep scan, apply, revert, watcher' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 menu               Mesmo que sem parametros' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 watch              Status do watcher de jogos' -ForegroundColor Gray
-        Write-Host '    .\bnqq.ps1 watch -WatcherAction install [-PinPhysical]' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 watch -WatcherAction install [-PinPhysical] [-WatcherDeepFreeze]' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 watch -WatcherAction remove' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 watch -WatcherAction run    Primeiro plano' -ForegroundColor Gray
         Write-Host ''
@@ -420,6 +454,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 hid                  Pilha HID, filas e USB MSI' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 etw                  DPC/ISR/DWM em tempo real' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 preflight            Secure Boot, TPM, VBS e HVCI' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 largepages           SeLockMemoryPrivilege / pages 2 MB' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 gpupstate            P-State e clock da GPU' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 netqos               DSCP, firewall e regras dos jogos' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

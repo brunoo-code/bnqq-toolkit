@@ -26,12 +26,37 @@
 function Start-BnqqEtwMonitor {
     param(
         [ValidateRange(5, 120)][int]$Seconds = 10,
-        [ValidateRange(250, 5000)][int]$IntervalMs = 500
+        [ValidateRange(250, 5000)][int]$IntervalMs = 500,
+        [switch]$Wpr,
+        [string]$WprFile
     )
 
     $samples = New-Object System.Collections.Generic.List[object]
     $end = (Get-Date).AddSeconds($Seconds)
     $previousDwm = $null
+    $wprStarted = $false
+
+    if ($Wpr) {
+        if (-not (Test-BnqqAdmin)) {
+            Write-Bnqq 'WPR exige elevacao; seguindo apenas com ETW/PDH' 'WARN'
+            $Wpr = $false
+        }
+        else {
+            if (-not $WprFile) {
+                $dir = Join-Path $script:BnqqRoot 'reports'
+                if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+                $WprFile = Join-Path $dir ('bnqq-wpr-{0}.etl' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+            }
+            & wpr.exe -start CPU -filemode 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $wprStarted = $true
+                Write-Bnqq ('WPR iniciado: {0}' -f $WprFile) 'OK'
+            }
+            else {
+                Write-Bnqq 'WPR nao iniciou; seguindo com ETW/PDH' 'WARN'
+            }
+        }
+    }
 
     Write-Bnqq ('ETW/PDH: amostrando DPC/ISR/DWM por {0}s' -f $Seconds) 'STEP'
     while ((Get-Date) -lt $end) {
@@ -46,6 +71,12 @@ function Start-BnqqEtwMonitor {
         $previousDwm = $s.DwmCpu
         $samples.Add($s)
         Start-Sleep -Milliseconds $IntervalMs
+    }
+
+    if ($wprStarted) {
+        & wpr.exe -stop $WprFile 2>$null | Out-Null
+        if (Test-Path -LiteralPath $WprFile) { Write-Bnqq ('WPR salvo: {0}' -f $WprFile) 'OK' }
+        else { Write-Bnqq 'WPR: ETL nao foi gerado' 'WARN' }
     }
 
     if ($samples.Count -eq 0) {
@@ -73,6 +104,7 @@ function Start-BnqqEtwMonitor {
         DwmCpuAvgSec = if ($dwmAvg -ne $null) { [math]::Round($dwmAvg, 3) } else { $null }
         DwmCpuMaxSec = if ($dwmMax -ne $null) { [math]::Round($dwmMax, 3) } else { $null }
         DwmWorkingSetMB = $samples[$samples.Count - 1].DwmWorkingSetMB
+        WprFile = if ($wprStarted) { $WprFile } else { $null }
     }
 
     $dir = Join-Path $script:BnqqRoot 'reports'

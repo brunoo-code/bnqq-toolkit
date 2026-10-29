@@ -142,6 +142,19 @@ function Set-BnqqRuntimeQos {
     }
 }
 
+function Get-BnqqGameRuntimeProfile {
+    param([Parameter(Mandatory = $true)]$Process)
+
+    $name = $Process.ProcessName
+    if ($name -eq 'cs2') {
+        return [pscustomobject]@{ Game = 'CS2'; WorkingSetExtraMB = 192; Dscp = 46 }
+    }
+    if ($name -eq 'VALORANT-Win64-Shipping') {
+        return [pscustomobject]@{ Game = 'Valorant'; WorkingSetExtraMB = 256; Dscp = 46 }
+    }
+    return [pscustomobject]@{ Game = $name; WorkingSetExtraMB = 128; Dscp = 46 }
+}
+
 function Set-BnqqRuntimeLatency {
     param(
         [Parameter(Mandatory = $true)]$Process,
