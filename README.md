@@ -220,7 +220,19 @@ O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`.
 
 Em 8C/16T, o jogo usa todos os núcleos físicos; os CPUs 4/6 dos IRQs compartilham o mask do jogo. Isolamento absoluto exigiria reservar núcleos e reduzir o jogo. O Ethernet desta máquina não expõe RSS. `Timer coalescing` não tem API/registro suportado; não foi inventado. `Max Pre-rendered frames`, `Silk Smoothness` e `Threaded Optimization` ficam no perfil do driver/NVIDIA App, não em `nvlddmkm`; nenhuma chave fictícia foi injetada.
 
-A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v5.0 Vanguard`**.
+A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v6.0 Premium`**.
+
+## Licenciamento HWID
+
+O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Processor.ProcessorId` e exige `license.key` com assinatura RSA-2048/SHA-256. Sem licença, mostra o HWID e encerra. O `keygen.ps1` é privado e **não** é incluído no build público.
+
+## Premium QA
+
+- AMD: `EnableUlps=0` + Anti-Lag via perfil de vendor existente.
+- Discord: atalho com `--disable-gpu`; comunicação em prioridade baixa (`CpuPriorityClass=5`, `IoPriority=1`, `PagePriority=1`).
+- Rede: checksum offload IP/TCP/UDP v4/v6 e LSO desligados no adaptador físico.
+- Energia: idle demote/promote 100 e `IDLEDISABLE=1`.
+- Deep Scan `[1]`: QA de IRQ, SMT e timer; em idle informa que o watcher aplicará 0,5 ms no jogo.
 
 ## Perfis
 
@@ -373,6 +385,8 @@ lib/ProTier.ps1       rede/MMCSS, USB suspend e dynamic tick opt-in
 lib/GodTier.ps1       CFG por jogo, FSO, paging, prioridade e auditoria shader
 lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
 lib/MemoryGuard.ps1   purga nativa da standby list e memória livre
+lib/License.ps1       HWID SHA-256 e verificação RSA-SHA256
+lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/Tui.ps1           banner, menu, deep scan com anomalias
 lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key

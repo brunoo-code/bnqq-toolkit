@@ -94,9 +94,17 @@ Aplica `DisablePagingExecutive=1`, `Win32PrioritySeparation=0x26`, CFG desativad
 **Efeito:** kernel/drivers residentes em RAM, quantum de foreground e CFG por jogo. **Custo:** CFG por jogo reduz mitigação de exploits e é opt-in por risco de anti-cheat; `god remove` reabilita. O tamanho do shader cache NVIDIA não tem DWORD suportado em `nvlddmkm`; o módulo audita os caches e não injeta valor inventado.
 
 ### `vanguard -VanguardAction apply`
-Aplica IRQ GPU CPU 4, IRQ rede CPU 6, tenta RSS no CPU 6, verifica DXGI/FSO e prepara o watcher com isolamento SMT e purga de standby abaixo de 4 GB.
+Aplica IRQ GPU CPU 4, IRQ rede CPU 6, tenta RSS no CPU 6, verifica DXGI/FSO e prepara o watcher com isolamento SMT e purga de standby abaixo de 4 GB. Também desliga checksum/LSO e aplica idle demote/promote 100 + idle disable.
 
 **Efeito:** interrupções, background e memória mais previsíveis. **Limites:** em 8C/16T os IRQs compartilham núcleos do jogo; RSS pode não existir no driver; timer coalescing e opções NVIDIA não têm registro suportado.
+
+## Premium
+
+### Licença HWID
+O `bnqq.ps1` exige `license.key` RSA-SHA256 para o HWID local; sem ele, mostra o HWID e encerra. O gerador `keygen.ps1` é privado e não é empacotado no build público.
+
+### QA do ambiente
+O Deep Scan verifica IRQ GPU/rede, mask SMT e timer. Em idle, o timer mostra que o watcher aplicará 0,5 ms quando o jogo abrir.
 
 ## Sistema
 

@@ -760,6 +760,12 @@ function Set-BnqqProcessPriority {
     $map = @{
         'Discord.exe'                 = 5
         'steamwebhelper.exe'          = 5
+        'slack.exe'                   = 5
+        'Teams.exe'                   = 5
+        'ms-teams.exe'                = 5
+        'WhatsApp.exe'                = 5
+        'Zoom.exe'                    = 5
+        'Telegram.exe'                = 5
         'cs2.exe'                     = 3
         'VALORANT-Win64-Shipping.exe' = 3
     }
@@ -992,10 +998,16 @@ function Set-BnqqShortcutFlags {
                 $shortcut = $shell.CreateShortcut($lnk.FullName)
                 $targetName = Split-Path -Leaf $shortcut.TargetPath
                 if ($targets -notcontains $targetName) { continue }
-                if ($shortcut.Arguments -match 'disable-background-timer-throttling') { continue }
+
+                $desired = $flags
+                if ($targetName -eq 'Discord.exe') { $desired = ($flags + ' --disable-gpu').Trim() }
+                $missing = @($desired -split '\s+' | Where-Object {
+                    $_ -and ($shortcut.Arguments -notmatch [regex]::Escape($_))
+                })
+                if ($missing.Count -eq 0) { continue }
 
                 $store[$lnk.FullName] = $shortcut.Arguments
-                $shortcut.Arguments = ($shortcut.Arguments + ' ' + $flags).Trim()
+                $shortcut.Arguments = (($shortcut.Arguments + ' ' + ($missing -join ' ')).Trim())
                 $shortcut.Save()
                 $changed++
                 Write-Bnqq ('Atalho ajustado: {0}' -f $lnk.Name) 'OK'

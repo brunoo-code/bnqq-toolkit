@@ -227,6 +227,8 @@ lib/ProTier.ps1
 lib/GodTier.ps1
 lib/Vanguard.ps1
 lib/MemoryGuard.ps1
+lib/License.ps1
+lib/QA.ps1
 bnqq-watch.ps1
 bnqq-audio.ps1
 build.ps1
@@ -522,8 +524,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 115.200 bytes |
-| Build público | 95.232 bytes |
+| Build privado | 118.784 bytes |
+| Build público | 99.328 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -681,6 +683,36 @@ Banner **`BNQQ OPTIMIZER v5.0 Vanguard`**; Deep Scan com painel Vanguard; TUI p�
 
 ---
 
-## 21. Licença
+## 21. Premium Licensing & QA
+
+### 21.1 Licenciamento HWID
+
+`lib/License.ps1` calcula SHA-256 de `UUID + ProcessorId` e exige `license.key` com assinatura RSA-2048/SHA-256. O cliente tem apenas a chave pública; `keygen.ps1` é privado e não entra no build público. Sem licença, a TUI mostra o HWID e encerra.
+
+### 21.2 QA AMD/NVIDIA
+
+AMD já recebe `EnableUlps=0` e Anti-Lag. O atalho do Discord recebe `--disable-gpu`; navegadores mantêm HW accel off. Discord, Slack, Teams, WhatsApp, Zoom, Telegram e Steam webhelper recebem prioridade baixa. Nenhuma chave NVIDIA inventada foi adicionada.
+
+### 21.3 Rede e energia Premium
+
+Checksum offload IP/TCP/UDP v4/v6 e LSO IPv4/IPv6 desligados; idle demote/promote 100 e `IDLEDISABLE=1`. Validação: checksum `Disabled` nas cinco categorias, LSO `False`, thresholds `0x64`, idle disable `0x1`.
+
+### 21.4 QA do ambiente
+
+`lib/QA.ps1` verifica policy de IRQ, mask SMT `0xAAAA`, watcher e timer; em idle informa que o watcher aplica 0,5 ms quando o jogo abre. O `[1] Deep Scan` mostra `QA / AMBIENTE`.
+
+### 21.5 Build e release
+
+Banner **`BNQQ OPTIMIZER v6.0 Premium`**; build `6.0.0`; release `v6.0-Premium`; `license.key` no payload local; `keygen.ps1` fora do build.
+
+### 21.6 Changelog 6.0 Premium
+
+| Versão | Entrega |
+|---|---|
+| 6.0 | Licença HWID RSA-SHA256, keygen privado, AMD/Discord/communication tuning, checksum/LSO off, idle power thresholds, QA de IRQ/SMT/timer, build v6.0 Premium |
+
+---
+
+## 22. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

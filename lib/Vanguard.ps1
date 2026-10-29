@@ -146,6 +146,8 @@ function Set-BnqqVanguard {
     Set-BnqqVanguardIrqAffinity
     Set-BnqqVanguardRssPinning
     Set-BnqqVanguardDisplay
+    Set-BnqqPremiumNetworkOffloads
+    Set-BnqqPremiumPowerSettings
     Set-BnqqMeta 'VanguardApplied' $true
-    Write-Bnqq 'Vanguard: IRQ, RSS (se suportado), DXGI/FSO e watcher preparados' 'OK'
+    Write-Bnqq 'Vanguard: IRQ, RSS (se suportado), DXGI/FSO, offloads e power preparados' 'OK'
 }

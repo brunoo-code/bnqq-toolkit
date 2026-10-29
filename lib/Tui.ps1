@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v5.0 Vanguard  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v6.0 Premium  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -241,6 +241,7 @@ function Invoke-BnqqDeepScan {
     Show-BnqqGodTierStatus -Status $god
     $vg = Get-BnqqVanguardStatus
     Show-BnqqVanguardStatus -Status $vg
+    Show-BnqqQaStatus
 
     Write-Host ''
 }

@@ -28,6 +28,13 @@ param(
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:BnqqRoot = $root
+. (Join-Path $root 'lib\License.ps1')
+
+$license = Test-BnqqLicense
+if (-not $license.Valid) {
+    Show-BnqqLicenseFailure -Status $license
+    exit 1
+}
 
 if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
     $Command = 'scan'
@@ -55,6 +62,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\MemoryGuard.ps1')
 . (Join-Path $root 'lib\Vanguard.ps1')
 . (Join-Path $root 'lib\Watcher.ps1')
+. (Join-Path $root 'lib\QA.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
 $configPath = Join-Path $root 'config\profiles.json'

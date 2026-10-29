@@ -1,4 +1,4 @@
-function Test-BnqqLaptop {
+﻿function Test-BnqqLaptop {
     if (Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue) { return $true }
 
     $chassis = Get-CimInstance Win32_SystemEnclosure -ErrorAction SilentlyContinue
@@ -314,6 +314,41 @@ function Set-BnqqEtwAutologgers {
     }
 
     if ($disabled -eq 0) { Write-Bnqq 'Nenhum autologger de telemetria presente' 'INFO' }
+}
+
+function Set-BnqqPremiumNetworkOffloads {
+    $adapters = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' })
+    $done = 0
+    foreach ($adapter in $adapters) {
+        try {
+            Disable-NetAdapterChecksumOffload -Name $adapter.Name -IpIPv4 -TcpIPv4 -TcpIPv6 -UdpIPv4 -UdpIPv6 -ErrorAction Stop | Out-Null
+            Disable-NetAdapterLso -Name $adapter.Name -Ipv4 -Ipv6 -ErrorAction Stop | Out-Null
+            Write-Bnqq ('Premium: checksum/LSO off em {0}' -f $adapter.Name) 'OK'
+            $done++
+        }
+        catch {
+            Write-Bnqq ('Premium: {0} nao aceitou checksum/LSO ({1})' -f $adapter.Name, $_.Exception.Message) 'INFO'
+        }
+    }
+    if ($done -eq 0) { Write-Bnqq 'Premium: nenhum adaptador aceitou offloads' 'WARN' }
+}
+
+function Set-BnqqPremiumPowerSettings {
+    if (-not (Test-BnqqAdmin)) { throw 'Exige elevacao' }
+
+    $sub = '54533251-82be-4824-96c1-47b60b740d00'
+    $demote = '4b92d758-5a24-4851-a470-815d78aee119'
+    $promote = '7b224883-b3cc-4d79-819f-8374152cbe7c'
+    $idleDisable = '5d76a2ca-e8c0-402f-a133-2158492d58ad'
+
+    & powercfg -attributes $sub $demote -ATTRIB_HIDE 2>$null | Out-Null
+    & powercfg -attributes $sub $promote -ATTRIB_HIDE 2>$null | Out-Null
+    & powercfg -attributes $sub $idleDisable -ATTRIB_HIDE 2>$null | Out-Null
+
+    Set-BnqqPowerValue $sub $demote 100
+    Set-BnqqPowerValue $sub $promote 100
+    Set-BnqqPowerValue $sub $idleDisable 1
+    Write-Bnqq 'Premium: idle demote/promote 100 e idle disable 1 no plano ativo' 'OK'
 }
 
 function Set-BnqqBcdTimer {

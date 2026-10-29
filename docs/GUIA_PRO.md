@@ -1,10 +1,10 @@
-# BNQQ Optimizer v5.0 Vanguard — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v6.0 Premium — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
 ## Como usar em 4 passos
 
-1. Abra o `BNQQ_Optimizer.exe` e aceite o UAC.
+1. Abra o `BNQQ_Optimizer.exe` e aceite o UAC. Se aparecer "Licença Inválida", copie o HWID e solicite seu `license.key` ao desenvolvedor.
 2. Rode **[1] Deep Scan** para ver o estado real da máquina.
 3. Aplique um perfil: **`competitive`** para uso diário ou **`extreme`** para torneio/bench.
 4. Deixe o **Game Watcher** ativo. Ele entra sozinho quando CS2/Valorant abre e sai quando fecha.

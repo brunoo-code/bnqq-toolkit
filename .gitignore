@@ -1,6 +1,7 @@
-reports/
+﻿reports/
 backups/
 dist/
 build/
 *.log
 .vscode/
+license.key

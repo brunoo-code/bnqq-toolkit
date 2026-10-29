@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [string]$OutputPath,
-    [string]$Version = '5.0.0',
+    [string]$Version = '6.0.0',
     [switch]$KeepBuild
 )
 
@@ -32,6 +32,9 @@ New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out
 
 foreach ($item in @('bnqq.ps1', 'bnqq-watch.ps1', 'bnqq-audio.ps1')) {
     Copy-Item -LiteralPath (Join-Path $root $item) -Destination (Join-Path $staging $item) -Force
+}
+if (Test-Path -LiteralPath (Join-Path $root 'license.key')) {
+    Copy-Item -LiteralPath (Join-Path $root 'license.key') -Destination (Join-Path $staging 'license.key') -Force
 }
 foreach ($item in @('lib', 'config')) {
     Copy-Item -LiteralPath (Join-Path $root $item) -Destination (Join-Path $staging $item) -Recurse -Force
