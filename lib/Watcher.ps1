@@ -256,6 +256,7 @@ function Start-BnqqWatcher {
                 if ($PinPhysical -and $mask -ne 0) {
                     foreach ($p in $running) { Set-BnqqProcessAffinity -Process $p -Mask $mask }
                 }
+                foreach ($p in $running) { Set-BnqqGameProcessPriority -Process $p }
 
                 # Repetir a cada ciclo pega abas/processos de background que nasceram depois do jogo.
                 $smtMask = Get-BnqqSmtSiblingMask

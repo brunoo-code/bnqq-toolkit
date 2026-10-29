@@ -142,6 +142,20 @@ function Set-BnqqRuntimeQos {
     }
 }
 
+function Set-BnqqGameProcessPriority {
+    param([Parameter(Mandatory = $true)]$Process)
+
+    try {
+        if ($Process.PriorityClass -ne [System.Diagnostics.ProcessPriorityClass]::High) {
+            $Process.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
+            Write-Bnqq ('Prioridade runtime: {0} -> High' -f $Process.ProcessName) 'OK'
+        }
+    }
+    catch {
+        Write-Bnqq ('Prioridade runtime recusada: {0}' -f $Process.ProcessName) 'WARN'
+    }
+}
+
 function Get-BnqqGameRuntimeProfile {
     param([Parameter(Mandatory = $true)]$Process)
 
