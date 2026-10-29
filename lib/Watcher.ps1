@@ -252,6 +252,9 @@ function Start-BnqqWatcher {
     $focusActive = $false
     $focusCandidate = $null
     $focusCandidateSince = $null
+    $lassoActive = $false
+    $lassoPid = $null
+    $lassoWarned = $false
     $mask = [int64]0
     if ($PinPhysical) { $mask = Get-BnqqSafeGameMask }
     $backgroundMask = Get-BnqqSafeBackgroundMask
@@ -349,12 +352,31 @@ function Start-BnqqWatcher {
                             if ($DeepFreeze) { $frozen = Freeze-BnqqBackground }
                             $focusTimer.Stop()
                             $focusActive = $true
-                            Write-Bnqq ('Runtime foco: {0} [{1}] QoS={2} working set={3} freeze={4} E2E={5} ms' -f $foregroundGame.ProcessName, $profile.Game, $runtimeState.QoS, [bool]$runtimeState.WorkingSet, $frozen, $focusTimer.ElapsedMilliseconds) 'OK'
+
+                            if ($lassoActive -and $lassoPid -ne $foregroundGame.Id) {
+                                Stop-BnqqProcessLasso
+                                $lassoActive = $false
+                                $lassoPid = $null
+                            }
+                            if (-not $lassoActive -and -not $lassoWarned) {
+                                $lassoActive = Start-BnqqProcessLasso -GamePid $foregroundGame.Id -BackgroundMask $backgroundMask
+                                if ($lassoActive) { $lassoPid = $foregroundGame.Id }
+                                else { $lassoWarned = $true }
+                            }
+
+                            Write-Bnqq ('Runtime foco: {0} [{1}] QoS={2} working set={3} freeze={4} lasso={5} E2E={6} ms' -f $foregroundGame.ProcessName, $profile.Game, $runtimeState.QoS, [bool]$runtimeState.WorkingSet, $frozen, [bool]$lassoActive, $focusTimer.ElapsedMilliseconds) 'OK'
                         }
                         if ($DeepFreeze -and $focusActive) { Freeze-BnqqBackground | Out-Null }
                     }
                     elseif ($focusActive) {
                         if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
+                        if ($lassoActive) {
+                            Stop-BnqqProcessLasso
+                            $lassoActive = $false
+                            $lassoPid = $null
+                            Write-Bnqq 'Process Lasso: parado e prioridades restauradas' 'OK'
+                        }
+                        $lassoWarned = $false
                         $focusActive = $false
                         $focusCandidate = $null
                         $focusCandidateSince = $null
@@ -402,6 +424,13 @@ function Start-BnqqWatcher {
                 if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
                 Clear-BnqqDiscordPresence
                 if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState; $runtimeState = $null; $runtimePid = $null }
+                if ($lassoActive) {
+                    Stop-BnqqProcessLasso
+                    $lassoActive = $false
+                    $lassoPid = $null
+                    Write-Bnqq 'Process Lasso: parado (jogo fechado)' 'OK'
+                }
+                $lassoWarned = $false
                 $focusActive = $false
                 $focusCandidate = $null
                 $focusCandidateSince = $null
@@ -428,6 +457,7 @@ function Start-BnqqWatcher {
     }
     finally {
         Clear-BnqqDiscordPresence
+        if ($lassoActive) { Stop-BnqqProcessLasso }
         if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
         if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
         try { Clear-BnqqTimerResolution | Out-Null } catch { }

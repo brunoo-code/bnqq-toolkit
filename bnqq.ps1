@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'memtune', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'memtune', 'lasso', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -49,6 +49,8 @@ param(
     [string]$FrameHotkey = '',
     [ValidateSet('status', 'apply', 'remove', 'purge')]
     [string]$MemoryAction = 'status',
+    [ValidateSet('status', 'apply', 'remove', 'start', 'stop')]
+    [string]$LassoAction = 'status',
     [ValidateSet('status', 'apply')]
     [string]$LargePagesAction = 'status',
     [ValidateSet('status', 'apply')]
@@ -114,6 +116,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Compensation.ps1')
 . (Join-Path $root 'lib\HidRuntime.ps1')
 . (Join-Path $root 'lib\RuntimeLatency.ps1')
+. (Join-Path $root 'lib\ProcessLasso.ps1')
 . (Join-Path $root 'lib\EtwMonitor.ps1')
 . (Join-Path $root 'lib\FrameBench.ps1')
 . (Join-Path $root 'lib\Preflight.ps1')
@@ -148,6 +151,7 @@ if ($Command -eq 'netqos' -and $NetQosAction -eq 'apply') { $needsAdmin = $true 
 if ($Command -eq 'etw' -and $EtwWpr) { $needsAdmin = $true }
 if ($Command -eq 'framebench') { $needsAdmin = $true }
 if ($Command -eq 'memtune' -and $MemoryAction -in @('apply', 'remove', 'purge')) { $needsAdmin = $true }
+if ($Command -eq 'lasso' -and $LassoAction -in @('apply', 'remove', 'start', 'stop')) { $needsAdmin = $true }
 if ($Command -eq 'silicon' -and $SiliconAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
@@ -192,6 +196,7 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'etw') { $forward += @('-EtwSeconds', $EtwSeconds, '-EtwIntervalMs', $EtwIntervalMs); if ($EtwWpr) { $forward += '-EtwWpr' } }
     if ($Command -eq 'framebench') { $forward += @('-FrameSeconds', $FrameSeconds, '-FrameProcess', $FrameProcess, '-FrameSkip', $FrameSkip, '-FrameHotkey', $FrameHotkey) }
     if ($Command -eq 'memtune') { $forward += @('-MemoryAction', $MemoryAction) }
+    if ($Command -eq 'lasso') { $forward += @('-LassoAction', $LassoAction) }
     if ($Command -eq 'largepages') { $forward += @('-LargePagesAction', $LargePagesAction) }
     if ($Command -eq 'gpupstate') { $forward += @('-GpuPStateAction', $GpuPStateAction) }
     if ($Command -eq 'netqos') { $forward += @('-NetQosAction', $NetQosAction) }
@@ -458,6 +463,32 @@ switch ($Command) {
             }
         }
     }
+
+    'lasso' {
+        try { Initialize-BnqqProcessLasso | Out-Null } catch { }
+        switch ($LassoAction) {
+            'apply' {
+                Set-BnqqForegroundQuantum -Mode balanced
+            }
+            'remove' {
+                Stop-BnqqProcessLasso
+                Set-BnqqForegroundQuantum -Mode default
+            }
+            'start' {
+                $game = @(Get-Process -Name 'cs2', 'VALORANT-Win64-Shipping' -ErrorAction SilentlyContinue | Select-Object -First 1)
+                if ($game.Count -eq 0) { throw 'Abra CS2/Valorant antes de iniciar o lasso manual' }
+                Initialize-BnqqProcessLasso | Out-Null
+                [void](Start-BnqqProcessLasso -GamePid $game[0].Id -BackgroundMask 0xAAAA)
+            }
+            'stop' {
+                Stop-BnqqProcessLasso
+            }
+        }
+        $quantum = Get-BnqqForegroundQuantum
+        $quantumText = if ($null -eq $quantum) { 'indefinido' } else { '0x{0:X} ({0})' -f $quantum }
+        Write-Host ('    Win32PrioritySeparation  {0}' -f $quantumText) -ForegroundColor Gray
+        Show-BnqqProcessLassoStatus
+    }
     'bcd' { Show-BnqqBcd }
 
     'help' {
@@ -516,6 +547,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 memtune -MemoryAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 memtune -MemoryAction purge' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 memtune -MemoryAction remove' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 lasso              Lasso WMI + foreground quantum' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 lasso -LassoAction apply' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 lasso -LassoAction start|stop' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray
         Write-Host ''

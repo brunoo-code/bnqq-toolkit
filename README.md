@@ -109,9 +109,20 @@ Diagnóstico:
 .\bnqq.ps1 memtune -MemoryAction apply   # desliga compressao + kernel em RAM
 .\bnqq.ps1 memtune -MemoryAction purge   # limpa a standby list agora
 .\bnqq.ps1 memtune -MemoryAction remove  # reverte compressao e paging
+.\bnqq.ps1 lasso      # Process Lasso WMI + foreground quantum
+.\bnqq.ps1 lasso -LassoAction apply
+.\bnqq.ps1 lasso -LassoAction start|stop
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
 ```
+
+## Process Lasso / foreground quantum
+
+`lasso` inicia um motor C# de eventing WMI (`Win32_ProcessStartTrace`) enquanto CS2/Valorant estiver em foco. Processos novos fora da whitelist recebem afinidade `0xAAAA`, `IDLE_PRIORITY_CLASS` e modo background para I/O/page; prioridade e afinidade são restauradas quando o foco é perdido ou o jogo fecha. O WMI só existe durante o foco; não há polling de processos no loop.
+
+A whitelist cobre anti-cheat, áudio, input, DWM/Explorer, Steam/Discord/navegadores e ferramentas de captura. O código está em `lib/BnqqProcessLasso.cs` e o wrapper em `lib/ProcessLasso.ps1`.
+
+`Win32PrioritySeparation=0x26` (38 decimal) é mantido: quantum curto e variável com boost 2:1 para o foreground. `0x28` remove o boost; `0x16` usa quantum longo; `0x2A` aumenta o boost e o risco de starvation. O CS2 permanece em **AboveNormal**; HIGH não é o padrão.
 
 ## Memoria / kernel / standby
 
@@ -247,8 +258,8 @@ O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`.
 
 | Item | Resultado |
 |---|---|
-| IRQ GPU | CPU lógico 4 (`0x10`), policy 4, prioridade 3 |
-| IRQ rede | CPU lógico 6 (`0x40`), policy 4 |
+| IRQ GPU | CPU lógico 15 (`0x8000`), SMT irmão, policy 4, prioridade 3 |
+| IRQ rede | CPU lógico 11 (`0x800`), SMT irmão, policy 4 |
 | Áudio | CPU 5, prioridade High |
 | Background | Discord/Chrome/Edge/Spotify/Firefox/Brave nos threads SMT ímpares |
 | DXGI/FSO | `SwapEffectUpgradeEnable=1` + FSO por jogo |
@@ -259,7 +270,7 @@ O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`.
 .\bnqq.ps1 vanguard -VanguardAction apply
 ```
 
-Em 8C/16T, o jogo usa todos os núcleos físicos; os CPUs 4/6 dos IRQs compartilham o mask do jogo. Isolamento absoluto exigiria reservar núcleos e reduzir o jogo. O Ethernet desta máquina não expõe RSS. `Timer coalescing` não tem API/registro suportado; não foi inventado. `Max Pre-rendered frames`, `Silk Smoothness` e `Threaded Optimization` ficam no perfil do driver/NVIDIA App, não em `nvlddmkm`; nenhuma chave fictícia foi injetada.
+Em 8C/16T, o jogo usa todos os núcleos físicos; os IRQs 15/11 usam SMT irmãos, fora do mask do jogo, mas ainda compartilham a unidade física. Isolamento absoluto exigiria reservar núcleos e reduzir o jogo. O Ethernet desta máquina não expõe RSS. `Timer coalescing` não tem API/registro suportado; não foi inventado. `Max Pre-rendered frames`, `Silk Smoothness` e `Threaded Optimization` ficam no perfil do driver/NVIDIA App, não em `nvlddmkm`; nenhuma chave fictícia foi injetada.
 
 A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v1.0.0`**.
 
@@ -413,7 +424,7 @@ TUI privada `[21]/[22]`; pública `[18]/[19]`. O perfil `valorant` não inclui `
 
 `lib/Acpi.ps1` audita HPET/TSC e aplica `useplatformclock=No` + `tscsyncpolicy=Enhanced` via BCD. A tabela ACPI do firmware **não é editada**; o caminho suportado é selecionar TSC.
 
-`lib/Msi.ps1` varre a árvore PCI, localiza GPU/rede, garante `MSISupported=1`, prioridade 3/2, `DevicePolicy=4` e máscara IRQ (`0x10` GPU / `0x40` rede).
+`lib/Msi.ps1` varre a árvore PCI, localiza GPU/rede, garante `MSISupported=1`, prioridade 3/2, `DevicePolicy=4` e máscara IRQ (`0x8000` GPU / `0x800` rede).
 
 ```powershell
 .\bnqq.ps1 acpi
@@ -422,7 +433,7 @@ TUI privada `[21]/[22]`; pública `[18]/[19]`. O perfil `valorant` não inclui `
 .\bnqq.ps1 msi -MsiAction apply
 ```
 
-TUI pública `[16]/[17]`; privada `[19]/[20]`. A HPET física não é desabilitada no Device Manager. Em 8C/16T os IRQs 4/6 compartilham núcleos do jogo.
+TUI pública `[16]/[17]`; privada `[19]/[20]`. A HPET física não é desabilitada no Device Manager. Em 8C/16T os IRQs 15/11 usam os SMT irmãos; não eliminam o custo de compartilhamento do core físico.
 
 ## Perfis
 
@@ -576,6 +587,8 @@ lib/GodTier.ps1       CFG por jogo, FSO, paging, prioridade e auditoria shader
 lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
 lib/MemoryGuard.ps1   memtune, kernel em RAM, compressão e purga de standby
 lib/Allowlist.ps1     HWID SHA-256 e consulta da allowlist Raw
+lib/ProcessLasso.ps1  Lasso WMI, prioridade/afinidade e quantum
+lib/BnqqProcessLasso.cs motor C# WMI de process-start
 lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher
 lib/Ultimate.ps1      Super Pack: IA, servicos, MMCSS, heap e VBS

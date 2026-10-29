@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v1.5.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.6.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -285,6 +285,7 @@ function Invoke-BnqqTui {
         Write-Host '  [25] Preflight Seguranca' -ForegroundColor White
         Write-Host '  [26] Reverter ultimo apply' -ForegroundColor White
         Write-Host '  [28] Memoria / Kernel / Standby' -ForegroundColor White
+        Write-Host '  [29] Lasso / Foreground Quantum' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -384,6 +385,14 @@ function Invoke-BnqqTui {
                 if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune -MemoryAction apply }
                 elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune -MemoryAction purge }
                 elseif ($sub -eq '3') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune -MemoryAction remove }
+            }
+            '29' {
+                & (Join-Path $script:BnqqRoot 'bnqq.ps1') lasso
+                $sub = Read-Host '  [1] Aplicar quantum [2] Start [3] Stop [4] Remover [0] Voltar'
+                if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') lasso -LassoAction apply }
+                elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') lasso -LassoAction start }
+                elseif ($sub -eq '3') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') lasso -LassoAction stop }
+                elseif ($sub -eq '4') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') lasso -LassoAction remove }
             }
             '25' { Show-BnqqSecurityPreflight }
             '18' {

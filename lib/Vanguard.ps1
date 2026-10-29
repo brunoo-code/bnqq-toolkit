@@ -1,11 +1,18 @@
 ﻿function Get-BnqqVanguardLayout {
     $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
     $logical = if ($cpu) { [int]$cpu.NumberOfLogicalProcessors } else { [Environment]::ProcessorCount }
+    $cores = if ($cpu) { [int]$cpu.NumberOfCores } else { $logical }
 
-    if ($logical -ge 8) {
-        $gpuCpu = 4
-        $audioCpu = 5
-        $nicCpu = 6
+    if ($cores -gt 0 -and $logical -gt $cores) {
+        # CS2 roda nos logical CPUs pares (0x5555). IRQ/audio/rede ficam nos SMT irmaos impares.
+        $gpuCpu = [math]::Max(1, $logical - 1)
+        $audioCpu = [math]::Max(1, $logical - 3)
+        $nicCpu = [math]::Max(1, $logical - 5)
+    }
+    elseif ($logical -ge 8) {
+        $gpuCpu = 2
+        $audioCpu = 1
+        $nicCpu = 3
     }
     elseif ($logical -ge 4) {
         $gpuCpu = 2

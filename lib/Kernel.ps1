@@ -107,12 +107,10 @@ function Set-BnqqInterruptAffinity {
         return
     }
 
-    $groupSize = [math]::Max(1, [math]::Floor(($cpus - 4) / 3))
-    $last = $cpus - 1
-
-    $gpuCpus = @(4..([math]::Min(3 + $groupSize, $last)))
-    $nicCpus = @((4 + $groupSize)..([math]::Min(3 + 2 * $groupSize, $last)))
-    $usbCpus = @((4 + 2 * $groupSize)..([math]::Min(3 + 3 * $groupSize, $last)))
+    $layout = Get-BnqqVanguardLayout
+    $gpuCpus = @($layout.GpuCpu)
+    $nicCpus = @($layout.NicCpu)
+    $usbCpus = @($layout.AudioCpu)
 
     $targets = Get-BnqqInterruptTargets
     $map = @(

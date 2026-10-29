@@ -8,6 +8,7 @@
     $irqOk = ($vanguard.GpuPolicy -eq 4) -and ($vanguard.NicPolicy -eq 4)
     $timerOk = if ($gameActive) { $timer.CurrentMs -le 0.6 } else { $null }
     $watcherOk = ($task -and $task.State -eq 'Running')
+    $lasso = Get-BnqqProcessLassoStatus
 
     return [pscustomobject]@{
         IrqOk       = $irqOk
@@ -16,6 +17,8 @@
         SmtMask     = ('0x{0:X}' -f $smtMask)
         SmtOk       = ($smtMask -ne 0 -and $watcherOk)
         WatcherOk   = $watcherOk
+        LassoRunning = $lasso.Running
+        LassoActions = $lasso.Actions
         GameActive  = $gameActive
         TimerMs     = $timer.CurrentMs
         TimerOk     = $timerOk
@@ -33,6 +36,7 @@ function Show-BnqqQaStatus {
     Write-Host ('    IRQ GPU      policy {0}  [{1}]' -f $Status.GpuPolicy, $(if ($Status.IrqOk) { 'OK' } else { 'PENDENTE' })) -ForegroundColor $(if ($Status.IrqOk) { 'Green' } else { 'Yellow' })
     Write-Host ('    IRQ rede     policy {0}' -f $Status.NicPolicy) -ForegroundColor $(if ($Status.IrqOk) { 'Green' } else { 'Yellow' })
     Write-Host ('    SMT          {0}  watcher {1}  [{2}]' -f $Status.SmtMask, $(if ($Status.WatcherOk) { 'Running' } else { 'parado' }), $(if ($Status.SmtOk) { 'OK' } else { 'PENDENTE' })) -ForegroundColor $(if ($Status.SmtOk) { 'Green' } else { 'Yellow' })
+    Write-Host ('    Lasso        {0}  acoes {1}' -f $(if ($Status.LassoRunning) { 'ativo' } else { 'aguardando foco' }), $Status.LassoActions) -ForegroundColor $(if ($Status.LassoRunning) { 'Green' } else { 'Gray' })
     $timerText = if ($null -eq $Status.TimerOk) { 'idle: watcher aplica ao abrir o jogo' } elseif ($Status.TimerOk) { 'OK' } else { 'PENDENTE' }
     Write-Host ('    Timer        {0:N3} ms  [{1}]' -f $Status.TimerMs, $timerText) -ForegroundColor $(if ($Status.TimerOk -eq $false) { 'Yellow' } else { 'Gray' })
     Write-Host ''
