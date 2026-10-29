@@ -28,14 +28,14 @@ $script:BnqqDeepFreezeExcluded = @(
     'audiodg', 'dwm', 'winlogon', 'csrss', 'services', 'lsass',
     'System', 'Registry', 'MsMpEng', 'MsMpEngCP', 'SecurityHealthService',
     'Discord', 'msedge', 'chrome', 'explorer', 'lghub', 'lghub_agent',
-    'lghub_updater', 'RazerCentralService', 'RazerSynapse', 'icue', 'iCUE'
+    'lghub_updater', 'RazerCentralService', 'RazerSynapse', 'icue', 'iCUE',
+    'steam', 'steamservice', 'steamwebhelper', 'GameOverlayUI', 'steamerrorreporter'
 )
 
 function Get-BnqqDeepFreezeCandidates {
     param([switch]$IncludeExplorer)
 
     $names = @(
-        'steamwebhelper', 'steam', 'steamservice',
         'Updater', 'GoogleUpdate', 'MicrosoftEdgeUpdate', 'AdobeUpdateService',
         'firefox', 'brave', 'Spotify', 'OneDrive', 'Dropbox',
         'EpicGamesLauncher', 'Battle.net', 'GalaxyClient',
@@ -46,7 +46,7 @@ function Get-BnqqDeepFreezeCandidates {
         Where-Object {
             $_.Id -ne $PID -and
             $script:BnqqDeepFreezeExcluded -notcontains $_.ProcessName -and
-            $_.ProcessName -notmatch '(?i)^(discord|msedge|chrome|explorer|dwm|audiodg|lghub|razer|icue|riotclient|vgtray)'
+            $_.ProcessName -notmatch '(?i)^(discord|msedge|chrome|explorer|dwm|audiodg|lghub|razer|icue|riotclient|vgtray|steam|gameoverlayui)'
         })
 }
 
