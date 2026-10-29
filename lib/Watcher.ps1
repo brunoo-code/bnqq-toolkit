@@ -243,6 +243,7 @@ function Start-BnqqWatcher {
                         Set-BnqqUltimatePlanValues -Guid $guid
                         $active = $true
                         Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
+                    Set-BnqqDiscordPresence -Game (($running | ForEach-Object { $_.ProcessName }) -join ', ') | Out-Null
                         try { Set-BnqqTimerResolution -Desired 5000 | Out-Null }
                         catch { Write-Bnqq ('Timer resolution indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
                         try {
@@ -330,6 +331,7 @@ function Start-BnqqWatcher {
                 try { Clear-BnqqTimerResolution | Out-Null }
                 catch { Write-Bnqq ('Timer resolution clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
                 if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
+                Clear-BnqqDiscordPresence
                 if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState; $runtimeState = $null; $runtimePid = $null }
                 $focusActive = $false
                 if ($gpuLocked) {
@@ -353,6 +355,7 @@ function Start-BnqqWatcher {
         }
     }
     finally {
+        Clear-BnqqDiscordPresence
         if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
         if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
         try { Clear-BnqqTimerResolution | Out-Null } catch { }
