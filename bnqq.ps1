@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -28,6 +28,10 @@ param(
     [switch]$DesktopHeap,
     [switch]$VbsOff,
     [int]$QaSeconds = 45,
+    [ValidateSet('status', 'apply')]
+    [string]$AcpiAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$MsiAction = 'status',
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -73,6 +77,8 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\QA.ps1')
 . (Join-Path $root 'lib\InGameQA.ps1')
 . (Join-Path $root 'lib\Ultimate.ps1')
+. (Join-Path $root 'lib\Acpi.ps1')
+. (Join-Path $root 'lib\Msi.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
 $configPath = Join-Path $root 'config\profiles.json'
@@ -87,6 +93,8 @@ if ($Command -eq 'pro' -and $ProTierAction -in @('apply', 'remove')) { $needsAdm
 if ($Command -eq 'god' -and $GodAction -in @('apply', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'vanguard' -and $VanguardAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'ultimate' -and $UltimateAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'acpi' -and $AcpiAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'msi' -and $MsiAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -121,6 +129,8 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
         if ($VbsOff) { $forward += '-VbsOff' }
     }
     if ($Command -eq 'qa') { $forward += @('-QaSeconds', $QaSeconds) }
+    if ($Command -eq 'acpi') { $forward += @('-AcpiAction', $AcpiAction) }
+    if ($Command -eq 'msi') { $forward += @('-MsiAction', $MsiAction) }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -307,6 +317,14 @@ switch ($Command) {
 
     'qa' { Invoke-BnqqInGameQa -Seconds $QaSeconds }
 
+    'acpi' {
+        if ($AcpiAction -eq 'apply') { Set-BnqqAcpiTimer } else { Show-BnqqAcpiStatus }
+    }
+
+    'msi' {
+        if ($MsiAction -eq 'apply') { Set-BnqqMsiTargets; Show-BnqqMsiStatus } else { Show-BnqqMsiStatus }
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -349,6 +367,10 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 ultimate             Super Pack: IA, servicos, MMCSS e heap' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 ultimate -UltimateAction apply [-RemoveAppx] [-VbsOff]' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 qa                   Stress in-game com engine falsa e watcher' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 acpi                 HPET/TSC e estado do timer ACPI' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 acpi -AcpiAction apply' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 msi                  MSI/PCIe de GPU e rede' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 msi -MsiAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

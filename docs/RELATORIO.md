@@ -526,8 +526,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 124.928 bytes |
-| Build público | 104.960 bytes |
+| Build privado | 128.000 bytes |
+| Build público | 108.032 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -675,13 +675,13 @@ Nenhuma chave fictícia foi criada.
 
 ### 20.5 TUI, build e guia
 
-Banner **`BNQQ OPTIMIZER v5.0 Vanguard`**; Deep Scan com painel Vanguard; TUI pública `[13]`, privada `[16]`; build `5.0.0`; release `v5.0-vanguard`; `docs/GUIA_PRO.md`.
+Banner **`BNQQ OPTIMIZER v1.0.0`**; Deep Scan com painel Vanguard; TUI pública `[13]`, privada `[16]`; build `1.0.0`; release `v1.0.0`; `docs/GUIA_PRO.md`.
 
 ### 20.6 Changelog 5.0 Vanguard
 
 | Versão | Entrega |
 |---|---|
-| 5.0 | IRQ GPU/rede, background SMT, DXGI/FSO, standby nativo, Vanguard status, TUI v5.0 e guia do pro-player; auditoria de itens não suportados |
+| 1.0.0 | IRQ GPU/rede, background SMT, DXGI/FSO, standby nativo, Vanguard status, TUI v5.0 e guia do pro-player; auditoria de itens não suportados |
 
 ---
 
@@ -705,13 +705,13 @@ Checksum offload IP/TCP/UDP v4/v6 e LSO IPv4/IPv6 desligados; idle demote/promot
 
 ### 21.5 Build e release
 
-Banner **`BNQQ OPTIMIZER v6.0 Premium`**; build `6.0.0`; release `v6.0-Premium`; `license.key` no payload local; `keygen.ps1` fora do build.
+Banner **`BNQQ OPTIMIZER v1.0.0`**; build `1.0.0`; release `v1.0.0`; `license.key` no payload local; `keygen.ps1` fora do build.
 
-### 21.6 Changelog 6.0 Premium
+### 21.6 Changelog 1.0.0
 
 | Versão | Entrega |
 |---|---|
-| 6.0 | Licença HWID RSA-SHA256, keygen privado, AMD/Discord/communication tuning, checksum/LSO off, idle power thresholds, QA de IRQ/SMT/timer, build v6.0 Premium |
+| 1.0.0 | Licença HWID RSA-SHA256, keygen privado, AMD/Discord/communication tuning, checksum/LSO off, idle power thresholds, QA de IRQ/SMT/timer, build v1.0.0 |
 
 ---
 
@@ -732,20 +732,46 @@ O Spooler foi mantido por haver impressora; os serviços Xbox já estavam desati
 
 ### 22.3 QA in-game
 
-`lib/InGameQA.ps1` compila `load.exe` C# e inicia um `cs2.exe` controlado. O watcher validou timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção e clock. Teste de 20 s: 4394→4604 MHz, queda -4,8%, veredito **ESTAVEL**; temperatura indisponível.
+`lib/InGameQA.ps1` compila `load.exe` C# e inicia um `cs2.exe` controlado. O watcher validou timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção e clock. Teste de 20 s: 4369→4355 MHz, queda 0,3%, veredito **ESTAVEL**; temperatura indisponível.
 
 ### 22.4 TUI, build e guia
 
-Banner **`BNQQ OPTIMIZER v7.0 Ultimate`**; TUI privada `[17]/[18]`, pública `[14]/[15]`; build `7.0.0`; release `v7.0-Ultimate`; `docs/GUIA_PRO.md` atualizado.
+Banner **`BNQQ OPTIMIZER v1.1.0`**; TUI privada `[17]/[18]`, pública `[14]/[15]`; build `1.1.0`; release `v1.1.0`; `docs/GUIA_PRO.md` atualizado.
 
-### 22.5 Changelog 7.0 Ultimate
+### 22.5 Changelog 1.1.0
 
 | Versão | Entrega |
 |---|---|
-| 7.0 | Super Pack pós-formatação, IA/Recall, serviços/AppX, MMCSS, heap/VBS opt-in, QA in-game C# e build v7.0 Ultimate |
+| 1.1.0 | Super Pack pós-formatação, IA/Recall, serviços/AppX, MMCSS, heap/VBS opt-in, QA in-game C# e build v1.1.0 |
 
 ---
 
-## 23. Licença
+## 23. ACPI/HPET e MSI/PCIe
+
+### 23.1 Versionamento
+
+Padrão limpo **v1.1.0** em banner, `build.ps1`, `config/profiles.json` e guia.
+
+### 23.2 HPET/TSC
+
+`lib/Acpi.ps1` audita `useplatformclock`, `tscsyncpolicy` e `disabledynamictick` e aplica `useplatformclock=No` + `tscsyncpolicy=Enhanced`. A tabela ACPI do firmware não é editada; patch de tabela é inseguro. HPET físico permanece; o Windows usa TSC. Dynamic tick continua opt-in.
+
+### 23.3 MSI/PCIe
+
+`lib/Msi.ps1` varre a árvore PCI, localiza GPU/rede, garante MSI=1, prioridade 3/2, `DevicePolicy=4` e máscara `0x10` GPU / `0x40` rede. Status confirmou GPU/rede com policy 4.
+
+### 23.4 Watcher e QA`r`n`r`nO watcher reaplica a afinidade do background a cada ciclo de 2 s. O QA espera jogo/background antes da carga C# para nao afogar o watcher.`r`n`r`n### 23.5 TUI e build
+
+TUI pública `[16]/[17]`, privada `[19]/[20]`; build `1.1.0`; tag `v1.1.0`.
+
+### 23.6 Changelog 1.1.0
+
+| Versão | Entrega |
+|---|---|
+| 1.1.0 | Versionamento limpo, auditoria/apply ACPI TSC, MSI/PCIe scan e afinidade GPU/rede |
+
+---
+
+## 24. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

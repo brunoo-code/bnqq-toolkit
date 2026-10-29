@@ -47,7 +47,7 @@ public static class Program {
                 }
             });
             t.IsBackground = true;
-            t.Priority = ThreadPriority.Highest;
+            t.Priority = ThreadPriority.Normal;
             t.Start();
             workers[i] = t;
         }
@@ -108,9 +108,19 @@ function Invoke-BnqqInGameQa {
 
         $background = Start-Process -FilePath $backgroundExe -ArgumentList '-NoProfile', '-Command', ('Start-Sleep -Seconds {0}' -f ($Seconds + 20)) -PassThru -WindowStyle Hidden
         $game = Start-Process -FilePath $bin.Game -ArgumentList '-NoProfile', '-Command', ('Start-Sleep -Seconds {0}' -f ($Seconds + 15)) -PassThru -WindowStyle Hidden
-        Start-Sleep -Seconds 1
-        $load = Start-Process -FilePath $bin.Load -ArgumentList ($Seconds + 10) -PassThru -WindowStyle Hidden
 
+        # Deixa o watcher montar o cenario antes da carga C# para nao afogar o proprio watcher.
+        $deadline = (Get-Date).AddSeconds(12)
+        do {
+            Start-Sleep -Seconds 1
+            $gameProc = Get-Process -Id $game.Id -ErrorAction SilentlyContinue
+            $bgProc = Get-Process -Id $background.Id -ErrorAction SilentlyContinue
+            $gameAffinity = if ($gameProc) { '0x{0:X}' -f [int64]$gameProc.ProcessorAffinity } else { 'encerrado' }
+            $bgAffinity = if ($bgProc) { '0x{0:X}' -f [int64]$bgProc.ProcessorAffinity } else { 'encerrado' }
+            if ($gameAffinity -eq '0x5555' -and $bgAffinity -eq '0xAAAA') { break }
+        } while ((Get-Date) -lt $deadline)
+
+        $load = Start-Process -FilePath $bin.Load -ArgumentList ($Seconds + 10) -PassThru -WindowStyle Hidden
         Start-Sleep -Seconds 8
         $startClock = Get-BnqqQaClock
         $timer = Get-BnqqTimerResolution
@@ -150,7 +160,7 @@ function Invoke-BnqqInGameQa {
         Write-Host ('    Watcher detectou   {0}' -f $(if ($detected) { 'sim' } else { 'nao' })) -ForegroundColor $(if ($detected) { 'Green' } else { 'Red' })
         Write-Host ('    Standby purge      {0}' -f $(if ($standby) { 'acionada' } else { 'nao necessaria (RAM >4GB)' })) -ForegroundColor Gray
 
-        $verdict = if ($throttle -ne $null -and $throttle -le 10 -and $timerOk -and $detected -and $affinityOk) { 'ESTAVEL' } else { 'REVISAR' }
+        $verdict = if ($throttle -ne $null -and $throttle -le 10 -and $timerOk -and $detected -and $affinityOk -and $bgOk -and $loadAlive) { 'ESTAVEL' } else { 'REVISAR' }
         Write-Host ('    Veredito           {0}' -f $verdict) -ForegroundColor $(if ($verdict -eq 'ESTAVEL') { 'Green' } else { 'Yellow' })
         Write-Host ''
     }

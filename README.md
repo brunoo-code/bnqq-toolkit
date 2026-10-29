@@ -97,6 +97,10 @@ Diagnóstico:
 .\bnqq.ps1 ultimate   # Super Pack: IA, servicos, MMCSS e heap
 .\bnqq.ps1 ultimate -UltimateAction apply [-RemoveAppx] [-VbsOff]
 .\bnqq.ps1 qa         # Stress in-game com engine falsa e watcher
+.\bnqq.ps1 acpi       # HPET/TSC e timer ACPI
+.\bnqq.ps1 acpi -AcpiAction apply
+.\bnqq.ps1 msi        # MSI/PCIe de GPU e rede
+.\bnqq.ps1 msi -MsiAction apply
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
@@ -223,7 +227,7 @@ O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`.
 
 Em 8C/16T, o jogo usa todos os núcleos físicos; os CPUs 4/6 dos IRQs compartilham o mask do jogo. Isolamento absoluto exigiria reservar núcleos e reduzir o jogo. O Ethernet desta máquina não expõe RSS. `Timer coalescing` não tem API/registro suportado; não foi inventado. `Max Pre-rendered frames`, `Silk Smoothness` e `Threaded Optimization` ficam no perfil do driver/NVIDIA App, não em `nvlddmkm`; nenhuma chave fictícia foi injetada.
 
-A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v6.0 Premium`**.
+A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v1.0.0`**.
 
 ## Licenciamento HWID
 
@@ -249,7 +253,22 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 .\bnqq.ps1 qa
 ```
 
-O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4394→4604 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
+O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4369→4355 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
+
+## ACPI/HPET e MSI/PCIe
+
+`lib/Acpi.ps1` audita HPET/TSC e aplica `useplatformclock=No` + `tscsyncpolicy=Enhanced` via BCD. A tabela ACPI do firmware **não é editada**; o caminho suportado é selecionar TSC.
+
+`lib/Msi.ps1` varre a árvore PCI, localiza GPU/rede, garante `MSISupported=1`, prioridade 3/2, `DevicePolicy=4` e máscara IRQ (`0x10` GPU / `0x40` rede).
+
+```powershell
+.\bnqq.ps1 acpi
+.\bnqq.ps1 acpi -AcpiAction apply
+.\bnqq.ps1 msi
+.\bnqq.ps1 msi -MsiAction apply
+```
+
+TUI pública `[16]/[17]`; privada `[19]/[20]`. A HPET física não é desabilitada no Device Manager. Em 8C/16T os IRQs 4/6 compartilham núcleos do jogo.
 
 ## Perfis
 
@@ -406,6 +425,8 @@ lib/License.ps1       HWID SHA-256 e verificação RSA-SHA256
 lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher
 lib/Ultimate.ps1      Super Pack: IA, servicos, MMCSS, heap e VBS
+lib/Acpi.ps1          HPET/TSC e estado ACPI
+lib/Msi.ps1           MSI/PCIe, prioridade e máscaras de IRQ
 lib/Tui.ps1           banner, menu, deep scan com anomalias
 lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key

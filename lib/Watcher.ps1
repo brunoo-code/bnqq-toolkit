@@ -219,35 +219,38 @@ function Start-BnqqWatcher {
         while ($true) {
             $running = @(Get-Process -Name $games -ErrorAction SilentlyContinue)
 
-            if ($running.Count -gt 0 -and -not $active) {
-                $onBattery = $false
-                if ($RespectBattery) {
-                    $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
-                    if ($battery -and $battery.BatteryStatus -ne 2) { $onBattery = $true }
-                }
-
-                if ($onBattery) {
-                    Write-Bnqq 'Watcher: em bateria, mantendo o plano atual' 'INFO'
-                }
-                else {
-                    $previousPlan = Get-BnqqActivePlanGuid
-                    $guid = New-BnqqUltimatePlan
-                    Set-BnqqUltimatePlanValues -Guid $guid
-                    $active = $true
-                    Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
-                    try { Set-BnqqTimerResolution -Desired 5000 | Out-Null }
-                    catch { Write-Bnqq ('Timer resolution indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
-                    try {
-                        $gpuLocked = Set-BnqqGpuClockLock -Quiet
-                        if ($gpuLocked) { Write-Bnqq 'GPU: clock travado no maximo enquanto o jogo estiver ativo' 'OK' }
+            if ($running.Count -gt 0) {
+                if (-not $active) {
+                    $onBattery = $false
+                    if ($RespectBattery) {
+                        $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
+                        if ($battery -and $battery.BatteryStatus -ne 2) { $onBattery = $true }
                     }
-                    catch { Write-Bnqq ('GPU state lock indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
+
+                    if ($onBattery) {
+                        Write-Bnqq 'Watcher: em bateria, mantendo o plano atual' 'INFO'
+                    }
+                    else {
+                        $previousPlan = Get-BnqqActivePlanGuid
+                        $guid = New-BnqqUltimatePlan
+                        Set-BnqqUltimatePlanValues -Guid $guid
+                        $active = $true
+                        Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
+                        try { Set-BnqqTimerResolution -Desired 5000 | Out-Null }
+                        catch { Write-Bnqq ('Timer resolution indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
+                        try {
+                            $gpuLocked = Set-BnqqGpuClockLock -Quiet
+                            if ($gpuLocked) { Write-Bnqq 'GPU: clock travado no maximo enquanto o jogo estiver ativo' 'OK' }
+                        }
+                        catch { Write-Bnqq ('GPU state lock indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
+                    }
                 }
 
                 if ($PinPhysical -and $mask -ne 0) {
                     foreach ($p in $running) { Set-BnqqProcessAffinity -Process $p -Mask $mask }
                 }
 
+                # Repetir a cada ciclo pega abas/processos de background que nasceram depois do jogo.
                 $smtMask = Get-BnqqSmtSiblingMask
                 if ($smtMask -ne 0) {
                     $pinnedNow = 0
@@ -285,7 +288,7 @@ function Start-BnqqWatcher {
                     }
                 }
             }
-            elseif ($running.Count -eq 0 -and $active) {
+            elseif ($active) {
                 if ($previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
                 $active = $false
                 try { Clear-BnqqTimerResolution | Out-Null }

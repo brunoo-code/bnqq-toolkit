@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v7.0 Ultimate  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.1.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -265,6 +265,8 @@ function Invoke-BnqqTui {
         Write-Host '  [13] Vanguard (IRQ/RSS/standby)' -ForegroundColor White
         Write-Host '  [14] QA: Stress Test In-Game' -ForegroundColor White
         Write-Host '  [15] Ultimate (Super Pack)' -ForegroundColor White
+        Write-Host '  [16] ACPI / HPET / TSC' -ForegroundColor White
+        Write-Host '  [17] MSI / PCIe' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -343,6 +345,8 @@ function Invoke-BnqqTui {
                 elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply -RemoveAppx }
                 elseif ($sub -eq '3') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply -VbsOff }
             }
+            '16' { Show-BnqqAcpiStatus }
+            '17' { Show-BnqqMsiStatus }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }
         }

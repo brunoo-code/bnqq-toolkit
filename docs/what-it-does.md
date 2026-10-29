@@ -114,6 +114,12 @@ Aplica Copilot/Recall off, serviços Fax/Xbox/Spooler condicional, perfil MMCSS 
 ### `qa`
 Compila `load.exe` C# e inicia um `cs2.exe` controlado para validar no watcher: timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção e clock. A temperatura pode ficar indisponível.
 
+### `acpi`
+Audita HPET/TSC e aplica `useplatformclock=No` + `tscsyncpolicy=Enhanced` via BCD. A tabela ACPI do firmware não é editada.
+
+### `msi`
+Varre a árvore PCI, localiza GPU/rede e garante MSI, prioridade e afinidade de interrupção.
+
 ## Sistema
 
 ### `gamedvr-off` / `gamemode-on`
