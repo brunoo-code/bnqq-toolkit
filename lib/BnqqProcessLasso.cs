@@ -14,6 +14,8 @@ public static class BnqqProcessLasso
     private const uint PROCESS_MODE_BACKGROUND_END = 0x00200000;
     private const int ProcessMemoryPriority = 39;
     private const int ProcessIoPriority = 33;
+    private const int MaxPendingEvents = 64;
+    private const int MaxTrackedProcesses = 512;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MEMORY_PRIORITY_INFORMATION
@@ -67,6 +69,8 @@ public static class BnqqProcessLasso
     private static int _gamePid;
     private static ulong _backgroundMask = 0xAAAA;
     private static long _actions;
+    private static long _dropped;
+    private static int _pending;
     private static string _lastError = "";
     private static string _lastProcess = "";
     private static DateTime _startedAt;
@@ -90,6 +94,8 @@ public static class BnqqProcessLasso
             _gamePid = gamePid;
             _backgroundMask = backgroundMask == 0 ? 0xAAAAUL : backgroundMask;
             _actions = 0;
+            _dropped = 0;
+            _pending = 0;
             _lastError = "";
             _lastProcess = "";
             _startedAt = DateTime.UtcNow;
@@ -142,10 +148,12 @@ public static class BnqqProcessLasso
         lock (Sync)
         {
             return string.Format(
-                "running={0};tracked={1};actions={2};game_pid={3};mask=0x{4:X};last={5};error={6};uptime_s={7}",
+                "running={0};tracked={1};actions={2};pending={3};dropped={4};game_pid={5};mask=0x{6:X};last={7};error={8};uptime_s={9}",
                 _running ? 1 : 0,
                 Tracked.Count,
                 _actions,
+                _pending,
+                _dropped,
                 _gamePid,
                 _backgroundMask,
                 _lastProcess,
@@ -159,6 +167,15 @@ public static class BnqqProcessLasso
         if (!_running || processId <= 0 || processId == _gamePid) return 0;
         if (IsProtected(processName)) return 0;
         if (!GameIsForeground()) return 0;
+
+        lock (Sync)
+        {
+            if (Tracked.Count >= MaxTrackedProcesses)
+            {
+                Interlocked.Increment(ref _dropped);
+                return 0;
+            }
+        }
 
         IntPtr handle = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
         if (handle == IntPtr.Zero) return 0;
@@ -222,9 +239,16 @@ public static class BnqqProcessLasso
         {
             int processId = Convert.ToInt32(e.NewEvent["ProcessID"]);
             string processName = Convert.ToString(e.NewEvent["ProcessName"]);
+            if (Interlocked.Increment(ref _pending) > MaxPendingEvents)
+            {
+                Interlocked.Decrement(ref _pending);
+                Interlocked.Increment(ref _dropped);
+                return;
+            }
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
-                ApplyTo(processId, processName);
+                try { ApplyTo(processId, processName); }
+                finally { Interlocked.Decrement(ref _pending); }
             });
         }
         catch (Exception ex)

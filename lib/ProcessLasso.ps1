@@ -77,6 +77,8 @@ function Get-BnqqProcessLassoStatus {
             Running = $false
             Tracked = 0
             Actions = 0
+            Pending = 0
+            Dropped = 0
             GamePid = 0
             Mask = '0xAAAA'
             Last = ''
@@ -95,6 +97,8 @@ function Get-BnqqProcessLassoStatus {
             Running = ($data['running'] -eq '1')
             Tracked = [int]$data['tracked']
             Actions = [int]$data['actions']
+            Pending = [int]$data['pending']
+            Dropped = [int]$data['dropped']
             GamePid = [int]$data['game_pid']
             Mask = $data['mask']
             Last = $data['last']
@@ -107,6 +111,8 @@ function Get-BnqqProcessLassoStatus {
             Running = $false
             Tracked = 0
             Actions = 0
+            Pending = 0
+            Dropped = 0
             GamePid = 0
             Mask = '0xAAAA'
             Last = ''
@@ -125,7 +131,7 @@ function Show-BnqqProcessLassoStatus {
     Write-Host ('    Game PID       {0}' -f $Status.GamePid) -ForegroundColor Gray
     Write-Host ('    Background     {0}' -f $Status.Mask) -ForegroundColor Gray
     Write-Host ('    Acoes          {0}  (processos novos rebaixados)' -f $Status.Actions) -ForegroundColor Gray
-    Write-Host ('    Rastreados     {0}' -f $Status.Tracked) -ForegroundColor Gray
+    Write-Host ('    Rastreados     {0}  pendentes {1}  descartados {2}' -f $Status.Tracked, $Status.Pending, $Status.Dropped) -ForegroundColor Gray
     if ($Status.Last) { Write-Host ('    Ultimo         {0}' -f $Status.Last) -ForegroundColor DarkGray }
     if ($Status.Error) { Write-Host ('    Erro           {0}' -f $Status.Error) -ForegroundColor Yellow }
     Write-Host ''
