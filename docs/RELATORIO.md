@@ -116,6 +116,7 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `timer` | Timer resolution atual; watcher aplica 0,5 ms durante o jogo |
 | `qos` | Políticas DSCP 46 e estado do QoS Packet Scheduler |
 | `audio` | Isolamento do audiodg e Audio Enhancements; install/remove |
+| `pro` | Pro-Tier: rede/MMCSS, USB selective suspend e dynamic tick opt-in |
 | `build.ps1` | Gera `dist\BNQQ_Optimizer.exe` com UAC e TUI |
 | `bench` | CPU, fila e disco |
 | `bcd` | Estado do boot |
@@ -154,7 +155,7 @@ Cada achado tem **impacto estimado** e **ação sugerida**. O score final priori
 | Neutro | 9 | Sem efeito em FPS |
 | Mitos desmentidos | 12 | Placebo ou prejudicial |
 
-Mitos deliberadamente fora: `useplatformclock`, `disabledynamictick`, `useplatformtick`, timer resolution 0.5 ms, limpar standby list, Nagle em jogo, HPET forçado, prioridade Realtime, desativar SMT, afinidade fixa, limpeza de registro, DNS "gamer".
+Mitos deliberadamente fora dos perfis padrão: `useplatformclock`, `useplatformtick`, timer resolution 0.5 ms, limpar standby list, Nagle em jogo, HPET forçado, prioridade Realtime, desativar SMT, afinidade fixa, limpeza de registro, DNS "gamer". `disabledynamictick` é exceção opt-in do Pro-Tier, com aviso de possível perda de FPS.
 
 ---
 
@@ -220,6 +221,7 @@ lib/Timer.ps1
 lib/Stability.ps1
 lib/Qos.ps1
 lib/Audio.ps1
+lib/ProTier.ps1
 bnqq-watch.ps1
 bnqq-audio.ps1
 build.ps1
@@ -292,7 +294,7 @@ docs/RELATORIO.md   este documento
 ### 14.8 BCD
 
 - `bcd-timer`: `useplatformclock No` (TSC) e `tscsyncpolicy Enhanced`.
-- **`disabledynamictick Yes` não existe no catálogo público.** É global (afeta AC e DC) e no Windows 11 aumenta interrupções de timer. Ficaria em conflito direto com o requisito de não degradar notebooks em bateria.
+- **`disabledynamictick Yes` é opt-in Pro-Tier.** É global (afeta AC e DC) e no Windows 11 pode aumentar interrupções de timer e reduzir FPS. Fica fora dos perfis padrão e exige decisão explícita; em notebook, avalie o custo de bateria.
 - **Timer resolution 0.5 ms não é implementado:** desde o Windows 10 2004 é por processo; forçar exigiria injeção no jogo, o que é incompatível com Vanguard/VAC.
 
 ### 14.9 Anti-cheat
@@ -514,8 +516,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 105.984 bytes |
-| Build público | 86.016 bytes |
+| Build privado | 108.032 bytes |
+| Build público | 88.576 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -541,6 +543,60 @@ Validação:
 
 ---
 
-## 18. Licença
+## 18. Pro-Tier — rede e energia
+
+### 18.1 Ajustes
+
+`lib/ProTier.ps1` implementa quatro ajustes opt-in:
+
+| Item | Implementação |
+|---|---|
+| Network Throttling | `NetworkThrottlingIndex=0xFFFFFFFF` |
+| MMCSS | `SystemResponsiveness=0` |
+| USB selective suspend | `Set-BnqqPowerValue` no plano ativo, AC/DC = 0 |
+| Kernel dynamic ticks | `bcdedit /set disabledynamictick Yes` |
+
+O `network-throttling` público foi corrigido de `SystemResponsiveness=10` para `0`. O USB selective suspend já existia como `usb-suspend-off`; o Pro-Tier verifica AC/DC no plano ativo.
+
+### 18.2 Comandos e TUI
+
+```powershell
+.\bnqq.ps1 pro
+.\bnqq.ps1 pro -ProTierAction apply
+.\bnqq.ps1 pro -ProTierAction remove
+```
+
+- `[1] Deep Scan` mostra `PRO-TIER / REDE E ENERGIA` e pergunta se deseja aplicar quando houver pendência.
+- TUI pública: opção `[11]`; privada: `[14]`.
+- Banner: **`v3.1 Pro`**.
+- `pro apply` exige UAC e reboot; `pro remove` restaura rede/USB padrão e libera dynamic tick.
+
+### 18.3 Dynamic tick: opt-in
+
+`disabledynamictick Yes` não entra nos perfis padrão. No Windows 11, o dynamic tick reduz interrupções de timer em idle e este projeto já mediu perda de FPS; o Pro-Tier é opt-in explícito, com aviso. Em notebook, afeta AC/DC e pode afetar bateria.
+
+### 18.4 Validação
+
+| Item | Estado |
+|---|---|
+| `NetworkThrottlingIndex` | 4294967295 — OK |
+| `SystemResponsiveness` | 0 — OK |
+| USB selective suspend AC/DC | 0/0 — OK |
+| `disabledynamictick` | não definido — pendente |
+| `pro status` | 3 OK, 1 pendente |
+| `bcdedit /enum {current}` elevado | leitura OK |
+| Teste apply/remove | tick `Yes` aplicado e removido sem reboot; estado final sem dynamic tick |
+
+O dynamic tick não foi deixado ativo na máquina de validação; está disponível via `pro apply` com decisão explícita.
+
+### 18.5 Changelog 3.1 Pro
+
+| Versão | Entrega |
+|---|---|
+| 3.1 | Pro-Tier com NetworkThrottlingIndex, SystemResponsiveness 0, USB selective suspend e dynamic tick opt-in; verificação no Deep Scan; opções 14/11; banner v3.1 Pro; build atualizado; release `v3.1-pro` |
+
+---
+
+## 19. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

@@ -328,6 +328,28 @@ function Set-BnqqBcdTimer {
     else { Write-Bnqq 'tscsyncpolicy: falha' 'WARN' }
 }
 
+function Set-BnqqBcdDynamicTick {
+    param([bool]$Disable = $true)
+
+    if (-not (Test-BnqqAdmin)) { throw 'Exige elevacao' }
+
+    if ($Disable) {
+        & bcdedit /set disabledynamictick Yes 2>$null | Out-Null
+        $label = 'Yes'
+    }
+    else {
+        & bcdedit /deletevalue disabledynamictick 2>$null | Out-Null
+        $label = 'removido'
+    }
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Bnqq ('disabledynamictick={0} (Pro-Tier opt-in; nao entra no perfil extreme)' -f $label) 'OK'
+    }
+    else {
+        Write-Bnqq 'disabledynamictick: falha' 'WARN'
+    }
+}
+
 function Get-BnqqKernelAudit {
     $targets = Get-BnqqInterruptTargets
     $rows = New-Object System.Collections.Generic.List[object]

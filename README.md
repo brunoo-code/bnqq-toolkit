@@ -86,6 +86,9 @@ Diagnóstico:
 .\bnqq.ps1 audio      # isolamento do audiodg e Audio Enhancements
 .\bnqq.ps1 audio -AudioAction install -AudioCore 5
 .\bnqq.ps1 audio -AudioAction remove
+.\bnqq.ps1 pro        # Pro-Tier: rede, USB suspend e dynamic tick
+.\bnqq.ps1 pro -ProTierAction apply
+.\bnqq.ps1 pro -ProTierAction remove
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
@@ -147,6 +150,27 @@ O watcher consulta `nvidia-smi --query-gpu=clocks.max.graphics` e, ao detectar C
 ```
 
 O binário não é assinado; o SmartScreen pode avisar. `dist/` fica fora do Git; o `build.ps1` é a fonte reproduzível.
+
+## Pro-Tier — rede e energia
+
+O módulo `lib/ProTier.ps1` concentra ajustes opt-in que não entram nos perfis padrão:
+
+| Ajuste | Valor | Efeito |
+|---|---|---|
+| `NetworkThrottlingIndex` | `0xFFFFFFFF` | Remove o limite de pacotes multimídia |
+| `SystemResponsiveness` | `0` | Não reserva CPU para background durante o jogo |
+| USB selective suspend | AC/DC `0` no plano ativo | Evita micro-suspensão da controladora USB |
+| `disabledynamictick` | `Yes` (opt-in) | Impede o kernel de parar o timer do processador |
+
+```powershell
+.\bnqq.ps1 pro
+.\bnqq.ps1 pro -ProTierAction apply
+.\bnqq.ps1 pro -ProTierAction remove
+```
+
+A opção `[1] Deep Scan` verifica os valores e pergunta se deseja aplicar; a opção `[11]` mostra o painel com aplicar/remover. Exige UAC e reboot.
+
+**Aviso:** `disabledynamictick Yes` pode reduzir FPS no Windows 11; é opt-in, fora dos perfis padrão. O `pro remove` restaura os valores padrão de rede/USB e libera o dynamic tick. Dynamic tick afeta AC e DC; em notebook, avalie o custo de bateria.
 
 ## Perfis
 
@@ -245,7 +269,7 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 Deliberadamente fora, por não ter efeito mensurável ou por prejudicar:
 
 - Tweaks de Nagle (`TcpAckFrequency`) — jogos usam UDP
-- Desativar HPET ou forçar timer global (`useplatformclock`, `disabledynamictick`)
+- Desativar HPET ou forçar timer global (`useplatformclock`); `disabledynamictick` é **opt-in Pro-Tier**, com aviso de possível perda de FPS
 - Desativar SysMain em SSD
 - "Limpeza de registro"
 - Desativar Defender por completo
@@ -295,6 +319,7 @@ lib/Timer.ps1         NtSetTimerResolution/NtQueryTimerResolution
 lib/Stability.ps1     carga C# + WHEA 18/19 para Curve Optimizer
 lib/Qos.ps1           politicas DSCP 46 e status do Packet Scheduler
 lib/Audio.ps1         audiodg, Audio Enhancements e tarefa de audio
+lib/ProTier.ps1       rede/MMCSS, USB suspend e dynamic tick opt-in
 lib/Tui.ps1           banner, menu, deep scan com anomalias
 lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key

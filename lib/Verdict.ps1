@@ -78,7 +78,7 @@ $script:Verdicts = @(
 )
 
 $script:Debunked = @(
-    @{ Tweak = 'useplatformclock true / disabledynamictick yes'; Why = 'No Windows 11 o timer TSC e escolhido dinamicamente. Forcar modo legado derruba FPS (relatos de -60 a -140 FPS).' }
+    @{ Tweak = 'useplatformclock true / disabledynamictick yes'; Why = 'No Windows 11 o timer TSC e escolhido dinamicamente. Forcar modo legado derruba FPS (relatos de -60 a -140 FPS). disabledynamictick existe apenas como opt-in Pro-Tier, com aviso.' }
     @{ Tweak = 'Timer resolution 0.5 ms'; Why = 'Resolucao de timer nao altera FPS nem latencia de input. Nao e um valor fixo.' }
     @{ Tweak = 'TcpAckFrequency / TCPNoDelay (Nagle)'; Why = 'Jogos usam UDP. Nagle so afeta TCP, que o jogo nao usa para gameplay.' }
     @{ Tweak = 'Desativar SysMain em SSD'; Why = 'Em NVMe o impacto e nulo. Em HDD ainda ajuda no boot.' }

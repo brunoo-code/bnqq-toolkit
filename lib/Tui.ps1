@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  v2.1  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  v3.1 Pro  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -228,6 +228,15 @@ function Invoke-BnqqDeepScan {
         }
     }
 
+    $pro = Get-BnqqProTierStatus
+    Show-BnqqProTierStatus -Status $pro
+    if (-not $pro.AllOk -and [Environment]::UserInteractive) {
+        $applyPro = Read-Host '  Aplicar Pro-Tier agora? (s/N)'
+        if ($applyPro -match '^(s|sim|y|yes)$') {
+            & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction apply
+        }
+    }
+
     Write-Host ''
 }
 
@@ -245,6 +254,7 @@ function Invoke-BnqqTui {
         Write-Host '  [8] Timer resolution' -ForegroundColor White
         Write-Host '  [9] QoS / DSCP 46' -ForegroundColor White
         Write-Host '  [10] Audio / audiodg' -ForegroundColor White
+        Write-Host '  [11] Pro-Tier (rede/energia)' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -293,6 +303,13 @@ function Invoke-BnqqTui {
             }
             '10' {
                 Show-BnqqAudioStatus
+            }
+            '11' {
+                $pro = Get-BnqqProTierStatus
+                Show-BnqqProTierStatus -Status $pro
+                $sub = Read-Host '  [1] Aplicar [2] Remover [0] Voltar'
+                if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction apply }
+                elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction remove }
             }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }

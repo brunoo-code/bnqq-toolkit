@@ -65,7 +65,7 @@ $script:TweakCatalog = @(
         Apply = {
             $base = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile'
             Set-BnqqReg $base 'NetworkThrottlingIndex' 4294967295
-            Set-BnqqReg $base 'SystemResponsiveness' 10
+            Set-BnqqReg $base 'SystemResponsiveness' 0
         }
     },
     @{

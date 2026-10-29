@@ -70,7 +70,7 @@ Políticas locais em `HKLM\SOFTWARE\Policies\Microsoft\Windows\QoS` para `cs2.ex
 **Efeito:** marca os pacotes para prioridade se o roteador/caminho respeitar EF. Não reduz latência física e não garante prioridade fim a fim. A política é lida no boot ou após `gpupdate /force`.
 
 ### `network-throttling`
-`NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=10`.
+`NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=0`.
 
 **Efeito:** Windows para de limitar pacotes de aplicações multimídia. **Risco:** nenhum.
 
@@ -78,6 +78,13 @@ Políticas locais em `HKLM\SOFTWARE\Policies\Microsoft\Windows\QoS` para `cs2.ex
 Desliga Interrupt Moderation, Energy-Efficient Ethernet, Green Ethernet, Flow Control e Wake-on no adaptador físico.
 
 **Efeito:** Interrupt Moderation é o item que realmente adiciona latência — ele agrupa interrupções para poupar CPU. Desligado, cada pacote é processado imediatamente.
+
+## Pro-Tier
+
+### `pro -ProTierAction apply`
+Aplica `NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=0`, USB selective suspend AC/DC=0 e `bcdedit /set disabledynamictick Yes`.
+
+**Efeito:** remove limites de rede/MMCSS e micro-suspensão USB; dynamic tick reduz interrupções de timer. **Custo:** dynamic tick pode reduzir FPS no Windows 11 e afeta AC/DC; é opt-in. Reverta com `pro -ProTierAction remove`.
 
 ## Sistema
 
