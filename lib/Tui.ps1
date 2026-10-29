@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v1.4.1  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.5.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -284,6 +284,7 @@ function Invoke-BnqqTui {
         Write-Host '  --- [ UTILITARIOS E SEGURANCA ] ---' -ForegroundColor Cyan
         Write-Host '  [25] Preflight Seguranca' -ForegroundColor White
         Write-Host '  [26] Reverter ultimo apply' -ForegroundColor White
+        Write-Host '  [28] Memoria / Kernel / Standby' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -377,6 +378,13 @@ function Invoke-BnqqTui {
             }
             '23' { Start-BnqqEtwMonitor -Seconds 10 -IntervalMs 500 | Out-Null }
             '27' { & (Join-Path $script:BnqqRoot 'bnqq.ps1') framebench }
+            '28' {
+                & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune
+                $sub = Read-Host '  [1] Aplicar [2] Purge standby [3] Remover [0] Voltar'
+                if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune -MemoryAction apply }
+                elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune -MemoryAction purge }
+                elseif ($sub -eq '3') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') memtune -MemoryAction remove }
+            }
             '25' { Show-BnqqSecurityPreflight }
             '18' {
                 Show-BnqqLargePageStatus

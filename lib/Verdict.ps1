@@ -83,7 +83,7 @@ $script:Debunked = @(
     @{ Tweak = 'TcpAckFrequency / TCPNoDelay (Nagle)'; Why = 'Jogos usam UDP. Nagle so afeta TCP, que o jogo nao usa para gameplay.' }
     @{ Tweak = 'Desativar SysMain em SSD'; Why = 'Em NVMe o impacto e nulo. Em HDD ainda ajuda no boot.' }
     @{ Tweak = 'Desativar HPET no Gerenciador de Dispositivos'; Why = 'Duplicado do BCD. No Win11 e placebo ou prejudicial.' }
-    @{ Tweak = 'Limpar standby list antes de jogar'; Why = 'Standby e cache de arquivos. O Vanguard so purga abaixo de 4 GB e com jogo ativo; purgar sempre pode piorar o 1% low por releitura de disco.' }
+    @{ Tweak = 'Limpar standby list antes de jogar'; Why = 'Standby e cache de arquivos. O watcher purga ao detectar e a cada 5 min em foco, com reforco abaixo de 4 GB; purgar em excesso pode piorar o 1% low por releitura de disco.' }
     @{ Tweak = 'Prioridade Realtime no jogo'; Why = 'Pode travar input e audio do sistema. High e o teto seguro.' }
     @{ Tweak = 'Afinidade fixa em 1-2 nucleos'; Why = 'Impede o scheduler de migrar threads e concentra todo o jogo em poucos nucleos. O pin em todos os nucleos fisicos (game-affinity) e diferente e deve ser medido.' }
     @{ Tweak = 'Desativar SMT'; Why = 'Reduz threads disponiveis. Jogos modernos se beneficiam de SMT.' }

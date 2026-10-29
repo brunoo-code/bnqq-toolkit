@@ -134,7 +134,7 @@ function Show-BnqqVanguardStatus {
     else {
         Write-Host ('    RSS          {0}' -f $(if ($Status.RssOk) { 'pinned' } else { 'nao pinned' })) -ForegroundColor $(if ($Status.RssOk) { 'Green' } else { 'Yellow' })
     }
-    Write-Host ('    Standby      {0} GB livres; purge no watcher se <4 GB' -f $Status.FreeGB) -ForegroundColor Gray
+    Write-Host ('    Standby      {0} GB livres; purga no watcher ao detectar e a cada 5 min' -f $Status.FreeGB) -ForegroundColor Gray
     Write-Host ('    Timer coalescing  {0}' -f $Status.TimerCoalescing) -ForegroundColor DarkGray
     Write-Host ('    NVIDIA direto     {0}' -f $Status.NvidiaDirect) -ForegroundColor DarkGray
     Write-Host ''

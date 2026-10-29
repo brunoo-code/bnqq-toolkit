@@ -177,12 +177,6 @@ function Set-BnqqRuntimeLatency {
 
     $qos = Set-BnqqRuntimeQos -Process $Process
     $workingSet = Set-BnqqWorkingSetPadding -Process $Process -ExtraMB $ExtraMB
-    try {
-        if ((Get-BnqqFreeMemoryGB) -lt 4) {
-            if (Clear-BnqqStandbyList) { Write-Bnqq 'Runtime: standby list purgada no foco do jogo' 'OK' }
-        }
-    }
-    catch { }
 
     return [pscustomobject]@{
         ProcessId = $Process.Id

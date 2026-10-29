@@ -289,6 +289,18 @@ function Start-BnqqWatcher {
                             if ($gpuLocked) { Write-Bnqq 'GPU: clock travado no maximo enquanto o jogo estiver ativo' 'OK' }
                         }
                         catch { Write-Bnqq ('GPU state lock indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
+
+                        try {
+                            if (Clear-BnqqStandbyList -Quiet) {
+                                Write-Bnqq 'Standby list purgada ao detectar o jogo' 'OK'
+                            }
+                            $lastStandbyPurge = Get-Date
+                        }
+                        catch {
+                            Write-Bnqq ('Standby purge inicial indisponivel: {0}' -f $_.Exception.Message) 'WARN'
+                            $standbyWarned = $true
+                            $lastStandbyPurge = Get-Date
+                        }
                     }
                 }
 
@@ -358,18 +370,27 @@ function Start-BnqqWatcher {
                 }
 
                 $freeGB = Get-BnqqFreeMemoryGB
-                if ($null -ne $freeGB -and $freeGB -lt $StandbyThresholdGB) {
-                    $canPurge = (-not $lastStandbyPurge) -or (((Get-Date) - $lastStandbyPurge).TotalSeconds -ge 60)
-                    if ($canPurge) {
-                        try {
-                            if (Clear-BnqqStandbyList) { $lastStandbyPurge = Get-Date }
+                $now = Get-Date
+                $sincePurge = if ($lastStandbyPurge) { ($now - $lastStandbyPurge).TotalSeconds } else { [double]::MaxValue }
+                $periodicDue = $focusActive -and $sincePurge -ge 300
+                $pressureDue = $focusActive -and ($null -ne $freeGB) -and ($freeGB -lt $StandbyThresholdGB) -and ($sincePurge -ge 60)
+                if ($periodicDue -or $pressureDue) {
+                    try {
+                        if (Clear-BnqqStandbyList -Quiet) {
+                            Write-Bnqq ('Standby list purgada ({0})' -f $(if ($pressureDue) { 'pressao de RAM' } else { 'periodica 5 min' })) 'OK'
                         }
-                        catch {
-                            if (-not $standbyWarned) {
-                                Write-Bnqq ('Standby purge indisponivel: {0}' -f $_.Exception.Message) 'WARN'
-                                $standbyWarned = $true
-                            }
+                        elseif (-not $standbyWarned) {
+                            Write-Bnqq 'Standby purge indisponivel (sem elevacao ou API recusou)' 'WARN'
+                            $standbyWarned = $true
                         }
+                        $lastStandbyPurge = $now
+                    }
+                    catch {
+                        if (-not $standbyWarned) {
+                            Write-Bnqq ('Standby purge indisponivel: {0}' -f $_.Exception.Message) 'WARN'
+                            $standbyWarned = $true
+                        }
+                        $lastStandbyPurge = $now
                     }
                 }
             }
@@ -384,6 +405,7 @@ function Start-BnqqWatcher {
                 $focusActive = $false
                 $focusCandidate = $null
                 $focusCandidateSince = $null
+                $lastStandbyPurge = $null
                 if ($gpuLocked) {
                     try {
                         if (Clear-BnqqGpuClockLock -Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }

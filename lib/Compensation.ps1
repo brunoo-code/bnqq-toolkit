@@ -123,7 +123,7 @@ function Set-BnqqBackgroundCulling {
     }
 
     try {
-        $freed = Clear-BnqqStandbyList
+        $freed = Clear-BnqqStandbyList -Quiet
         if ($freed) { Write-Bnqq 'Standby list purgada' 'OK' }
         else { Write-Bnqq 'Standby purge indisponivel ou desnecessaria' 'INFO' }
     }

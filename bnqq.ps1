@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'memtune', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -47,6 +47,8 @@ param(
     [string]$FrameProcess = 'cs2.exe',
     [ValidateRange(0, 30)][int]$FrameSkip = 5,
     [string]$FrameHotkey = '',
+    [ValidateSet('status', 'apply', 'remove', 'purge')]
+    [string]$MemoryAction = 'status',
     [ValidateSet('status', 'apply')]
     [string]$LargePagesAction = 'status',
     [ValidateSet('status', 'apply')]
@@ -145,6 +147,7 @@ if ($Command -eq 'gpupstate' -and $GpuPStateAction -eq 'apply') { $needsAdmin = 
 if ($Command -eq 'netqos' -and $NetQosAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'etw' -and $EtwWpr) { $needsAdmin = $true }
 if ($Command -eq 'framebench') { $needsAdmin = $true }
+if ($Command -eq 'memtune' -and $MemoryAction -in @('apply', 'remove', 'purge')) { $needsAdmin = $true }
 if ($Command -eq 'silicon' -and $SiliconAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
@@ -188,6 +191,7 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'hid') { $forward += @('-HidAction', $HidAction, '-HidQueueSize', $HidQueueSize) }
     if ($Command -eq 'etw') { $forward += @('-EtwSeconds', $EtwSeconds, '-EtwIntervalMs', $EtwIntervalMs); if ($EtwWpr) { $forward += '-EtwWpr' } }
     if ($Command -eq 'framebench') { $forward += @('-FrameSeconds', $FrameSeconds, '-FrameProcess', $FrameProcess, '-FrameSkip', $FrameSkip, '-FrameHotkey', $FrameHotkey) }
+    if ($Command -eq 'memtune') { $forward += @('-MemoryAction', $MemoryAction) }
     if ($Command -eq 'largepages') { $forward += @('-LargePagesAction', $LargePagesAction) }
     if ($Command -eq 'gpupstate') { $forward += @('-GpuPStateAction', $GpuPStateAction) }
     if ($Command -eq 'netqos') { $forward += @('-NetQosAction', $NetQosAction) }
@@ -435,6 +439,25 @@ switch ($Command) {
     'framebench' {
         Invoke-BnqqFrameBench -Seconds $FrameSeconds -ProcessName $FrameProcess -SkipSeconds $FrameSkip -Hotkey $FrameHotkey | Out-Null
     }
+    'memtune' {
+        switch ($MemoryAction) {
+            'apply' {
+                Set-BnqqMemoryTune -Purge
+                Show-BnqqMemoryTuneStatus
+            }
+            'remove' {
+                Set-BnqqMemoryTune -Remove
+                Show-BnqqMemoryTuneStatus
+            }
+            'purge' {
+                [void](Clear-BnqqStandbyList)
+                Show-BnqqMemoryTuneStatus
+            }
+            default {
+                Show-BnqqMemoryTuneStatus
+            }
+        }
+    }
     'bcd' { Show-BnqqBcd }
 
     'help' {
@@ -489,6 +512,10 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 framebench           60s de frametime e 1% low no CS2' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 framebench -FrameHotkey F10 -FrameSeconds 60' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 memtune              Kernel em RAM, sem compressao e standby' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 memtune -MemoryAction apply' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 memtune -MemoryAction purge' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 memtune -MemoryAction remove' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray
         Write-Host ''

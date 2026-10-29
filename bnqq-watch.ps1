@@ -4,7 +4,8 @@ param(
     [int]$IntervalSeconds = 2,
     [switch]$RespectBattery,
     [switch]$DeepFreeze,
-    [double]$StandbyThresholdGB = 4
+    [double]$StandbyThresholdGB = 4,
+    [switch]$Once
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -20,4 +21,4 @@ $script:BnqqRoot = $root
 . (Join-Path $root 'lib\Watcher.ps1')
 
 Start-BnqqLog -Directory (Join-Path $root 'reports') | Out-Null
-Start-BnqqWatcher -IntervalSeconds $IntervalSeconds -PinPhysical:$PinPhysical -RespectBattery:$RespectBattery -DeepFreeze:$DeepFreeze -StandbyThresholdGB $StandbyThresholdGB
+Start-BnqqWatcher -IntervalSeconds $IntervalSeconds -PinPhysical:$PinPhysical -RespectBattery:$RespectBattery -DeepFreeze:$DeepFreeze -StandbyThresholdGB $StandbyThresholdGB -Once:$Once

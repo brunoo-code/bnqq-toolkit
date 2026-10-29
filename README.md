@@ -105,9 +105,28 @@ Diagnóstico:
 .\bnqq.ps1 framebench # 60s de frametime, 1% low e 0.1% low no CS2
 .\bnqq.ps1 framebench -FrameHotkey F10 -FrameSeconds 60
 .\bnqq.ps1 framebench -FrameSkip 10   # descarta o warmup
+.\bnqq.ps1 memtune    # status de memoria, kernel e standby
+.\bnqq.ps1 memtune -MemoryAction apply   # desliga compressao + kernel em RAM
+.\bnqq.ps1 memtune -MemoryAction purge   # limpa a standby list agora
+.\bnqq.ps1 memtune -MemoryAction remove  # reverte compressao e paging
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
 ```
+
+## Memoria / kernel / standby
+
+`memtune` concentra o ajuste global de memória (exige elevação para aplicar):
+
+```powershell
+.\bnqq.ps1 memtune
+.\bnqq.ps1 memtune -MemoryAction apply
+.\bnqq.ps1 memtune -MemoryAction purge
+.\bnqq.ps1 memtune -MemoryAction remove
+```
+
+O `apply` desativa a compressão de memória (`Disable-MMAgent -MemoryCompression`), grava `DisablePagingExecutive=1` em `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management` e faz uma purga inicial da standby list. O paging executive exige **reboot**; desligar a compressão aumenta o consumo de RAM. O `purge` usa `NtSetSystemInformation(SystemMemoryListInformation)` com `SeProfileSingleProcessPrivilege`. O `remove` reativa a compressão e restaura o paging ao padrão.
+
+O watcher faz uma purga ao detectar o jogo e outra a cada **5 minutos** enquanto CS2/Valorant estiver em foco. Com RAM livre abaixo de 4 GB, a purga pode ocorrer a cada 60 s. Standby é cache de arquivos: purgar demais pode causar releitura de disco, por isso não há purga com o jogo em segundo plano nem no boot.
 
 ## Frametime e 1% low
 
@@ -233,7 +252,7 @@ O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`.
 | Áudio | CPU 5, prioridade High |
 | Background | Discord/Chrome/Edge/Spotify/Firefox/Brave nos threads SMT ímpares |
 | DXGI/FSO | `SwapEffectUpgradeEnable=1` + FSO por jogo |
-| Standby | purga nativa abaixo de 4 GB livres, a cada 60 s |
+| Standby | purga ao detectar o jogo; a cada 5 min em foco; extra abaixo de 4 GB livres |
 
 ```powershell
 .\bnqq.ps1 vanguard
@@ -338,7 +357,7 @@ TUI privada `[26] Large Pages`, `[27] GPU P-State`, `[28] Rede/DSCP`; pública `
 Fase de runtime, sem reiniciar o Windows para o que é possível aplicar em tempo real. VBS/HVCI continuam obrigatórios e não são contornados.
 
 - **HID/USB:** filas `mouclass`/`kbdclass` mantidas em 20 pacotes (piso seguro para mouse 8 kHz), aceleração off, USB sem suspensão, MSI/prioridade e afinidade nas controladoras PCI USB. A fila de classe é driver de boot: o valor novo só entra no próximo boot.
-- **Watcher com foco:** detecta `GetForegroundWindow`; ao focar CS2/Valorant aplica QoS DSCP 46 via `New-NetQosPolicy` no `ActiveStore`, padding de working set do processo e purge de standby se a RAM livre cair abaixo de 4 GB.
+- **Watcher com foco:** detecta `GetForegroundWindow`; ao focar CS2/Valorant aplica QoS DSCP 46 via `New-NetQosPolicy` no `ActiveStore`, padding de working set do processo e purga de standby ao detectar, a cada 5 min em foco e, com pressão, abaixo de 4 GB livres.
 - **ETW/PDH:** `lib/EtwMonitor.ps1` amostra DPC, ISR, interrupções e CPU/working set do DWM; gera JSON em `reports`. É um monitor leve de contadores ETW/PDH, não um ETL completo do WPR.
 - **Preflight:** antes de aplicar o perfil `valorant`, valida Secure Boot, TPM, VBS e HVCI; sem conformidade, o perfil é bloqueado.
 - **Virtual QA:** motor C# 128 ticks/s, física, memória e loopback, com timer de 0,500 ms e máscaras `0x5555`/`0xAAAA`.
@@ -555,7 +574,7 @@ lib/Audio.ps1         audiodg, Audio Enhancements e tarefa de audio
 lib/ProTier.ps1       rede/MMCSS, USB suspend e dynamic tick opt-in
 lib/GodTier.ps1       CFG por jogo, FSO, paging, prioridade e auditoria shader
 lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
-lib/MemoryGuard.ps1   purga nativa da standby list e memória livre
+lib/MemoryGuard.ps1   memtune, kernel em RAM, compressão e purga de standby
 lib/Allowlist.ps1     HWID SHA-256 e consulta da allowlist Raw
 lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher
