@@ -91,7 +91,7 @@ function Get-BnqqSafeGameMask {
     }
 
     $mask = [int64]0
-    for ($i = 2; $i -lt $logical; $i += 2) {
+    for ($i = 0; $i -lt $logical; $i += 2) {
         $mask = $mask -bor ([int64]1 -shl $i)
     }
     return $mask
@@ -105,7 +105,7 @@ function Get-BnqqSafeBackgroundMask {
     if ($logical -le 3 -or ($cores -gt 0 -and $logical -eq $cores)) { return [int64]0 }
 
     $mask = [int64]0
-    for ($i = 3; $i -lt $logical; $i += 2) {
+    for ($i = 1; $i -lt $logical; $i += 2) {
         $mask = $mask -bor ([int64]1 -shl $i)
     }
     return $mask
