@@ -99,7 +99,7 @@ function Show-BnqqLicenseFailure {
     param($Status)
 
     Write-Host ''
-    Write-Host '  LICENCA INVALIDA' -ForegroundColor Red
+    Write-Host '  LICENÇA INVÁLIDA' -ForegroundColor Red
     Write-Host ('    HWID        {0}' -f $Status.Hwid) -ForegroundColor Yellow
     Write-Host ('    Motivo      {0}' -f $Status.Reason) -ForegroundColor Gray
     Write-Host '    Envie o HWID acima ao desenvolvedor e coloque o license.key na pasta do BNQQ.' -ForegroundColor Gray
