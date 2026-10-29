@@ -61,13 +61,16 @@ param(
     [switch]$NoElevate
 )
 
+# Cole aqui a Raw URL do Gist privado com os HWIDs autorizados.
+$AllowlistUrl = "COLOQUE_SEU_LINK_AQUI"
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:BnqqRoot = $root
-. (Join-Path $root 'lib\License.ps1')
+. (Join-Path $root 'lib\Allowlist.ps1')
 
-$license = Test-BnqqLicense
-if (-not $license.Valid) {
-    Show-BnqqLicenseFailure -Status $license
+$allow = Test-BnqqAllowlist -Url $AllowlistUrl
+if (-not $allow.Valid) {
+    Show-BnqqAllowlistFailure -Status $allow
     exit 1
 }
 

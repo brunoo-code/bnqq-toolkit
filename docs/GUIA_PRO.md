@@ -1,10 +1,10 @@
-﻿# BNQQ Optimizer v1.4.0 — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v1.4.1 — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
 ## Como usar em 4 passos
 
-1. Abra o `BNQQ_Optimizer.exe` e aceite o UAC. Se aparecer "Licença Inválida", copie o HWID e solicite seu `license.key` ao desenvolvedor.
+1. Abra o `BNQQ_Optimizer.exe` e aceite o UAC. Se aparecer "NAO AUTORIZADO", copie o HWID exibido e adicione-o na allowlist do Gist; depois abra o app novamente.
 2. Rode **[1] Deep Scan** para ver o estado real da máquina.
 3. Aplique um perfil: **`competitive`** para uso diário, **`extreme`** para torneio/bench ou **`valorant`** para manter VBS/HVCI ligados.
 4. Deixe o **Game Watcher** ativo. Ele entra sozinho quando CS2/Valorant abre e sai quando fecha.

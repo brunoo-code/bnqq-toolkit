@@ -1,4 +1,4 @@
-# O que cada tweak faz
+﻿# O que cada tweak faz
 
 ## Energia e CPU
 
@@ -100,8 +100,8 @@ Aplica IRQ GPU CPU 4, IRQ rede CPU 6, tenta RSS no CPU 6, verifica DXGI/FSO e pr
 
 ## Premium
 
-### Licença HWID
-O `bnqq.ps1` exige `license.key` RSA-SHA256 para o HWID local; sem ele, mostra o HWID e encerra. O gerador `keygen.ps1` é privado e não é empacotado no build público.
+### Allowlist em nuvem
+O `bnqq.ps1` calcula o HWID SHA-256 e consulta uma Raw URL de Gist. Se o HWID estiver no texto, libera a TUI; se não, mostra o HWID e encerra. Não há `license.key` no build público.
 
 ### QA do ambiente
 O Deep Scan verifica IRQ GPU/rede, mask SMT e timer. Em idle, o timer mostra que o watcher aplicará 0,5 ms quando o jogo abrir.

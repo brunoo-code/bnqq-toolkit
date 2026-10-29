@@ -229,9 +229,9 @@ Em 8C/16T, o jogo usa todos os núcleos físicos; os CPUs 4/6 dos IRQs compartil
 
 A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v1.0.0`**.
 
-## Licenciamento HWID
+## Licenciamento por Allowlist
 
-O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Processor.ProcessorId` e exige `license.key` com assinatura RSA-2048/SHA-256. Sem licença, mostra o HWID e encerra. O `keygen.ps1` é privado e **não** é incluído no build público.
+O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Processor.ProcessorId` e consulta uma Raw URL de Gist com a lista de HWIDs autorizados. Não existe mais `license.key` na versão pública. Se o HWID nao estiver na lista, o app mostra o HWID e encerra.
 
 ## Premium QA
 
@@ -255,6 +255,15 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 
 O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4369→4355 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
 
+## v1.4.1 — Allowlist em nuvem
+
+A versão pública não usa mais `license.key`. O HWID SHA-256 é consultado em uma Raw URL de Gist:
+
+```powershell
+$AllowlistUrl = "COLOQUE_SEU_LINK_AQUI"
+```
+
+Se o HWID estiver no texto, a TUI abre. Se não estiver, o app mostra o HWID e encerra para o usuário copiar. O tutorial completo está em `docs/ALLOWLIST.md`.
 ## v1.4.0 — Silicon / Mitigações / NIC
 
 Versão de auditoria de silício e baixo nível, sem fingir acesso que o Windows não expõe.
@@ -532,7 +541,7 @@ lib/ProTier.ps1       rede/MMCSS, USB suspend e dynamic tick opt-in
 lib/GodTier.ps1       CFG por jogo, FSO, paging, prioridade e auditoria shader
 lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
 lib/MemoryGuard.ps1   purga nativa da standby list e memória livre
-lib/License.ps1       HWID SHA-256 e verificação RSA-SHA256
+lib/Allowlist.ps1     HWID SHA-256 e consulta da allowlist Raw
 lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher
 lib/Ultimate.ps1      Super Pack: IA, servicos, MMCSS, heap e VBS

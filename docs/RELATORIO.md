@@ -227,7 +227,7 @@ lib/ProTier.ps1
 lib/GodTier.ps1
 lib/Vanguard.ps1
 lib/MemoryGuard.ps1
-lib/License.ps1
+lib/Allowlist.ps1
 lib/QA.ps1
 lib/InGameQA.ps1
 lib/Ultimate.ps1
@@ -527,7 +527,7 @@ Validação:
 | Item | Resultado |
 |---|---|
 | Build privado | 154.112 bytes |
-| Build público | 134.656 bytes |
+| Build público | 133.632 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -685,11 +685,11 @@ Banner **`BNQQ OPTIMIZER v1.0.0`**; Deep Scan com painel Vanguard; TUI pública 
 
 ---
 
-## 21. Premium Licensing & QA
+## 21. Allowlist & QA
 
-### 21.1 Licenciamento HWID
+### 21.1 Allowlist em nuvem
 
-`lib/License.ps1` calcula SHA-256 de `UUID + ProcessorId` e exige `license.key` com assinatura RSA-2048/SHA-256. O cliente tem apenas a chave pública; `keygen.ps1` é privado e não entra no build público. Sem licença, a TUI mostra o HWID e encerra.
+`lib/Allowlist.ps1` calcula SHA-256 de `UUID + ProcessorId` e consulta uma Raw URL de Gist com os HWIDs autorizados. Se o HWID nao estiver no texto, a TUI mostra o HWID e encerra. Nao existe `license.key` no build publico.
 
 ### 21.2 QA AMD/NVIDIA
 
@@ -705,13 +705,13 @@ Checksum offload IP/TCP/UDP v4/v6 e LSO IPv4/IPv6 desligados; idle demote/promot
 
 ### 21.5 Build e release
 
-Banner **`BNQQ OPTIMIZER v1.0.0`**; build `1.0.0`; release `v1.0.0`; `license.key` no payload local; `keygen.ps1` fora do build.
+Banner **`BNQQ OPTIMIZER v1.0.0`**; build `1.0.0`; release `v1.0.0`; allowlist em nuvem no build publico; nenhum `license.key` no payload.
 
 ### 21.6 Changelog 1.0.0
 
 | Versão | Entrega |
 |---|---|
-| 1.0.0 | Licença HWID RSA-SHA256, keygen privado, AMD/Discord/communication tuning, checksum/LSO off, idle power thresholds, QA de IRQ/SMT/timer, build v1.0.0 |
+| 1.0.0 | Allowlist em nuvem, AMD/Discord/communication tuning, checksum/LSO off, idle power thresholds, QA de IRQ/SMT/timer, build v1.0.0 |
 
 ---
 
@@ -1044,3 +1044,18 @@ Veredito         ESTAVEL
 - Sem Profile Inspector/CLI oficial, não há injeção confiável de flags NVIDIA por jogo.
 - Sem ferramentas de undervolt instaladas, não há alteração de Curve Optimizer/XTU.
 - Interrupt Moderation desativado não garante hitreg melhor e aumenta interrupções.
+
+---
+
+## 29. v1.4.1 — Allowlist em nuvem
+
+A versao publica removeu `license.key`, `lib/License.ps1` e a copia de licenca no build.
+
+- `bnqq.ps1` calcula o HWID SHA-256 de UUID + ProcessorId.
+- `lib/Allowlist.ps1` consulta `$AllowlistUrl` via `Invoke-RestMethod`.
+- O texto deve conter o HWID; a comparacao aceita tokens de 64 caracteres hexadecimais.
+- Sem HWID, a TUI mostra o HWID e encerra; em console interativo pausa para copiar.
+- Nao ha chave RSA, `keygen.ps1` ou arquivo `.key` no repositorio publico.
+- Tutorial: `docs/ALLOWLIST.md`.
+
+O repositorio privado `optimizer-bnqq` permanece com licenca local HWID/RSA e nao foi alterado.
