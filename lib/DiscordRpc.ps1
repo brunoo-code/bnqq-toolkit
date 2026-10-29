@@ -1,6 +1,6 @@
 ﻿# Discord Rich Presence via local IPC.
 # Crie um aplicativo em https://discord.com/developers/applications e cole o Application ID abaixo.
-$script:BnqqDiscordClientId = ''
+$script:BnqqDiscordClientId = '1565351228672712846'
 $script:BnqqDiscordState = $null
 
 function Write-BnqqDiscordFrame {
