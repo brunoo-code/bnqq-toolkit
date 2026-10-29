@@ -84,7 +84,7 @@ function Invoke-BnqqFrameBench {
     $game = $game[0]
     $affinity = [int64]$game.ProcessorAffinity
     $priority = $game.PriorityClass
-    Write-Bnqq ('FrameBench: {0} PID {1} · afinidade 0x{2:X} · prioridade {3}' -f $game.ProcessName, $game.Id, $affinity, $priority) 'INFO'
+    Write-Bnqq ('FrameBench: {0} PID {1} | afinidade 0x{2:X} | prioridade {3}' -f $game.ProcessName, $game.Id, $affinity, $priority) 'INFO'
     if (Get-Command Get-BnqqSafeGameMask -ErrorAction SilentlyContinue) {
         $expectedMask = [int64](Get-BnqqSafeGameMask)
         if ($expectedMask -ne 0 -and $affinity -ne $expectedMask) {
@@ -127,8 +127,9 @@ function Invoke-BnqqFrameBench {
     Write-Host ('    FPS medio      {0}' -f $stats.AvgFps) -ForegroundColor Gray
     Write-Host ('    1% Low          {0} FPS  ({1} ms)' -f $stats.Low1Fps, $stats.Low1Ms) -ForegroundColor Yellow
     Write-Host ('    0.1% Low        {0} FPS  ({1} ms)' -f $stats.Low01Fps, $stats.Low01Ms) -ForegroundColor Yellow
-    Write-Host ('    Frametime       avg {0} ms · max {1} ms · min {2} ms' -f $stats.AvgMs, $stats.MaxMs, $stats.MinMs) -ForegroundColor Gray
+    Write-Host ('    Frametime       avg {0} ms | max {1} ms | min {2} ms' -f $stats.AvgMs, $stats.MaxMs, $stats.MinMs) -ForegroundColor Gray
     Write-Host ('    Jitter          {0} ms (desvio padrao)' -f $stats.JitterMs) -ForegroundColor Gray
     Write-Host ''
     return $stats
 }
+
