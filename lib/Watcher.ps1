@@ -240,164 +240,56 @@ function Start-BnqqWatcher {
     )
 
     $games = @('cs2', 'VALORANT-Win64-Shipping')
-    $backgroundNames = @('Discord', 'chrome', 'msedge', 'Spotify', 'brave', 'firefox')
-    $active = $false
-    $previousPlan = $null
-    $gpuLocked = $false
-    $backgroundPinned = @{}
-    $lastStandbyPurge = $null
-    $standbyWarned = $false
-    $runtimeState = $null
-    $runtimePid = $null
     $focusActive = $false
     $focusCandidate = $null
     $focusCandidateSince = $null
-    $mask = [int64]0
-    if ($PinPhysical) { $mask = Get-BnqqSafeGameMask }
-    $backgroundMask = Get-BnqqSafeBackgroundMask
     $loopInterval = if ($DeepFreeze -and $IntervalSeconds -gt 1) { 1 } else { $IntervalSeconds }
 
-    try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { }
-    Write-Bnqq ('Watcher iniciado: intervalo {0}s, pin fisico {1}, respeitar bateria {2}' -f $IntervalSeconds, [bool]$PinPhysical, [bool]$RespectBattery) 'STEP'
+    Write-Bnqq 'Watcher leve iniciado: somente Deep Freeze de background' 'STEP'
 
     try {
         while ($true) {
             $running = @(Get-Process -Name $games -ErrorAction SilentlyContinue)
 
-            if ($running.Count -gt 0) {
-                if (-not $active) {
-                    $onBattery = $false
-                    if ($RespectBattery) {
-                        $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
-                        if ($battery -and $battery.BatteryStatus -ne 2) { $onBattery = $true }
-                    }
-
-                    if ($onBattery) {
-                        Write-Bnqq 'Watcher: em bateria, mantendo o plano atual' 'INFO'
-                    }
-                    else {
-                        $previousPlan = Get-BnqqActivePlanGuid
-                        $guid = New-BnqqUltimatePlan
-                        Set-BnqqUltimatePlanValues -Guid $guid
-                        $active = $true
-                        Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
-                    Set-BnqqDiscordPresence -Game (($running | ForEach-Object { $_.ProcessName }) -join ', ') | Out-Null
-                        try { Set-BnqqTimerResolution -Desired 5000 | Out-Null }
-                        catch { Write-Bnqq ('Timer resolution indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
-                        try {
-                            $gpuLocked = Set-BnqqGpuClockLock -Quiet
-                            if ($gpuLocked) { Write-Bnqq 'GPU: clock travado no maximo enquanto o jogo estiver ativo' 'OK' }
-                        }
-                        catch { Write-Bnqq ('GPU state lock indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
-                    }
-                }
-
-                if ($PinPhysical -and $mask -ne 0) {
-                    foreach ($p in $running) { Set-BnqqProcessAffinity -Process $p -Mask $mask }
-                }
-                foreach ($p in $running) { Set-BnqqGameProcessPriority -Process $p }
-
-                # Repetir a cada ciclo pega abas/processos de background que nasceram depois do jogo.
-                if ($backgroundMask -ne 0) {
-                    $pinnedNow = 0
-                    foreach ($name in $backgroundNames) {
-                        foreach ($proc in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {
-                            if ($backgroundPinned.ContainsKey($proc.Id)) { continue }
-                            try {
-                                $previousAffinity = $proc.ProcessorAffinity
-                                if ($null -eq $previousAffinity) { continue }
-                                $proc.ProcessorAffinity = [IntPtr]$backgroundMask
-                                $backgroundPinned[$proc.Id] = $previousAffinity
-                                $pinnedNow++
-                            }
-                            catch { }
-                        }
-                    }
-                    if ($pinnedNow -gt 0) {
-                        Write-Bnqq ('Background pinado nos threads SMT (0x{0:X}): {1} processo(s)' -f $backgroundMask, $pinnedNow) 'OK'
-                    }
-                }
-
-                try {
-                    $foregroundPid = Get-BnqqForegroundPid
-                    $foregroundGame = $running | Where-Object { $_.Id -eq $foregroundPid } | Select-Object -First 1
-                    if ($foregroundGame) {
-                        if ($focusCandidate -ne $foregroundGame.Id) {
-                            $focusCandidate = $foregroundGame.Id
-                            $focusCandidateSince = Get-Date
-                        }
-                        $focusAge = if ($focusCandidateSince) { ((Get-Date) - $focusCandidateSince).TotalSeconds } else { 0 }
-                        if ($focusAge -ge 2 -and (-not $focusActive -or $runtimePid -ne $foregroundGame.Id)) {
-                            $focusTimer = [Diagnostics.Stopwatch]::StartNew()
-                            if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
-                            $runtimePid = $foregroundGame.Id
-                            $profile = Get-BnqqGameRuntimeProfile -Process $foregroundGame
-                            $runtimeState = Set-BnqqRuntimeLatency -Process $foregroundGame -ExtraMB $profile.WorkingSetExtraMB
-                            $frozen = 0
-                            if ($DeepFreeze) { $frozen = Freeze-BnqqBackground }
-                            $focusTimer.Stop()
-                            $focusActive = $true
-                            Write-Bnqq ('Runtime foco: {0} [{1}] QoS={2} working set={3} freeze={4} E2E={5} ms' -f $foregroundGame.ProcessName, $profile.Game, $runtimeState.QoS, [bool]$runtimeState.WorkingSet, $frozen, $focusTimer.ElapsedMilliseconds) 'OK'
-                        }
-                        if ($DeepFreeze -and $focusActive) { Freeze-BnqqBackground | Out-Null }
-                    }
-                    elseif ($focusActive) {
-                        if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
-                        $focusActive = $false
-                        $focusCandidate = $null
-                        $focusCandidateSince = $null
-                        Write-Bnqq 'Runtime: foco perdido, Deep Freeze liberado' 'OK'
-                    }
-                    else {
-                        $focusCandidate = $null
-                        $focusCandidateSince = $null
-                    }
-                }
-                catch {
-                    Write-Bnqq ('Runtime foco indisponivel: {0}' -f $_.Exception.Message) 'WARN'
-                }
-
-                $freeGB = Get-BnqqFreeMemoryGB
-                if ($null -ne $freeGB -and $freeGB -lt $StandbyThresholdGB) {
-                    $canPurge = (-not $lastStandbyPurge) -or (((Get-Date) - $lastStandbyPurge).TotalSeconds -ge 60)
-                    if ($canPurge) {
-                        try {
-                            if (Clear-BnqqStandbyList) { $lastStandbyPurge = Get-Date }
-                        }
-                        catch {
-                            if (-not $standbyWarned) {
-                                Write-Bnqq ('Standby purge indisponivel: {0}' -f $_.Exception.Message) 'WARN'
-                                $standbyWarned = $true
-                            }
-                        }
-                    }
-                }
-            }
-            elseif ($active) {
-                if ($previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
-                $active = $false
-                try { Clear-BnqqTimerResolution | Out-Null }
-                catch { Write-Bnqq ('Timer resolution clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
-                if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
-                Clear-BnqqDiscordPresence
-                if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState; $runtimeState = $null; $runtimePid = $null }
+            if ($running.Count -eq 0) {
+                if ($focusActive -and $DeepFreeze) { Resume-BnqqBackground | Out-Null }
                 $focusActive = $false
                 $focusCandidate = $null
                 $focusCandidateSince = $null
-                if ($gpuLocked) {
-                    try {
-                        if (Clear-BnqqGpuClockLock -Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }
-                    }
-                    catch { Write-Bnqq ('GPU clock clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
-                    $gpuLocked = $false
+                if ($Once) { break }
+                Start-Sleep -Seconds $loopInterval
+                continue
+            }
+
+            $foregroundPid = Get-BnqqForegroundPid
+            $foregroundGame = $running | Where-Object { $_.Id -eq $foregroundPid } | Select-Object -First 1
+
+            if ($foregroundGame) {
+                if ($focusCandidate -ne $foregroundGame.Id) {
+                    $focusCandidate = $foregroundGame.Id
+                    $focusCandidateSince = Get-Date
                 }
-                foreach ($backgroundId in @($backgroundPinned.Keys)) {
-                    $proc = Get-Process -Id $backgroundId -ErrorAction SilentlyContinue
-                    if (-not $proc) { continue }
-                    try { $proc.ProcessorAffinity = [IntPtr]$backgroundPinned[$backgroundId] } catch { }
+
+                $focusAge = if ($focusCandidateSince) { ((Get-Date) - $focusCandidateSince).TotalSeconds } else { 0 }
+                if ($DeepFreeze -and $focusAge -ge 2 -and -not $focusActive) {
+                    $frozen = Freeze-BnqqBackground
+                    $focusActive = $true
+                    Write-Bnqq ('Deep Freeze: foco estavel em {0}; {1} processo(s) congelado(s)' -f $foregroundGame.ProcessName, $frozen) 'OK'
                 }
-                $backgroundPinned.Clear()
-                Write-Bnqq 'Jogos fechados: plano anterior restaurado' 'OK'
+                elseif ($DeepFreeze -and $focusActive) {
+                    Freeze-BnqqBackground | Out-Null
+                }
+            }
+            elseif ($focusActive) {
+                if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
+                $focusActive = $false
+                $focusCandidate = $null
+                $focusCandidateSince = $null
+                Write-Bnqq 'Deep Freeze: foco perdido; background liberado' 'OK'
+            }
+            else {
+                $focusCandidate = $null
+                $focusCandidateSince = $null
             }
 
             if ($Once) { break }
@@ -405,16 +297,6 @@ function Start-BnqqWatcher {
         }
     }
     finally {
-        Clear-BnqqDiscordPresence
         if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
-        if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
-        try { Clear-BnqqTimerResolution | Out-Null } catch { }
-        if ($gpuLocked) { try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { } }
-        foreach ($backgroundId in @($backgroundPinned.Keys)) {
-            $proc = Get-Process -Id $backgroundId -ErrorAction SilentlyContinue
-            if (-not $proc) { continue }
-            try { $proc.ProcessorAffinity = [IntPtr]$backgroundPinned[$backgroundId] } catch { }
-        }
-        if ($active -and $previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
     }
 }
