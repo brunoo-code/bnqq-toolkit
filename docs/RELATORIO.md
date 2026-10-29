@@ -229,6 +229,8 @@ lib/Vanguard.ps1
 lib/MemoryGuard.ps1
 lib/License.ps1
 lib/QA.ps1
+lib/InGameQA.ps1
+lib/Ultimate.ps1
 bnqq-watch.ps1
 bnqq-audio.ps1
 build.ps1
@@ -524,8 +526,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 118.784 bytes |
-| Build público | 99.328 bytes |
+| Build privado | 124.928 bytes |
+| Build público | 104.960 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -713,6 +715,37 @@ Banner **`BNQQ OPTIMIZER v6.0 Premium`**; build `6.0.0`; release `v6.0-Premium`;
 
 ---
 
-## 22. Licença
+## 22. Ultimate — Super Pack e QA in-game
+
+### 22.1 Faxina
+
+`lib/Ultimate.ps1` aplica Copilot/Recall, Fax/Xbox/Spooler condicional, UWP agressivo (Cortana, BingNews, ZuneVideo, Solitaire, TikTok), perfil MMCSS `BNQQ_Esports`, SharedSection opt-in, VBS/DMA opt-in e lista de serviços. `wuauserv` é opt-in; estados anteriores em `backups/ultimate-services-<data>.json`.
+
+O Spooler foi mantido por haver impressora; os serviços Xbox já estavam desativados.
+
+### 22.2 Kernel
+
+- `fltmc unload WdFilter` **não executado**; proteção em tempo real protegida e não deve ser descarregada.
+- MMCSS `BNQQ_Esports`: `Scheduling Category=High`, `SFIO Priority=High` (REG_SZ).
+- SharedSection e VBS/DMA são opt-in; não foram alterados no pacote básico.
+- Nenhuma chave NVIDIA/coalescing fictícia.
+
+### 22.3 QA in-game
+
+`lib/InGameQA.ps1` compila `load.exe` C# e inicia um `cs2.exe` controlado. O watcher validou timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção e clock. Teste de 20 s: 4394→4604 MHz, queda -4,8%, veredito **ESTAVEL**; temperatura indisponível.
+
+### 22.4 TUI, build e guia
+
+Banner **`BNQQ OPTIMIZER v7.0 Ultimate`**; TUI privada `[17]/[18]`, pública `[14]/[15]`; build `7.0.0`; release `v7.0-Ultimate`; `docs/GUIA_PRO.md` atualizado.
+
+### 22.5 Changelog 7.0 Ultimate
+
+| Versão | Entrega |
+|---|---|
+| 7.0 | Super Pack pós-formatação, IA/Recall, serviços/AppX, MMCSS, heap/VBS opt-in, QA in-game C# e build v7.0 Ultimate |
+
+---
+
+## 23. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

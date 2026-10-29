@@ -1,4 +1,4 @@
-# BNQQ Toolkit
+﻿# BNQQ Toolkit
 
 Otimizador de latência e estabilidade para Windows, com motor adaptativo: ele **detecta o hardware** e aplica apenas os ajustes que fazem sentido naquele computador. Funciona em desktop e notebook, AMD e Intel, NVIDIA, AMD e Intel.
 
@@ -94,6 +94,9 @@ Diagnóstico:
 .\bnqq.ps1 god -GodAction remove
 .\bnqq.ps1 vanguard   # Vanguard: IRQ, RSS, DXGI, SMT e standby
 .\bnqq.ps1 vanguard -VanguardAction apply
+.\bnqq.ps1 ultimate   # Super Pack: IA, servicos, MMCSS e heap
+.\bnqq.ps1 ultimate -UltimateAction apply [-RemoveAppx] [-VbsOff]
+.\bnqq.ps1 qa         # Stress in-game com engine falsa e watcher
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
@@ -233,6 +236,20 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 - Rede: checksum offload IP/TCP/UDP v4/v6 e LSO desligados no adaptador físico.
 - Energia: idle demote/promote 100 e `IDLEDISABLE=1`.
 - Deep Scan `[1]`: QA de IRQ, SMT e timer; em idle informa que o watcher aplicará 0,5 ms no jogo.
+
+## Ultimate — Super Pack e QA in-game
+
+`lib/Ultimate.ps1` cobre IA (Copilot/Recall), Fax/Xbox/Spooler condicional, UWP agressivo (Cortana, BingNews, ZuneVideo, Solitaire, TikTok), perfil MMCSS `BNQQ_Esports`, SharedSection opt-in, VBS/DMA opt-in e lista de serviços. O `WdFilter` **não** é descarregado; a proteção em tempo real é protegida e não deve ser removida.
+
+```powershell
+.\bnqq.ps1 ultimate
+.\bnqq.ps1 ultimate -UltimateAction apply
+.\bnqq.ps1 ultimate -UltimateAction apply -RemoveAppx
+.\bnqq.ps1 ultimate -UltimateAction apply -VbsOff
+.\bnqq.ps1 qa
+```
+
+O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4394→4604 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
 
 ## Perfis
 
@@ -387,6 +404,8 @@ lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
 lib/MemoryGuard.ps1   purga nativa da standby list e memória livre
 lib/License.ps1       HWID SHA-256 e verificação RSA-SHA256
 lib/QA.ps1            auto-check de IRQ, SMT e timer
+lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher
+lib/Ultimate.ps1      Super Pack: IA, servicos, MMCSS, heap e VBS
 lib/Tui.ps1           banner, menu, deep scan com anomalias
 lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key

@@ -1,4 +1,4 @@
-$script:BloatApps = @(
+﻿$script:BloatApps = @(
     'Microsoft.BingNews'
     'Microsoft.BingWeather'
     'Microsoft.GetHelp'
@@ -25,6 +25,8 @@ $script:BloatApps = @(
     'Microsoft.XboxGamingOverlay'
     'Microsoft.XboxSpeechToTextOverlay'
     'Microsoft.549981C3F5F10'
+    'Microsoft.ZuneVideo'
+    'Microsoft.TikTok'
 )
 
 $script:BloatTasks = @(

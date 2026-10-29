@@ -106,6 +106,14 @@ O `bnqq.ps1` exige `license.key` RSA-SHA256 para o HWID local; sem ele, mostra o
 ### QA do ambiente
 O Deep Scan verifica IRQ GPU/rede, mask SMT e timer. Em idle, o timer mostra que o watcher aplicará 0,5 ms quando o jogo abrir.
 
+## Ultimate
+
+### `ultimate -UltimateAction apply`
+Aplica Copilot/Recall off, serviços Fax/Xbox/Spooler condicional, perfil MMCSS `BNQQ_Esports` e, com flags, UWP agressivo, SharedSection e VBS/DMA. O `WdFilter` não é descarregado.
+
+### `qa`
+Compila `load.exe` C# e inicia um `cs2.exe` controlado para validar no watcher: timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção e clock. A temperatura pode ficar indisponível.
+
 ## Sistema
 
 ### `gamedvr-off` / `gamemode-on`

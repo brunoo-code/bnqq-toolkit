@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -20,6 +20,14 @@ param(
     [string]$GodAction = 'status',
     [ValidateSet('status', 'apply')]
     [string]$VanguardAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$UltimateAction = 'status',
+    [switch]$ForceSpooler,
+    [switch]$DisableWindowsUpdate,
+    [switch]$RemoveAppx,
+    [switch]$DesktopHeap,
+    [switch]$VbsOff,
+    [int]$QaSeconds = 45,
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -63,6 +71,8 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Vanguard.ps1')
 . (Join-Path $root 'lib\Watcher.ps1')
 . (Join-Path $root 'lib\QA.ps1')
+. (Join-Path $root 'lib\InGameQA.ps1')
+. (Join-Path $root 'lib\Ultimate.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
 $configPath = Join-Path $root 'config\profiles.json'
@@ -76,6 +86,7 @@ if ($Command -eq 'audio' -and $AudioAction -in @('install', 'remove')) { $needsA
 if ($Command -eq 'pro' -and $ProTierAction -in @('apply', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'god' -and $GodAction -in @('apply', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'vanguard' -and $VanguardAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'ultimate' -and $UltimateAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -101,6 +112,15 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'vanguard') {
         $forward += @('-VanguardAction', $VanguardAction)
     }
+    if ($Command -eq 'ultimate') {
+        $forward += @('-UltimateAction', $UltimateAction)
+        if ($ForceSpooler) { $forward += '-ForceSpooler' }
+        if ($DisableWindowsUpdate) { $forward += '-DisableWindowsUpdate' }
+        if ($RemoveAppx) { $forward += '-RemoveAppx' }
+        if ($DesktopHeap) { $forward += '-DesktopHeap' }
+        if ($VbsOff) { $forward += '-VbsOff' }
+    }
+    if ($Command -eq 'qa') { $forward += @('-QaSeconds', $QaSeconds) }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -274,6 +294,19 @@ switch ($Command) {
         }
     }
 
+    'ultimate' {
+        switch ($UltimateAction) {
+            'apply' {
+                Set-BnqqUltimate -ForceSpooler:$ForceSpooler -DisableWindowsUpdate:$DisableWindowsUpdate -RemoveAppx:$RemoveAppx -DesktopHeap:$DesktopHeap -VbsOff:$VbsOff
+                $saved = Save-BnqqBackup -Directory $backupDir
+                if ($saved) { Write-Bnqq ('Backup: {0}' -f $saved) 'OK' }
+            }
+            default { Show-BnqqUltimateStatus }
+        }
+    }
+
+    'qa' { Invoke-BnqqInGameQa -Seconds $QaSeconds }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -313,6 +346,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 god -GodAction remove' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 vanguard             Vanguard: IRQ, RSS, DXGI e standby' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 vanguard -VanguardAction apply' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 ultimate             Super Pack: IA, servicos, MMCSS e heap' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 ultimate -UltimateAction apply [-RemoveAppx] [-VbsOff]' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 qa                   Stress in-game com engine falsa e watcher' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

@@ -1,4 +1,4 @@
-﻿# BNQQ Optimizer v6.0 Premium — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v7.0 Ultimate — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
@@ -47,6 +47,8 @@ O público tem a mesma base em outra ordem:
 - **[11] Pro-Tier** — rede, USB e dynamic tick opt-in.
 - **[12] God-Tier** — CFG, paging e prioridade.
 - **[13] Vanguard** — IRQ, SMT e standby.
+- **[14] QA: Stress Test In-Game** — engine falsa + carga C# e validação do watcher.
+- **[15] Ultimate (Super Pack)** — faxina pós-formatação, MMCSS e ajustes opt-in.
 
 ## O que usar antes de uma partida
 

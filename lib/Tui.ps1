@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v6.0 Premium  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v7.0 Ultimate  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -263,6 +263,8 @@ function Invoke-BnqqTui {
         Write-Host '  [11] Pro-Tier (rede/energia)' -ForegroundColor White
         Write-Host '  [12] God-Tier (CFG/memória)' -ForegroundColor White
         Write-Host '  [13] Vanguard (IRQ/RSS/standby)' -ForegroundColor White
+        Write-Host '  [14] QA: Stress Test In-Game' -ForegroundColor White
+        Write-Host '  [15] Ultimate (Super Pack)' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -331,6 +333,15 @@ function Invoke-BnqqTui {
                 Show-BnqqVanguardStatus -Status $vg
                 $sub = Read-Host '  [1] Aplicar [0] Voltar'
                 if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') vanguard -VanguardAction apply }
+            }
+            '14' { Invoke-BnqqInGameQa -Seconds 45 }
+            '15' {
+                $ult = Get-BnqqUltimateStatus
+                Show-BnqqUltimateStatus -Status $ult
+                $sub = Read-Host '  [1] Aplicar [2] Aplicar + AppX [3] Aplicar + VBS off [0] Voltar'
+                if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply }
+                elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply -RemoveAppx }
+                elseif ($sub -eq '3') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply -VbsOff }
             }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }
