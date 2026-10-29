@@ -250,32 +250,39 @@ function Invoke-BnqqTui {
     Show-BnqqBanner
 
     while ($true) {
+        Write-Host '  --- [ CORE E PERFIS ] ---' -ForegroundColor Cyan
         Write-Host '  [1] Deep Scan' -ForegroundColor White
         Write-Host '  [2] Aplicar perfil' -ForegroundColor White
-        Write-Host '  [3] Reverter ultimo apply' -ForegroundColor White
-        Write-Host '  [4] Game watcher' -ForegroundColor White
-        Write-Host '  [5] Relatorio modular' -ForegroundColor White
-        Write-Host '  [6] Veredito (placebo x real)' -ForegroundColor White
-        Write-Host '  [7] Estabilidade PBO (WHEA 18/19)' -ForegroundColor White
-        Write-Host '  [8] Timer resolution' -ForegroundColor White
-        Write-Host '  [9] QoS / DSCP 46' -ForegroundColor White
-        Write-Host '  [10] Audio / audiodg' -ForegroundColor White
-        Write-Host '  [11] Pro-Tier (rede/energia)' -ForegroundColor White
-        Write-Host '  [12] God-Tier (CFG/memória)' -ForegroundColor White
-        Write-Host '  [13] Vanguard (IRQ/RSS/standby)' -ForegroundColor White
-        Write-Host '  [14] QA: Stress Test In-Game' -ForegroundColor White
-        Write-Host '  [15] Ultimate (Super Pack)' -ForegroundColor White
-        Write-Host '  [16] ACPI / HPET / TSC' -ForegroundColor White
-        Write-Host '  [17] MSI / PCIe' -ForegroundColor White
-        Write-Host '  [18] Compensacao VBS / HVCI' -ForegroundColor White
-        Write-Host '  [19] Virtual QA C#' -ForegroundColor White
-        Write-Host '  [20] HID / USB Runtime' -ForegroundColor White
-        Write-Host '  [21] ETW / DPC / DWM' -ForegroundColor White
-        Write-Host '  [22] Preflight Seguranca' -ForegroundColor White
-        Write-Host '  [23] Large Pages 2 MB' -ForegroundColor White
-        Write-Host '  [24] GPU P-State' -ForegroundColor White
-        Write-Host '  [25] Rede / DSCP / Firewall' -ForegroundColor White
-        Write-Host '  [26] Silicon / Mitigacoes' -ForegroundColor White
+        Write-Host '  [3] Game watcher' -ForegroundColor White
+        Write-Host '  [4] Relatorio modular' -ForegroundColor White
+        Write-Host '  [5] Veredito (placebo x real)' -ForegroundColor White
+        Write-Host ''
+        Write-Host '  --- [ HARDWARE E KERNEL ] ---' -ForegroundColor Cyan
+        Write-Host '  [6] Estabilidade PBO (WHEA 18/19)' -ForegroundColor White
+        Write-Host '  [7] Timer resolution' -ForegroundColor White
+        Write-Host '  [8] QoS / DSCP 46' -ForegroundColor White
+        Write-Host '  [9] Audio / audiodg' -ForegroundColor White
+        Write-Host '  [10] Pro-Tier (rede/energia)' -ForegroundColor White
+        Write-Host '  [11] God-Tier (CFG/memória)' -ForegroundColor White
+        Write-Host '  [12] Vanguard (IRQ/RSS/standby)' -ForegroundColor White
+        Write-Host '  [13] Ultimate (Super Pack)' -ForegroundColor White
+        Write-Host '  [14] ACPI / HPET / TSC' -ForegroundColor White
+        Write-Host '  [15] MSI / PCIe' -ForegroundColor White
+        Write-Host '  [16] Compensacao VBS / HVCI' -ForegroundColor White
+        Write-Host '  [17] HID / USB Runtime' -ForegroundColor White
+        Write-Host '  [18] Large Pages 2 MB' -ForegroundColor White
+        Write-Host '  [19] GPU P-State' -ForegroundColor White
+        Write-Host '  [20] Silicon / Mitigacoes' -ForegroundColor White
+        Write-Host ''
+        Write-Host '  --- [ DIAGNOSTICO E TELEMETRIA ] ---' -ForegroundColor Cyan
+        Write-Host '  [21] QA: Stress Test In-Game' -ForegroundColor White
+        Write-Host '  [22] Virtual QA C#' -ForegroundColor White
+        Write-Host '  [23] ETW / DPC / DWM' -ForegroundColor White
+        Write-Host '  [24] Rede / DSCP / Firewall' -ForegroundColor White
+        Write-Host ''
+        Write-Host '  --- [ UTILITARIOS E SEGURANCA ] ---' -ForegroundColor Cyan
+        Write-Host '  [25] Preflight Seguranca' -ForegroundColor White
+        Write-Host '  [26] Reverter ultimo apply' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -290,10 +297,10 @@ function Invoke-BnqqTui {
                     & (Join-Path $script:BnqqRoot 'bnqq.ps1') apply -Profile $profile
                 }
             }
-            '3' {
+            '26' {
                 & (Join-Path $script:BnqqRoot 'bnqq.ps1') revert
             }
-            '4' {
+            '3' {
                 Show-BnqqWatcherStatus
                 Write-Host ''
                 Write-Host '  [1] Instalar (sem pin fisico)' -ForegroundColor White
@@ -307,46 +314,46 @@ function Invoke-BnqqTui {
                     '3' { & (Join-Path $script:BnqqRoot 'bnqq.ps1') watch -WatcherAction remove }
                 }
             }
-            '5' {
+            '4' {
                 & (Join-Path $script:BnqqRoot 'bnqq.ps1') report
             }
-            '6' {
+            '5' {
                 & (Join-Path $script:BnqqRoot 'bnqq.ps1') verdict -Profile all
             }
-            '7' {
+            '6' {
                 & (Join-Path $script:BnqqRoot 'bnqq.ps1') stability
             }
-            '8' {
+            '7' {
                 Show-BnqqTimerStatus
             }
-            '9' {
+            '8' {
                 Show-BnqqQosStatus
             }
-            '10' {
+            '9' {
                 Show-BnqqAudioStatus
             }
-            '11' {
+            '10' {
                 $pro = Get-BnqqProTierStatus
                 Show-BnqqProTierStatus -Status $pro
                 $sub = Read-Host '  [1] Aplicar [2] Remover [0] Voltar'
                 if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction apply }
                 elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') pro -ProTierAction remove }
             }
-            '12' {
+            '11' {
                 $god = Get-BnqqGodTierStatus
                 Show-BnqqGodTierStatus -Status $god
                 $sub = Read-Host '  [1] Aplicar [2] Remover [0] Voltar'
                 if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') god -GodAction apply }
                 elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') god -GodAction remove }
             }
-            '13' {
+            '12' {
                 $vg = Get-BnqqVanguardStatus
                 Show-BnqqVanguardStatus -Status $vg
                 $sub = Read-Host '  [1] Aplicar [0] Voltar'
                 if ($sub -eq '1') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') vanguard -VanguardAction apply }
             }
-            '14' { Invoke-BnqqInGameQa -Seconds 45 }
-            '15' {
+            '21' { Invoke-BnqqInGameQa -Seconds 45 }
+            '13' {
                 $ult = Get-BnqqUltimateStatus
                 Show-BnqqUltimateStatus -Status $ult
                 $sub = Read-Host '  [1] Aplicar [2] Aplicar + AppX [3] Aplicar + VBS off [0] Voltar'
@@ -354,33 +361,33 @@ function Invoke-BnqqTui {
                 elseif ($sub -eq '2') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply -RemoveAppx }
                 elseif ($sub -eq '3') { & (Join-Path $script:BnqqRoot 'bnqq.ps1') ultimate -UltimateAction apply -VbsOff }
             }
-            '16' { Show-BnqqAcpiStatus }
-            '17' { Show-BnqqMsiStatus }
-            '18' {
+            '14' { Show-BnqqAcpiStatus }
+            '15' { Show-BnqqMsiStatus }
+            '16' {
                 Show-BnqqCompensationStatus
                 $sub = Read-Host '  [1] Aplicar compensacao [0] Voltar'
                 if ($sub -eq '1') { Set-BnqqCompensation }
             }
-            '19' { Invoke-BnqqVirtualQa -Seconds 20 -Ticks 128 }
-            '20' {
+            '22' { Invoke-BnqqVirtualQa -Seconds 20 -Ticks 128 }
+            '17' {
                 Get-BnqqHidRuntimeStatus | Format-List
                 $sub = Read-Host '  [1] Aplicar HID [0] Voltar'
                 if ($sub -eq '1') { Set-BnqqHidRuntime }
             }
-            '21' { Start-BnqqEtwMonitor -Seconds 10 -IntervalMs 500 | Out-Null }
-            '22' { Show-BnqqSecurityPreflight }
-            '23' {
+            '23' { Start-BnqqEtwMonitor -Seconds 10 -IntervalMs 500 | Out-Null }
+            '25' { Show-BnqqSecurityPreflight }
+            '18' {
                 Show-BnqqLargePageStatus
                 $sub = Read-Host '  [1] Conceder privilegio [0] Voltar'
                 if ($sub -eq '1') { Set-BnqqLargePagePrivilege | Out-Null; Show-BnqqLargePageStatus }
             }
-            '24' {
+            '19' {
                 Show-BnqqGpuPState
                 $sub = Read-Host '  [1] Travar clock maximo [0] Voltar'
                 if ($sub -eq '1') { Set-BnqqGpuPState | Out-Null; Show-BnqqGpuPState }
             }
-            '25' { Show-BnqqNetworkAudit }
-            '26' {
+            '24' { Show-BnqqNetworkAudit }
+            '20' {
                 Show-BnqqSiliconStatus
                 $sub = Read-Host '  [1] Aplicar NIC seguro [2] Incluir mitigacoes [0] Voltar'
                 if ($sub -eq '1') { Set-BnqqSilicon }
