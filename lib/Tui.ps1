@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v1.1.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.2.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -267,6 +267,8 @@ function Invoke-BnqqTui {
         Write-Host '  [15] Ultimate (Super Pack)' -ForegroundColor White
         Write-Host '  [16] ACPI / HPET / TSC' -ForegroundColor White
         Write-Host '  [17] MSI / PCIe' -ForegroundColor White
+        Write-Host '  [18] Compensacao VBS / HVCI' -ForegroundColor White
+        Write-Host '  [19] Virtual QA C#' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -347,6 +349,12 @@ function Invoke-BnqqTui {
             }
             '16' { Show-BnqqAcpiStatus }
             '17' { Show-BnqqMsiStatus }
+            '18' {
+                Show-BnqqCompensationStatus
+                $sub = Read-Host '  [1] Aplicar compensacao [0] Voltar'
+                if ($sub -eq '1') { Set-BnqqCompensation }
+            }
+            '19' { Invoke-BnqqVirtualQa -Seconds 20 -Ticks 128 }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }
         }

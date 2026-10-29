@@ -255,6 +255,36 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 
 O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4369→4355 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
 
+## v1.2.0 — Compensação VBS/HVCI
+
+Esta versão **mantém VBS e HVCI ligados**. Não existe bypass de estado do Vanguard: o modo `compensate` reduz fontes de latência e organiza CPU, input, rede e GPU sem tocar no anti-cheat.
+
+- **VBS/HVCI:** `hypervisorlaunchtype=auto`, VBS=1 e HVCI=1; reboot obrigatório.
+- **Input:** aceleração do mouse off, `MouseHoverTime=0`, filas HID 20, USB sem suspensão e MSI/prioridade nas controladoras PCI USB.
+- **Background:** `DiagTrack`, `dmwappushservice`, `WECsvc`, `SysMain` e `WSearch` desativados; standby list purgada.
+- **Watcher:** jogo em `0x5555`, background em `0xAAAA`, revalidado a cada 2 s.
+- **Virtual QA:** motor C# `lib/VirtualInGameQA.cs`, 128 ticks/s, física, memória e rede loopback; sem jogo real.
+- **MSI/ACPI:** GPU/rede com MSI e prioridade; TSC via BCD (`useplatformclock=No`, `tscsyncpolicy=Enhanced`).
+- **Power:** core parking off, min/max 100%, idle disable; C-states dependem do firmware AMD.
+- **TCP:** `TcpAckFrequency=1` e `TCPNoDelay=1` por interface ativa; aumenta ACKs, não é ideal em todo link.
+- **GPU:** HAGS=2; cache de shader continua sob controle do driver (não existe “ilimitado” por registro suportado).
+
+```powershell
+.\bnqq.ps1 compensate
+.\bnqq.ps1 compensate -CompensateAction apply
+.\bnqq.ps1 virtualqa -VirtualSeconds 30
+.\bnqq.ps1 apply -Profile valorant
+```
+
+TUI privada `[21]/[22]`; pública `[18]/[19]`. O perfil `valorant` não inclui `hvci-off`, `hypervisor-off` ou `credential-guard-off`.
+
+### Limitações honestas
+
+- VBS/HVCI não são desligados; o ganho vem de compensação, não de bypass.
+- MSI/afinidade de IRQ não elimina todo o jitter e compartilha núcleos em 8C/16T.
+- Desativar `WSearch`/`SysMain` pode piorar busca e cache de arquivos.
+- O QA virtual valida timer/afinidade/estabilidade sintética; não substitui um jogo real.
+- O cache de shader “ilimitado” não tem chave de registro suportada; o driver decide o tamanho.
 ## ACPI/HPET e MSI/PCIe
 
 `lib/Acpi.ps1` audita HPET/TSC e aplica `useplatformclock=No` + `tscsyncpolicy=Enhanced` via BCD. A tabela ACPI do firmware **não é editada**; o caminho suportado é selecionar TSC.

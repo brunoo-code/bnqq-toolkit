@@ -1,4 +1,4 @@
-﻿# BNQQ Optimizer v1.1.0 — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v1.2.0 — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
@@ -6,7 +6,7 @@ Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é
 
 1. Abra o `BNQQ_Optimizer.exe` e aceite o UAC. Se aparecer "Licença Inválida", copie o HWID e solicite seu `license.key` ao desenvolvedor.
 2. Rode **[1] Deep Scan** para ver o estado real da máquina.
-3. Aplique um perfil: **`competitive`** para uso diário ou **`extreme`** para torneio/bench.
+3. Aplique um perfil: **`competitive`** para uso diário, **`extreme`** para torneio/bench ou **`valorant`** para manter VBS/HVCI ligados.
 4. Deixe o **Game Watcher** ativo. Ele entra sozinho quando CS2/Valorant abre e sai quando fecha.
 
 ## Menu privado
@@ -51,6 +51,8 @@ O público tem a mesma base em outra ordem:
 - **[15] Ultimate (Super Pack)** — faxina pós-formatação, MMCSS e ajustes opt-in.
 - **[16] ACPI / HPET / TSC** — auditoria e TSC nativo via BCD.
 - **[17] MSI / PCIe** — MSI e afinidade de GPU/rede.
+- **[18] Compensação VBS / HVCI** — mantém a virtualização ligada e reduz latência por input, background, energia, TCP e MSI.
+- **[19] Virtual QA C#** — motor sintético de 128 ticks/s; valida timer e máscaras sem jogo real.
 
 ## O que usar antes de uma partida
 

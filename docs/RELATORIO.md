@@ -526,8 +526,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 128.000 bytes |
-| Build público | 108.032 bytes |
+| Build privado | 138.240 bytes |
+| Build público | 118.272 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -760,7 +760,11 @@ Padrão limpo **v1.1.0** em banner, `build.ps1`, `config/profiles.json` e guia.
 
 `lib/Msi.ps1` varre a árvore PCI, localiza GPU/rede, garante MSI=1, prioridade 3/2, `DevicePolicy=4` e máscara `0x10` GPU / `0x40` rede. Status confirmou GPU/rede com policy 4.
 
-### 23.4 Watcher e QA`r`n`r`nO watcher reaplica a afinidade do background a cada ciclo de 2 s. O QA espera jogo/background antes da carga C# para nao afogar o watcher.`r`n`r`n### 23.5 TUI e build
+### 23.4 Watcher e QA
+
+O watcher reaplica a afinidade do background a cada ciclo de 2 s. O QA espera jogo/background antes da carga C# para nao afogar o watcher.
+
+### 23.5 TUI e build
 
 TUI pública `[16]/[17]`, privada `[19]/[20]`; build `1.1.0`; tag `v1.1.0`.
 
@@ -775,3 +779,69 @@ TUI pública `[16]/[17]`, privada `[19]/[20]`; build `1.1.0`; tag `v1.1.0`.
 ## 24. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.
+
+---
+
+## 25. v1.2.0 — Compensação VBS/HVCI e Motor Virtual
+
+### 25.1 Regra de segurança
+
+VBS e HVCI permanecem **ligados**. O modo não tenta enganar Vanguard/FACEIT/GC; não há hook, patch de driver, bootloader ou falsificação de `Win32_DeviceGuard`. A compensação trabalha em cima do custo real de virtualização.
+
+### 25.2 Módulos entregues
+
+| # | Módulo | Implementação |
+|---|---|---|
+| 1 | Versionamento | `v1.2.0` em banner, build, config, README, guia e relatório |
+| 2 | Input/Periféricos | mouse accel off, `MouseHoverTime=0`, filas HID 20, USB sem suspensão, MSI/prioridade em controladoras PCI USB |
+| 3 | Background | `DiagTrack`, `dmwappushservice`, `WECsvc`, `SysMain`, `WSearch`; standby purge |
+| 4 | Thread isolation | watcher com jogo `0x5555`, background `0xAAAA`, revalidação de 2 s |
+| 5 | Virtual QA | `lib/VirtualInGameQA.cs`: 128 ticks/s, física, memória, rede loopback e afinidade |
+| 6 | Build | binários privado e público com launcher C# e payload versionado |
+| 7 | MSI/PCIe | GPU e Realtek com MSI, prioridade e máscaras; USB em CPU dedicado |
+| 8 | ACPI/TSC | `useplatformclock=No`, `tscsyncpolicy=Enhanced`; tabela ACPI não é editada |
+| 9 | Energia | core parking off, min/max 100%, idle disable, C-states solicitados |
+| 10 | TCP | `TcpAckFrequency=1`, `TCPNoDelay=1` por interface ativa |
+| 11 | GPU/cache | HAGS=2; cache de shader auditado, sem tamanho ilimitado falso |
+| 12 | Relatório | este documento + limitações e ideias de evolução |
+
+### 25.3 Perfis
+
+Os perfis padrão deixaram de incluir `hvci-off`, `hypervisor-off` e `credential-guard-off`. Foi criado o perfil `valorant`, que mantém a virtualização e aplica apenas tweaks compatíveis.
+
+### 25.4 QA virtual
+
+Sem jogo real. O motor C# foi executado por 30 s:
+
+```text
+Ticks            3841 (128.0 Hz)
+Jitter           avg 0.0 us · max 0.1 us
+Fisica / memoria 3308505000 ops / 695292000 ops
+Rede             3980 pacotes loopback
+Timer            0,500 ms  [0.5 ms OK]
+Afinidade jogo   0x5555  [0x5555 OK]
+Afinidade SMT    0xAAAA  [0xAAAA OK]
+Motor afinidade  0x5555  [OK]
+Watcher detectou sim
+Veredito         ESTAVEL
+```
+
+### 25.5 Comandos
+
+```powershell
+.\bnqq.ps1 compensate
+.\bnqq.ps1 compensate -CompensateAction apply
+.\bnqq.ps1 virtualqa -VirtualSeconds 30
+.\bnqq.ps1 apply -Profile valorant
+```
+
+TUI privada `[21]/[22]`; pública `[18]/[19]`; build `1.2.0`; tag `v1.2.0`.
+
+### 25.6 Limitações
+
+- VBS/HVCI não são desligados; a compensação não remove todo o custo do hypervisor.
+- `WSearch`/`SysMain` desativados pioram indexação e cache de arquivos.
+- `TcpAckFrequency=1` aumenta ACKs; não é ideal em todo link.
+- C-states efetivos dependem do firmware AMD/B550M.
+- Cache de shader “ilimitado” não tem registro suportado; o driver controla.
+- O QA virtual valida estabilidade sintética, não substitui um jogo real.

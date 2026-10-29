@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -32,6 +32,11 @@ param(
     [string]$AcpiAction = 'status',
     [ValidateSet('status', 'apply')]
     [string]$MsiAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$CompensateAction = 'status',
+    [int]$VirtualSeconds = 30,
+    [int]$VirtualTicks = 128,
+    [int]$VirtualThreads = 0,
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -79,6 +84,8 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Ultimate.ps1')
 . (Join-Path $root 'lib\Acpi.ps1')
 . (Join-Path $root 'lib\Msi.ps1')
+. (Join-Path $root 'lib\Compensation.ps1')
+. (Join-Path $root 'lib\VirtualQA.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
 $configPath = Join-Path $root 'config\profiles.json'
@@ -95,6 +102,8 @@ if ($Command -eq 'vanguard' -and $VanguardAction -eq 'apply') { $needsAdmin = $t
 if ($Command -eq 'ultimate' -and $UltimateAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'acpi' -and $AcpiAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'msi' -and $MsiAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'compensate' -and $CompensateAction -eq 'apply') { $needsAdmin = $true }
+if ($Command -eq 'virtualqa') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -131,6 +140,8 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'qa') { $forward += @('-QaSeconds', $QaSeconds) }
     if ($Command -eq 'acpi') { $forward += @('-AcpiAction', $AcpiAction) }
     if ($Command -eq 'msi') { $forward += @('-MsiAction', $MsiAction) }
+    if ($Command -eq 'compensate') { $forward += @('-CompensateAction', $CompensateAction) }
+    if ($Command -eq 'virtualqa') { $forward += @('-VirtualSeconds', $VirtualSeconds, '-VirtualTicks', $VirtualTicks, '-VirtualThreads', $VirtualThreads) }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -325,6 +336,14 @@ switch ($Command) {
         if ($MsiAction -eq 'apply') { Set-BnqqMsiTargets; Show-BnqqMsiStatus } else { Show-BnqqMsiStatus }
     }
 
+    'compensate' {
+        if ($CompensateAction -eq 'apply') { Set-BnqqCompensation } else { Show-BnqqCompensationStatus }
+    }
+
+    'virtualqa' {
+        Invoke-BnqqVirtualQa -Seconds $VirtualSeconds -Ticks $VirtualTicks -Threads $VirtualThreads
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -371,6 +390,8 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 acpi -AcpiAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 msi                  MSI/PCIe de GPU e rede' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 msi -MsiAction apply' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 compensate           VBS/HVCI + input + background + rede' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 virtualqa            Motor C# sintetico 128 ticks' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray
