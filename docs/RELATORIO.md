@@ -526,8 +526,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 151.552 bytes |
-| Build público | 132.096 bytes |
+| Build privado | 154.112 bytes |
+| Build público | 134.656 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -992,3 +992,55 @@ Veredito         ESTAVEL
 - DSCP no fio não foi validado.
 - WPR é pesado e pode afetar o próprio resultado.
 - Não houve teste in-game real nesta fase.
+
+---
+
+## 28. v1.4.0 — Silicon, Mitigações e NIC
+
+### 28.1 Auditoria de silício
+
+```text
+FeatureSettingsOverride      3
+FeatureSettingsOverrideMask  3
+FeatureSettings              131072
+VBS runtime                 2
+HVCI                         True
+NIC Ethernet                Interrupt Moderation = Disabled
+GPU                         P-State P0, 1935 MHz / 7000 MHz
+Ferramentas                 Inspector, RyzenMaster, RyzenAdj, XTU e ThrottleStop ausentes
+```
+
+Os overrides de mitigação já estavam em `3/3`. O módulo permite reaplicar com `-DisableMitigations`, mas isso é opt-in e não desliga todo o microcódigo/Retbleed; VBS/HVCI seguem ativos.
+
+### 28.2 NVIDIA / undervolt
+
+O NVIDIA Profile Inspector não está instalado. Nenhuma chave oculta para `Maximum Pre-rendered Frames` ou `Threaded Optimization` foi inventada. O controle real é o clock/P-State por `nvidia-smi`.
+
+Ryzen Master, RyzenAdj, Intel XTU e ThrottleStop não estão presentes. Nenhum comando de undervolt foi executado às cegas; o Curve Optimizer continua sendo o da BIOS.
+
+### 28.3 NIC
+
+O Realtek 2.5GbE já estava com `Interrupt Moderation = Disabled`. `silicon apply` confirmou zero alterações e não reiniciou o adaptador.
+
+### 28.4 QA virtual — 30 s
+
+```text
+Ticks            3841 (128.0 Hz)
+Jitter           avg 0.0 us · max 8.7 us
+Fisica / memoria 3269867500 ops / 533832000 ops
+Rede             3677 pacotes loopback
+Timer            0,500 ms  [0.5 ms OK]
+Afinidade jogo   0x5555  [0x5555 OK]
+Afinidade SMT    0xAAAA  [0xAAAA OK]
+Motor afinidade  0x5555  [OK]
+Watcher detectou sim
+Veredito         ESTAVEL
+```
+
+### 28.5 Limitações
+
+- Mitigações de silício não são totalmente controláveis por registro; `FeatureSettingsOverride` não é microcódigo.
+- Desligar mitigações aumenta risco de segurança.
+- Sem Profile Inspector/CLI oficial, não há injeção confiável de flags NVIDIA por jogo.
+- Sem ferramentas de undervolt instaladas, não há alteração de Curve Optimizer/XTU.
+- Interrupt Moderation desativado não garante hitreg melhor e aumenta interrupções.

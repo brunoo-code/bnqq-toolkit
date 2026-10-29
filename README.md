@@ -255,7 +255,32 @@ O `bnqq.ps1` calcula SHA-256 de `Win32_ComputerSystemProduct.UUID` + `Win32_Proc
 
 O `qa` compila um `load.exe` C# de CPU/I/O, inicia um `cs2.exe` controlado e valida timer 0,5 ms, jogo `0x5555`, background `0xAAAA`, detecção do watcher e queda de clock. TUI pública `[14]`; privada `[17]`. Validação de 20 s: clock 4369→4355 MHz, timer 0,500 ms, afinidades OK, veredito **ESTAVEL**; temperatura continua indisponível.
 
-## v1.3.1 — Deep Freeze, Large Pages e P-State
+## v1.4.0 — Silicon / Mitigações / NIC
+
+Versão de auditoria de silício e baixo nível, sem fingir acesso que o Windows não expõe.
+
+- **Mitigações:** `FeatureSettingsOverride=3` e `Mask=3` já estavam presentes. O módulo audita e permite reaplicar com `-DisableMitigations`, mas isso é opt-in e não desliga todo o microcódigo/Retbleed. VBS/HVCI continuam rodando.
+- **NVIDIA:** o NVIDIA Profile Inspector não está instalado e não é baixado automaticamente. Não há CLI estável para `Maximum Pre-rendered Frames=1` ou `Threaded Optimization`; nenhuma chave oculta é inventada. O controle real disponível é P-State/clock via `nvidia-smi`.
+- **NIC:** o Realtek 2.5GbE já está com `Interrupt Moderation = Disabled`. O módulo garante o estado quando o driver expõe a propriedade.
+- **Undervolt:** Ryzen Master, RyzenAdj, Intel XTU e ThrottleStop não estão instalados. Nenhum comando é executado às cegas; o Curve Optimizer atual continua sendo o da BIOS.
+- **QA virtual:** motor C# 128 ticks/s, timer 0,500 ms e máscaras `0x5555`/`0xAAAA`.
+
+```powershell
+.\bnqq.ps1 silicon
+.\bnqq.ps1 silicon -SiliconAction apply
+.\bnqq.ps1 silicon -SiliconAction apply -DisableMitigations
+.\bnqq.ps1 netqos
+```
+
+TUI privada `[29] Silicon`; pública `[26]`.
+
+### Limitações
+
+- `FeatureSettingsOverride` é política do Windows, não desativação de microcódigo.
+- Desligar mitigações aumenta risco de segurança; VBS/HVCI não substituem Spectre/Meltdown.
+- Sem Profile Inspector/CLI oficial, não há como garantir pre-rendered frames ou threaded optimization.
+- Ferramentas de undervolt ausentes não são baixadas nem executadas sem sintaxe validada.
+- Interrupt Moderation desativado não garante “hitreg” melhor; pode aumentar carga de CPU.## v1.3.1 — Deep Freeze, Large Pages e P-State
 
 Fase hard-runtime com foco em foco de janela, memória e GPU. VBS/HVCI continuam ligados.
 

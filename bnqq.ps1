@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -49,6 +49,11 @@ param(
     [string]$GpuPStateAction = 'status',
     [ValidateSet('status', 'apply')]
     [string]$NetQosAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$SiliconAction = 'status',
+    [switch]$DisableMitigations,
+    [switch]$NvidiaProfile,
+    [switch]$Undervolt,
     [switch]$PinPhysical,
     [switch]$WatcherDeepFreeze,
     [switch]$WhatIf,
@@ -105,6 +110,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\LargePages.ps1')
 . (Join-Path $root 'lib\GpuPState.ps1')
 . (Join-Path $root 'lib\NetworkAudit.ps1')
+. (Join-Path $root 'lib\Silicon.ps1')
 . (Join-Path $root 'lib\VirtualQA.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -130,6 +136,7 @@ if ($Command -eq 'largepages' -and $LargePagesAction -eq 'apply') { $needsAdmin 
 if ($Command -eq 'gpupstate' -and $GpuPStateAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'netqos' -and $NetQosAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'etw' -and $EtwWpr) { $needsAdmin = $true }
+if ($Command -eq 'silicon' -and $SiliconAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -174,6 +181,7 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'largepages') { $forward += @('-LargePagesAction', $LargePagesAction) }
     if ($Command -eq 'gpupstate') { $forward += @('-GpuPStateAction', $GpuPStateAction) }
     if ($Command -eq 'netqos') { $forward += @('-NetQosAction', $NetQosAction) }
+    if ($Command -eq 'silicon') { $forward += @('-SiliconAction', $SiliconAction); if ($DisableMitigations) { $forward += '-DisableMitigations' }; if ($NvidiaProfile) { $forward += '-NvidiaProfile' }; if ($Undervolt) { $forward += '-Undervolt' } }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
 }
@@ -403,6 +411,13 @@ switch ($Command) {
         Show-BnqqNetworkAudit
     }
 
+    'silicon' {
+        if ($SiliconAction -eq 'apply') {
+            Set-BnqqSilicon -DisableMitigations:$DisableMitigations -NvidiaProfile:$NvidiaProfile -Undervolt:$Undervolt
+        }
+        Show-BnqqSiliconStatus
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -457,6 +472,7 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 largepages           SeLockMemoryPrivilege / pages 2 MB' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 gpupstate            P-State e clock da GPU' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 netqos               DSCP, firewall e regras dos jogos' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 silicon              Mitigacoes, NIC, GPU e ferramentas' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

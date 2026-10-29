@@ -1,4 +1,4 @@
-﻿# BNQQ Optimizer v1.3.1 — Guia do Menu (Para Pro-Players)
+﻿# BNQQ Optimizer v1.4.0 — Guia do Menu (Para Pro-Players)
 
 Este guia explica o que cada opção faz **na prática dentro do jogo**. Não é necessário entender de programação.
 
@@ -59,6 +59,7 @@ O público tem a mesma base em outra ordem:
 - **[23] Large Pages 2 MB** — concede `SeLockMemoryPrivilege`.
 - **[24] GPU P-State** — P-State real e clock máximo via `nvidia-smi`.
 - **[25] Rede / DSCP / Firewall** — auditoria e regras UDP sem desativar o firewall.
+- **[26] Silicon / Mitigações** — mitigações, NIC, P-State e ferramentas de silício.
 
 ## O que usar antes de uma partida
 

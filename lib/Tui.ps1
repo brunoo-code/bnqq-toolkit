@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v1.3.1  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.4.0  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 
@@ -275,6 +275,7 @@ function Invoke-BnqqTui {
         Write-Host '  [23] Large Pages 2 MB' -ForegroundColor White
         Write-Host '  [24] GPU P-State' -ForegroundColor White
         Write-Host '  [25] Rede / DSCP / Firewall' -ForegroundColor White
+        Write-Host '  [26] Silicon / Mitigacoes' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -379,6 +380,12 @@ function Invoke-BnqqTui {
                 if ($sub -eq '1') { Set-BnqqGpuPState | Out-Null; Show-BnqqGpuPState }
             }
             '25' { Show-BnqqNetworkAudit }
+            '26' {
+                Show-BnqqSiliconStatus
+                $sub = Read-Host '  [1] Aplicar NIC seguro [2] Incluir mitigacoes [0] Voltar'
+                if ($sub -eq '1') { Set-BnqqSilicon }
+                elseif ($sub -eq '2') { Set-BnqqSilicon -DisableMitigations }
+            }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }
         }
