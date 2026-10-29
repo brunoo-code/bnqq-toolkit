@@ -112,9 +112,26 @@ Diagnóstico:
 .\bnqq.ps1 lasso      # Process Lasso WMI + foreground quantum
 .\bnqq.ps1 lasso -LassoAction apply
 .\bnqq.ps1 lasso -LassoAction start|stop
+.\bnqq.ps1 latency    # MPO, TCP e idle/coalescing
+.\bnqq.ps1 latency -LatencyAction apply
+.\bnqq.ps1 latency -LatencyAction remove
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
 ```
+
+## Latencia pre-reboot
+
+`latency` consolida a varredura dos três pontos:
+
+```powershell
+.\bnqq.ps1 latency
+.\bnqq.ps1 latency -LatencyAction apply
+.\bnqq.ps1 latency -LatencyAction remove
+```
+
+- **MPO:** `OverlayTestMode=5` em DWM; o ganho depende da GPU/monitor e é reversível.
+- **Rede:** `NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=0`, `TcpAckFrequency=1` e `TCPNoDelay=1` nas interfaces ativas. Afeta TCP; o gameplay do CS2 usa UDP, então não é tweak de hitreg.
+- **Energia:** `IDLEDISABLE=1`, demote/promote 100 e `COALTIME=0`/`PROCIR=0` em Idle Resiliency. C-states efetivos dependem do firmware AMD.
 
 ## Process Lasso / foreground quantum
 
@@ -588,6 +605,7 @@ lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
 lib/MemoryGuard.ps1   memtune, kernel em RAM, compressão e purga de standby
 lib/Allowlist.ps1     HWID SHA-256 e consulta da allowlist Raw
 lib/ProcessLasso.ps1  Lasso WMI, prioridade/afinidade e quantum
+lib/LatencyTune.ps1   MPO, TCP e idle/coalescing pre-reboot
 lib/BnqqProcessLasso.cs motor C# WMI de process-start
 lib/QA.ps1            auto-check de IRQ, SMT e timer
 lib/InGameQA.ps1      engine falsa + carga C# + validação do watcher

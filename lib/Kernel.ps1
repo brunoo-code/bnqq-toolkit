@@ -335,17 +335,24 @@ function Set-BnqqPremiumPowerSettings {
     if (-not (Test-BnqqAdmin)) { throw 'Exige elevacao' }
 
     $sub = '54533251-82be-4824-96c1-47b60b740d00'
+    $ir = '2e601130-5351-4d9d-8e04-252966bad054'
     $demote = '4b92d758-5a24-4851-a470-815d78aee119'
     $promote = '7b224883-b3cc-4d79-819f-8374152cbe7c'
     $idleDisable = '5d76a2ca-e8c0-402f-a133-2158492d58ad'
+    $coalescing = 'c36f0eb4-2988-4a70-8eee-0884fc2c2433'
+    $resiliency = 'c42b79aa-aa3a-484b-a98f-2cf32aa90a28'
 
     & powercfg -attributes $sub $demote -ATTRIB_HIDE 2>$null | Out-Null
     & powercfg -attributes $sub $promote -ATTRIB_HIDE 2>$null | Out-Null
     & powercfg -attributes $sub $idleDisable -ATTRIB_HIDE 2>$null | Out-Null
+    & powercfg -attributes $ir $coalescing -ATTRIB_HIDE 2>$null | Out-Null
+    & powercfg -attributes $ir $resiliency -ATTRIB_HIDE 2>$null | Out-Null
 
     Set-BnqqPowerValue $sub $demote 100
     Set-BnqqPowerValue $sub $promote 100
     Set-BnqqPowerValue $sub $idleDisable 1
+    Set-BnqqPowerValue $ir $coalescing 0
+    Set-BnqqPowerValue $ir $resiliency 0
     Write-Bnqq 'Premium: idle demote/promote 100 e idle disable 1 no plano ativo' 'OK'
 }
 
