@@ -76,6 +76,41 @@ function Get-BnqqPhysicalCoreMask {
     return $mask
 }
 
+function Get-BnqqSafeGameMask {
+    $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $cpu) { return [int64]0 }
+    $logical = [int]$cpu.NumberOfLogicalProcessors
+    $cores = [int]$cpu.NumberOfCores
+    if ($logical -le 2) { return [int64]0 }
+    if ($cores -gt 0 -and $logical -eq $cores) {
+        $mask = [int64]0
+        for ($i = 1; $i -lt $logical; $i++) {
+            $mask = $mask -bor ([int64]1 -shl $i)
+        }
+        return $mask
+    }
+
+    $mask = [int64]0
+    for ($i = 2; $i -lt $logical; $i += 2) {
+        $mask = $mask -bor ([int64]1 -shl $i)
+    }
+    return $mask
+}
+
+function Get-BnqqSafeBackgroundMask {
+    $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $cpu) { return [int64]0 }
+    $logical = [int]$cpu.NumberOfLogicalProcessors
+    $cores = [int]$cpu.NumberOfCores
+    if ($logical -le 3 -or ($cores -gt 0 -and $logical -eq $cores)) { return [int64]0 }
+
+    $mask = [int64]0
+    for ($i = 3; $i -lt $logical; $i += 2) {
+        $mask = $mask -bor ([int64]1 -shl $i)
+    }
+    return $mask
+}
+
 function Get-BnqqSmtSiblingMask {
     $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $cpu) { return [int64]0 }
@@ -215,8 +250,11 @@ function Start-BnqqWatcher {
     $runtimeState = $null
     $runtimePid = $null
     $focusActive = $false
+    $focusCandidate = $null
+    $focusCandidateSince = $null
     $mask = [int64]0
-    if ($PinPhysical) { $mask = Get-BnqqPhysicalCoreMask }
+    if ($PinPhysical) { $mask = Get-BnqqSafeGameMask }
+    $backgroundMask = Get-BnqqSafeBackgroundMask
     $loopInterval = if ($DeepFreeze -and $IntervalSeconds -gt 1) { 1 } else { $IntervalSeconds }
 
     try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { }
@@ -260,8 +298,7 @@ function Start-BnqqWatcher {
                 foreach ($p in $running) { Set-BnqqGameProcessPriority -Process $p }
 
                 # Repetir a cada ciclo pega abas/processos de background que nasceram depois do jogo.
-                $smtMask = Get-BnqqSmtSiblingMask
-                if ($smtMask -ne 0) {
+                if ($backgroundMask -ne 0) {
                     $pinnedNow = 0
                     foreach ($name in $backgroundNames) {
                         foreach ($proc in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {
@@ -269,7 +306,7 @@ function Start-BnqqWatcher {
                             try {
                                 $previousAffinity = $proc.ProcessorAffinity
                                 if ($null -eq $previousAffinity) { continue }
-                                $proc.ProcessorAffinity = [IntPtr]$smtMask
+                                $proc.ProcessorAffinity = [IntPtr]$backgroundMask
                                 $backgroundPinned[$proc.Id] = $previousAffinity
                                 $pinnedNow++
                             }
@@ -277,7 +314,7 @@ function Start-BnqqWatcher {
                         }
                     }
                     if ($pinnedNow -gt 0) {
-                        Write-Bnqq ('Background pinado nos threads SMT (0x{0:X}): {1} processo(s)' -f $smtMask, $pinnedNow) 'OK'
+                        Write-Bnqq ('Background pinado nos threads SMT (0x{0:X}): {1} processo(s)' -f $backgroundMask, $pinnedNow) 'OK'
                     }
                 }
 
@@ -285,7 +322,12 @@ function Start-BnqqWatcher {
                     $foregroundPid = Get-BnqqForegroundPid
                     $foregroundGame = $running | Where-Object { $_.Id -eq $foregroundPid } | Select-Object -First 1
                     if ($foregroundGame) {
-                        if (-not $focusActive -or $runtimePid -ne $foregroundGame.Id) {
+                        if ($focusCandidate -ne $foregroundGame.Id) {
+                            $focusCandidate = $foregroundGame.Id
+                            $focusCandidateSince = Get-Date
+                        }
+                        $focusAge = if ($focusCandidateSince) { ((Get-Date) - $focusCandidateSince).TotalSeconds } else { 0 }
+                        if ($focusAge -ge 2 -and (-not $focusActive -or $runtimePid -ne $foregroundGame.Id)) {
                             $focusTimer = [Diagnostics.Stopwatch]::StartNew()
                             if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState }
                             $runtimePid = $foregroundGame.Id
@@ -302,7 +344,13 @@ function Start-BnqqWatcher {
                     elseif ($focusActive) {
                         if ($DeepFreeze) { Resume-BnqqBackground | Out-Null }
                         $focusActive = $false
+                        $focusCandidate = $null
+                        $focusCandidateSince = $null
                         Write-Bnqq 'Runtime: foco perdido, Deep Freeze liberado' 'OK'
+                    }
+                    else {
+                        $focusCandidate = $null
+                        $focusCandidateSince = $null
                     }
                 }
                 catch {
@@ -334,6 +382,8 @@ function Start-BnqqWatcher {
                 Clear-BnqqDiscordPresence
                 if ($runtimeState) { Restore-BnqqWorkingSet -State $runtimeState; $runtimeState = $null; $runtimePid = $null }
                 $focusActive = $false
+                $focusCandidate = $null
+                $focusCandidateSince = $null
                 if ($gpuLocked) {
                     try {
                         if (Clear-BnqqGpuClockLock -Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }

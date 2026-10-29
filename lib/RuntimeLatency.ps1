@@ -146,9 +146,9 @@ function Set-BnqqGameProcessPriority {
     param([Parameter(Mandatory = $true)]$Process)
 
     try {
-        if ($Process.PriorityClass -ne [System.Diagnostics.ProcessPriorityClass]::High) {
-            $Process.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
-            Write-Bnqq ('Prioridade runtime: {0} -> High' -f $Process.ProcessName) 'OK'
+        if ($Process.PriorityClass -ne [System.Diagnostics.ProcessPriorityClass]::AboveNormal) {
+            $Process.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::AboveNormal
+            Write-Bnqq ('Prioridade runtime: {0} -> AboveNormal' -f $Process.ProcessName) 'OK'
         }
     }
     catch {

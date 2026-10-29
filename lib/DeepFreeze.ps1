@@ -23,10 +23,12 @@ namespace Bnqq {
 
 $script:BnqqFrozenProcesses = @{}
 $script:BnqqDeepFreezeExcluded = @(
-    'cs2', 'VALORANT-Win64-Shipping', 'vgc', 'vgk', 'Vanguard',
+    'cs2', 'VALORANT-Win64-Shipping', 'vgc', 'vgk', 'Vanguard', 'vgtray',
     'RiotClientServices', 'RiotClientCrashHandler', 'RiotClientUx',
     'audiodg', 'dwm', 'winlogon', 'csrss', 'services', 'lsass',
-    'System', 'Registry', 'MsMpEng', 'MsMpEngCP', 'SecurityHealthService'
+    'System', 'Registry', 'MsMpEng', 'MsMpEngCP', 'SecurityHealthService',
+    'Discord', 'msedge', 'chrome', 'explorer', 'lghub', 'lghub_agent',
+    'lghub_updater', 'RazerCentralService', 'RazerSynapse', 'icue', 'iCUE'
 )
 
 function Get-BnqqDeepFreezeCandidates {
@@ -35,15 +37,17 @@ function Get-BnqqDeepFreezeCandidates {
     $names = @(
         'steamwebhelper', 'steam', 'steamservice',
         'Updater', 'GoogleUpdate', 'MicrosoftEdgeUpdate', 'AdobeUpdateService',
-        'Discord', 'chrome', 'msedge', 'msedgewebview2', 'firefox', 'brave',
-        'Spotify', 'OneDrive', 'Dropbox', 'EpicGamesLauncher', 'Battle.net',
-        'GalaxyClient', 'ArmouryCrate.UserSessionHelper', 'RogLiveService',
-        'RazerCentralService', 'LogiOptions'
+        'firefox', 'brave', 'Spotify', 'OneDrive', 'Dropbox',
+        'EpicGamesLauncher', 'Battle.net', 'GalaxyClient',
+        'ArmouryCrate.UserSessionHelper', 'RogLiveService'
     )
-    if ($IncludeExplorer) { $names += 'explorer' }
 
     return @(Get-Process -Name $names -ErrorAction SilentlyContinue |
-        Where-Object { $_.Id -ne $PID -and $script:BnqqDeepFreezeExcluded -notcontains $_.ProcessName })
+        Where-Object {
+            $_.Id -ne $PID -and
+            $script:BnqqDeepFreezeExcluded -notcontains $_.ProcessName -and
+            $_.ProcessName -notmatch '(?i)^(discord|msedge|chrome|explorer|dwm|audiodg|lghub|razer|icue|riotclient|vgtray)'
+        })
 }
 
 function Freeze-BnqqBackground {
