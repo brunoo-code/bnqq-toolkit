@@ -62,7 +62,7 @@ param(
 )
 
 # Cole aqui a Raw URL do Gist privado com os HWIDs autorizados.
-$AllowlistUrl = "COLOQUE_SEU_LINK_AQUI"
+$AllowlistUrl = "https://gist.githubusercontent.com/brunoo-code/2af053bb86df50303ea5d548778cbe4b/raw/allowlist.txt"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:BnqqRoot = $root
