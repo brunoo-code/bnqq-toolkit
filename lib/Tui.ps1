@@ -279,6 +279,7 @@ function Invoke-BnqqTui {
         Write-Host '  [22] Virtual QA C#' -ForegroundColor White
         Write-Host '  [23] ETW / DPC / DWM' -ForegroundColor White
         Write-Host '  [24] Rede / DSCP / Firewall' -ForegroundColor White
+        Write-Host '  [27] Frametime / 1% Low (CS2)' -ForegroundColor White
         Write-Host ''
         Write-Host '  --- [ UTILITARIOS E SEGURANCA ] ---' -ForegroundColor Cyan
         Write-Host '  [25] Preflight Seguranca' -ForegroundColor White
@@ -375,6 +376,7 @@ function Invoke-BnqqTui {
                 if ($sub -eq '1') { Set-BnqqHidRuntime }
             }
             '23' { Start-BnqqEtwMonitor -Seconds 10 -IntervalMs 500 | Out-Null }
+            '27' { & (Join-Path $script:BnqqRoot 'bnqq.ps1') framebench }
             '25' { Show-BnqqSecurityPreflight }
             '18' {
                 Show-BnqqLargePageStatus

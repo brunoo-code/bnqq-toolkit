@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'ultimate', 'qa', 'acpi', 'msi', 'compensate', 'virtualqa', 'hid', 'etw', 'preflight', 'largepages', 'gpupstate', 'netqos', 'silicon', 'guide', 'debloat', 'cache', 'bench', 'framebench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -43,6 +43,10 @@ param(
     [int]$EtwSeconds = 10,
     [int]$EtwIntervalMs = 500,
     [switch]$EtwWpr,
+    [ValidateRange(10, 300)][int]$FrameSeconds = 60,
+    [string]$FrameProcess = 'cs2.exe',
+    [ValidateRange(0, 30)][int]$FrameSkip = 5,
+    [string]$FrameHotkey = '',
     [ValidateSet('status', 'apply')]
     [string]$LargePagesAction = 'status',
     [ValidateSet('status', 'apply')]
@@ -109,6 +113,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\HidRuntime.ps1')
 . (Join-Path $root 'lib\RuntimeLatency.ps1')
 . (Join-Path $root 'lib\EtwMonitor.ps1')
+. (Join-Path $root 'lib\FrameBench.ps1')
 . (Join-Path $root 'lib\Preflight.ps1')
 . (Join-Path $root 'lib\LargePages.ps1')
 . (Join-Path $root 'lib\GpuPState.ps1')
@@ -139,6 +144,7 @@ if ($Command -eq 'largepages' -and $LargePagesAction -eq 'apply') { $needsAdmin 
 if ($Command -eq 'gpupstate' -and $GpuPStateAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'netqos' -and $NetQosAction -eq 'apply') { $needsAdmin = $true }
 if ($Command -eq 'etw' -and $EtwWpr) { $needsAdmin = $true }
+if ($Command -eq 'framebench') { $needsAdmin = $true }
 if ($Command -eq 'silicon' -and $SiliconAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
@@ -181,6 +187,7 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'virtualqa') { $forward += @('-VirtualSeconds', $VirtualSeconds, '-VirtualTicks', $VirtualTicks, '-VirtualThreads', $VirtualThreads) }
     if ($Command -eq 'hid') { $forward += @('-HidAction', $HidAction, '-HidQueueSize', $HidQueueSize) }
     if ($Command -eq 'etw') { $forward += @('-EtwSeconds', $EtwSeconds, '-EtwIntervalMs', $EtwIntervalMs); if ($EtwWpr) { $forward += '-EtwWpr' } }
+    if ($Command -eq 'framebench') { $forward += @('-FrameSeconds', $FrameSeconds, '-FrameProcess', $FrameProcess, '-FrameSkip', $FrameSkip, '-FrameHotkey', $FrameHotkey) }
     if ($Command -eq 'largepages') { $forward += @('-LargePagesAction', $LargePagesAction) }
     if ($Command -eq 'gpupstate') { $forward += @('-GpuPStateAction', $GpuPStateAction) }
     if ($Command -eq 'netqos') { $forward += @('-NetQosAction', $NetQosAction) }
@@ -425,6 +432,9 @@ switch ($Command) {
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
     'bench' { Invoke-BnqqBench }
+    'framebench' {
+        Invoke-BnqqFrameBench -Seconds $FrameSeconds -ProcessName $FrameProcess -SkipSeconds $FrameSkip -Hotkey $FrameHotkey | Out-Null
+    }
     'bcd' { Show-BnqqBcd }
 
     'help' {
@@ -477,6 +487,8 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 netqos               DSCP, firewall e regras dos jogos' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 silicon              Mitigacoes, NIC, GPU e ferramentas' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 framebench           60s de frametime e 1% low no CS2' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 framebench -FrameHotkey F10 -FrameSeconds 60' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray
         Write-Host ''

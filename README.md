@@ -102,9 +102,24 @@ Diagnóstico:
 .\bnqq.ps1 msi        # MSI/PCIe de GPU e rede
 .\bnqq.ps1 msi -MsiAction apply
 .\bnqq.ps1 bench      # CPU, fila e disco
+.\bnqq.ps1 framebench # 60s de frametime, 1% low e 0.1% low no CS2
+.\bnqq.ps1 framebench -FrameHotkey F10 -FrameSeconds 60
+.\bnqq.ps1 framebench -FrameSkip 10   # descarta o warmup
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
 ```
+
+## Frametime e 1% low
+
+`framebench` usa o Intel PresentMon Console para medir o processo do jogo e gerar métricas objetivas:
+
+```powershell
+.\bnqq.ps1 framebench
+.\bnqq.ps1 framebench -FrameSeconds 60 -FrameSkip 5
+.\bnqq.ps1 framebench -FrameHotkey F10 -FrameSeconds 60
+```
+
+O comando exige elevação e o jogo aberto. Ele mostra a afinidade/prioridade do processo, descarta os primeiros `FrameSkip` segundos e grava o CSV bruto e um JSON resumido em `reports\framebench-*`. O 1% low é a média dos 1% frames mais lentos; o 0.1% low repete o cálculo com 0.1%. Para comparar ajustes, mantenha a mesma cena, o mesmo percurso e pelo menos 60 segundos por captura.
 
 ## Fase 4 — estabilidade, timer, HID e QoS
 
