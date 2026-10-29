@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "2.3.0",
+    "version":  "3.0.0",
     "profiles":  {
                      "lowend":  [
                                     "power-plan",
@@ -232,7 +232,8 @@
                                     "io-queue-depth",
                                     "game-watcher",
                                     "input-queue",
-                                    "qos-dscp"
+                                    "qos-dscp",
+                                    "audio-isolation"
                                 ],
                      "fresh":  [
                                    "power-plan",
@@ -305,7 +306,8 @@
                                    "io-queue-depth",
                                    "ssd-trim",
                                    "input-queue",
-                                   "qos-dscp"
+                                   "qos-dscp",
+                                   "audio-isolation"
                                ],
                      "extreme":  [
                                      "power-plan",
@@ -381,7 +383,8 @@
                                      "ssd-trim",
                                      "game-affinity",
                                      "input-queue",
-                                     "qos-dscp"
+                                     "qos-dscp",
+                                     "audio-isolation"
                                  ]
                  }
 }

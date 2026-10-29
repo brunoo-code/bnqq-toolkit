@@ -1,4 +1,6 @@
 reports/
 backups/
+dist/
+build/
 *.log
 .vscode/

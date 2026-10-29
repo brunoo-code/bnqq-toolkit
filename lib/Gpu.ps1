@@ -62,6 +62,55 @@ function Get-BnqqNvidiaSmi {
     return $null
 }
 
+function Get-BnqqGpuMaxClock {
+    $smi = Get-BnqqNvidiaSmi
+    if (-not $smi) { return $null }
+
+    $raw = & $smi '--query-gpu=clocks.max.graphics' '--format=csv,noheader,nounits' '-i' '0' 2>$null
+    $value = ($raw -join '').Trim()
+    $max = 0
+    if ([int]::TryParse($value, [ref]$max) -and $max -ge 500) { return $max }
+    return $null
+}
+
+function Set-BnqqGpuClockLock {
+    param([switch]$Quiet)
+
+    $smi = Get-BnqqNvidiaSmi
+    if (-not $smi) { return $false }
+
+    $max = Get-BnqqGpuMaxClock
+    if (-not $max) {
+        if (-not $Quiet) { Write-Bnqq 'GPU: clock maximo indisponivel no nvidia-smi' 'WARN' }
+        return $false
+    }
+
+    $output = & $smi '-i' '0' '-lgc' "$max,$max" 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        if (-not $Quiet) { Write-Bnqq ('GPU: clock travado em {0} MHz' -f $max) 'OK' }
+        return $true
+    }
+
+    if (-not $Quiet) { Write-Bnqq ('GPU: falha ao travar clock: {0}' -f (($output -join ' ').Trim())) 'WARN' }
+    return $false
+}
+
+function Clear-BnqqGpuClockLock {
+    param([switch]$Quiet)
+
+    $smi = Get-BnqqNvidiaSmi
+    if (-not $smi) { return $false }
+
+    $output = & $smi '-i' '0' '-rgc' 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        if (-not $Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }
+        return $true
+    }
+
+    if (-not $Quiet) { Write-Bnqq ('GPU: falha ao liberar clock: {0}' -f (($output -join ' ').Trim())) 'WARN' }
+    return $false
+}
+
 function Set-BnqqNvidiaProfile {
     $applied = 0
 

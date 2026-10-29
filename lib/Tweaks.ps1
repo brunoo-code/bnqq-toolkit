@@ -302,6 +302,11 @@ $script:TweakCatalog = @(
         Apply = { Set-BnqqInputQueue }
     },
     @{
+        Id = 'audio-isolation'; Area = 'Audio'; Risk = 'medium'; Reboot = $false
+        Name = 'Isolar audiodg em um CPU logico e desligar enhancements'
+        Apply = { Set-BnqqAudioIsolation }
+    },
+    @{
         Id = 'background-apps-off'; Area = 'Processos'; Risk = 'low'; Reboot = $false
         Name = 'Bloquear apps UWP em segundo plano'
         Apply = { Set-BnqqBackgroundAppsOff }

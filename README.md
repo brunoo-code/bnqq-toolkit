@@ -18,6 +18,9 @@ Packs tradicionais aplicam a mesma lista em qualquer máquina e vendem placebo. 
 - **Estabilidade PBO**: 3–5 min de carga em todas as threads + auditoria WHEA 18/19 para validar Curve Optimizer
 - **Timer dinâmico**: watcher solicita 0,5 ms durante o jogo e libera ao fechar, sem injetar no processo
 - **HID e QoS**: Keyboard Response, filas de mouse/teclado e DSCP 46 para CS2/Valorant
+- **Áudio isolado**: audiodg em um CPU lógico dedicado com prioridade High e Audio Enhancements off
+- **GPU state lock**: watcher trava o clock NVIDIA no máximo durante o jogo e libera com `-rgc`
+- **Executável**: `build.ps1` gera `BNQQ_Optimizer.exe` auto-elevado que abre a TUI no console
 
 ## Uso
 
@@ -57,6 +60,9 @@ Packs tradicionais aplicam a mesma lista em qualquer máquina e vendem placebo. 
 .\bnqq.ps1 watch -WatcherAction install -PinPhysical
 .\bnqq.ps1 watch -WatcherAction remove
 .\bnqq.ps1 watch -WatcherAction run
+
+# Gerar executavel unico com UAC e TUI no console
+.\build.ps1
 ```
 
 Durante a partida:
@@ -77,6 +83,9 @@ Diagnóstico:
 .\bnqq.ps1 stability -StabilityMinutes 3
 .\bnqq.ps1 timer      # timer resolution atual (0.5 ms com watcher)
 .\bnqq.ps1 qos        # politicas DSCP 46 e QoS Packet Scheduler
+.\bnqq.ps1 audio      # isolamento do audiodg e Audio Enhancements
+.\bnqq.ps1 audio -AudioAction install -AudioCore 5
+.\bnqq.ps1 audio -AudioAction remove
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
@@ -110,6 +119,35 @@ O watcher usa `NtSetTimerResolution(5000, true, ...)` quando detecta `cs2.exe` o
 
 MPO já é tratado por `OverlayTestMode=5` nos perfis altos. HDCP não possui API/registro público suportado para desativação na NVIDIA; o módulo faz apenas auditoria (`sem controle HDCP suportado`) e não aplica hack não documentado que possa quebrar vídeo/DRM.
 
+## Fase 5 — áudio, GPU state lock e executável
+
+### Áudio isolado
+
+`audio-isolation` desativa o spatial audio global e `PKEY_AudioEndpoint_Disable_SysFx` nos endpoints Render/Capture, e instala a tarefa `BNQQ Audio Isolation`. A tarefa roda elevada no logon e mantém `audiodg.exe` no CPU lógico **5** (máscara `0x20`) com prioridade **High**. O watcher usa CPUs pares (`0x5555`), então o áudio fica no thread ímpar.
+
+```powershell
+.\bnqq.ps1 audio
+.\bnqq.ps1 audio -AudioAction install -AudioCore 5
+.\bnqq.ps1 audio -AudioAction remove
+```
+
+`audiodg.exe` é protegido: um shell comum não lê afinidade/prioridade; a tarefa elevada aplica. O `revert` remove a tarefa e libera o processo.
+
+### GPU state lock
+
+O watcher consulta `nvidia-smi --query-gpu=clocks.max.graphics` e, ao detectar CS2/Valorant, executa `nvidia-smi -i 0 -lgc <max>,<max>`; ao fechar, `nvidia-smi -i 0 -rgc`. O `finally` libera o clock no encerramento. Em placas sem `nvidia-smi`, o recurso é ignorado. O lock define a faixa; o clock instantâneo pode ficar abaixo do máximo em idle/power cap. Se o watcher for morto à força, o lock pode persistir até o próximo start/reboot.
+
+### Executável único
+
+`build.ps1` gera `dist\BNQQ_Optimizer.exe` com launcher C# compilado por `csc.exe`, payload ZIP embutido (`bnqq.ps1`, `bnqq-watch.ps1`, `bnqq-audio.ps1`, `lib`, `config`), manifesto `requireAdministrator`, console subsystem e extração versionada em `%LOCALAPPDATA%\BNQQ_Optimizer\<versão>`. A TUI atual é aberta via `powershell.exe`; em erro, o launcher mostra a mensagem e aguarda Enter.
+
+```powershell
+.\build.ps1
+.\build.ps1 -OutputPath dist\BNQQ_Optimizer.exe
+```
+
+O binário não é assinado; o SmartScreen pode avisar. `dist/` fica fora do Git; o `build.ps1` é a fonte reproduzível.
+
 ## Perfis
 
 | Perfil | Alvo | Comportamento |
@@ -117,9 +155,9 @@ MPO já é tratado por `OverlayTestMode=5` nos perfis altos. HDCP não possui AP
 | `lowend` | PC fraco, 4–8 GB, HDD | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios incluídos. |
 | `laptop` | Notebook | Respeita bateria: no DC mantém downclock e economia. Não mexe em core parking nem HVCI. NDIS agressivo e afinidade de interrupção são ignorados automaticamente. |
 | `desktop` | Desktop | Equilibrado. Sem desligar HVCI. Inclui afinidade de interrupção se houver 8+ threads. |
-| `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off, MSI + prioridade de interrupção, filas HID 20 e QoS DSCP 46. |
-| `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot + RSS, TCP kernel, NTFS 8.3, ETW autologgers, BCD TSC, choking de navegadores/IA, perfil de GPU, I/O e TRIM. |
-| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off + NDIS agressivo + watcher com pin fisico. Risco alto, ganho real em CPU-bound. |
+| `gaming` | Desktop competitivo | Agressivo. HVCI off, core parking off, memory compression off, MSI + prioridade de interrupção, filas HID 20, QoS DSCP 46 e áudio isolado (71). |
+| `fresh` | Pós-formatação | Tudo do `gaming` + remoção do hypervisor no boot + RSS, TCP kernel, NTFS 8.3, ETW autologgers, BCD TSC, choking de navegadores/IA, perfil de GPU, I/O e TRIM (72). |
+| `extreme` | Bench / torneio | `fresh` + mitigacoes de CPU desligadas + C-states off + NDIS agressivo + watcher com pin fisico e GPU state lock (75). Risco alto, ganho real em CPU-bound. |
 
 O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` → `lowend`; resto → `gaming`.
 
@@ -139,6 +177,10 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 - Suspensão de energia em dispositivos USB/HID desligada
 - USB 3 Link Power Management desligado
 - PCIe ASPM desligado
+
+**Áudio**
+- `audiodg.exe` isolado em um CPU lógico dedicado com prioridade High (tarefa elevada)
+- Audio Enhancements/spatial desativados em todos os endpoints Render/Capture
 
 **Rede**
 - Throttling de rede multimídia removido
@@ -173,6 +215,7 @@ O perfil `auto` escolhe assim: notebook → `laptop`; desktop com tier `low` →
 - HAGS (build 22000+)
 - MSI mode em GPU e rede
 - NVIDIA: preferência por performance máxima e telemetria off
+- NVIDIA state lock: `nvidia-smi -lgc` durante o jogo e `-rgc` ao fechar
 - Fullscreen exclusivo forçado
 - **GPU dedicada por jogo** (essencial em notebook com iGPU + dGPU)
 - **VRR otimizado e swap chain moderno** para jogos em janela
@@ -232,7 +275,7 @@ Tudo o mais (registro, serviços, plano de energia, rede, pagefile, tarefas) vol
 
 - Windows 10 1809+ ou Windows 11
 - PowerShell 5.1+
-- Administrador para `apply`, `revert`, `focus`, `unfocus`, `rebalance`, `trim` e `debloat`
+- Administrador para `apply`, `revert`, `focus`, `unfocus`, `rebalance`, `trim`, `debloat` e `audio -AudioAction install/remove`
 
 ## Estrutura
 
@@ -251,11 +294,14 @@ lib/Peripherals.ps1   USB, HID, monitores
 lib/Timer.ps1         NtSetTimerResolution/NtQueryTimerResolution
 lib/Stability.ps1     carga C# + WHEA 18/19 para Curve Optimizer
 lib/Qos.ps1           politicas DSCP 46 e status do Packet Scheduler
+lib/Audio.ps1         audiodg, Audio Enhancements e tarefa de audio
 lib/Tui.ps1           banner, menu, deep scan com anomalias
-lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, tarefa de logon
+lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key
 lib/Storage.ps1       I/O worker threads e TRIM
 bnqq-watch.ps1        processo do watcher (logon)
+bnqq-audio.ps1        processo de isolamento do audiodg (logon)
+build.ps1             empacota a TUI em dist\BNQQ_Optimizer.exe
 config/profiles.json  perfis
 docs/what-it-does.md  efeito e risco de cada tweak
 docs/RELATORIO.md     relatório técnico completo

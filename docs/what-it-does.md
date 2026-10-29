@@ -55,6 +55,13 @@ Suspensão seletiva USB desligada no plano de energia.
 
 **Efeito:** reduz o buffer HID. É o menor valor considerado seguro; pode descartar input sob carga extrema. Exige reboot e tem risco médio.
 
+## Áudio
+
+### `audio-isolation`
+Tarefa elevada `BNQQ Audio Isolation` mantém `audiodg.exe` no CPU lógico 5 (máscara `0x20`) com prioridade High; desativa spatial audio global e `PKEY_AudioEndpoint_Disable_SysFx` nos endpoints Render/Capture.
+
+**Efeito:** tira o processamento de áudio do thread lógico do jogo e remove enhancements/spatial. `audiodg` é protegido; a tarefa precisa ser elevada. `revert` remove a tarefa e libera o processo.
+
 ## Rede
 
 ### `qos-dscp`
@@ -122,6 +129,11 @@ Nunca inclui: Defender, firewall, áudio, RPC, DCOM, Event Log, Task Scheduler, 
 Força comportamento de fullscreen exclusivo via GameDVR FSE behavior.
 
 **Efeito:** evita composição do DWM em borderless.
+
+### GPU state lock (watcher)
+`nvidia-smi -i 0 -lgc <max>,<max>` ao detectar o jogo; `-rgc` ao fechar.
+
+**Efeito:** mantém a faixa de clock no máximo durante a partida e libera em idle. O clock instantâneo pode ficar abaixo do máximo por power/thermal; não é garantia de FPS.
 
 ## Segurança
 

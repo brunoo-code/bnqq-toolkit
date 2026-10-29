@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -11,6 +11,9 @@ param(
     [int]$StabilityThreads = 0,
     [ValidateSet('status', 'install', 'remove', 'run')]
     [string]$WatcherAction = 'status',
+    [ValidateSet('status', 'install', 'remove')]
+    [string]$AudioAction = 'status',
+    [int]$AudioCore = 5,
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -40,6 +43,7 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Timer.ps1')
 . (Join-Path $root 'lib\Stability.ps1')
 . (Join-Path $root 'lib\Qos.ps1')
+. (Join-Path $root 'lib\Audio.ps1')
 . (Join-Path $root 'lib\Watcher.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -50,6 +54,7 @@ $script:FocusStateFile = Join-Path $backupDir 'focus-state.json'
 
 $needsAdmin = $Command -in @('apply', 'revert', 'debloat', 'focus', 'unfocus', 'rebalance', 'trim')
 if ($Command -eq 'watch' -and $WatcherAction -in @('install', 'remove')) { $needsAdmin = $true }
+if ($Command -eq 'audio' -and $AudioAction -in @('install', 'remove')) { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -62,6 +67,9 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     if ($Command -eq 'watch') {
         $forward += @('-WatcherAction', $WatcherAction)
         if ($PinPhysical) { $forward += '-PinPhysical' }
+    }
+    if ($Command -eq 'audio') {
+        $forward += @('-AudioAction', $AudioAction, '-AudioCore', $AudioCore)
     }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
@@ -150,6 +158,7 @@ switch ($Command) {
 
         Write-Bnqq ('Restaurando: {0}' -f $BackupFile) 'STEP'
         $count = Restore-BnqqBackup -File $BackupFile
+        Remove-BnqqAudioTask
         Write-Bnqq ('{0} valores restaurados' -f $count) 'OK'
         Write-Bnqq 'Reinicie para concluir' 'WARN'
     }
@@ -188,6 +197,18 @@ switch ($Command) {
 
     'qos' { Show-BnqqQosStatus }
 
+    'audio' {
+        switch ($AudioAction) {
+            'install' {
+                Set-BnqqAudioIsolation -Core $AudioCore
+                $saved = Save-BnqqBackup -Directory $backupDir
+                if ($saved) { Write-Bnqq ('Backup: {0}' -f $saved) 'OK' }
+            }
+            'remove' { Remove-BnqqAudioTask }
+            default { Show-BnqqAudioStatus }
+        }
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -216,6 +237,9 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 stability -StabilityMinutes 3' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 timer                Timer resolution atual (0.5 ms com watcher)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 qos                  Politicas DSCP 46 e QoS Packet Scheduler' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 audio                Isolamento do audiodg e Audio Enhancements' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 audio -AudioAction install -AudioCore 5' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 audio -AudioAction remove' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

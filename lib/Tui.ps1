@@ -244,6 +244,7 @@ function Invoke-BnqqTui {
         Write-Host '  [7] Estabilidade PBO (WHEA 18/19)' -ForegroundColor White
         Write-Host '  [8] Timer resolution' -ForegroundColor White
         Write-Host '  [9] QoS / DSCP 46' -ForegroundColor White
+        Write-Host '  [10] Audio / audiodg' -ForegroundColor White
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host ''
 
@@ -289,6 +290,9 @@ function Invoke-BnqqTui {
             }
             '9' {
                 Show-BnqqQosStatus
+            }
+            '10' {
+                Show-BnqqAudioStatus
             }
             '0' { return }
             default { Write-Host '  Opcao invalida' -ForegroundColor Yellow }

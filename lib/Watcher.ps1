@@ -188,9 +188,11 @@ function Start-BnqqWatcher {
     $games = @('cs2', 'VALORANT-Win64-Shipping')
     $active = $false
     $previousPlan = $null
+    $gpuLocked = $false
     $mask = [int64]0
     if ($PinPhysical) { $mask = Get-BnqqPhysicalCoreMask }
 
+    try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { }
     Write-Bnqq ('Watcher iniciado: intervalo {0}s, pin fisico {1}, respeitar bateria {2}' -f $IntervalSeconds, [bool]$PinPhysical, [bool]$RespectBattery) 'STEP'
 
     try {
@@ -215,6 +217,11 @@ function Start-BnqqWatcher {
                     Write-Bnqq ('Jogo detectado ({0}) -> BNQQ Ultimate' -f (($running | ForEach-Object { $_.ProcessName }) -join ', ')) 'OK'
                     try { Set-BnqqTimerResolution -Desired 5000 | Out-Null }
                     catch { Write-Bnqq ('Timer resolution indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
+                    try {
+                        $gpuLocked = Set-BnqqGpuClockLock -Quiet
+                        if ($gpuLocked) { Write-Bnqq 'GPU: clock travado no maximo enquanto o jogo estiver ativo' 'OK' }
+                    }
+                    catch { Write-Bnqq ('GPU state lock indisponivel: {0}' -f $_.Exception.Message) 'WARN' }
                 }
 
                 if ($PinPhysical -and $mask -ne 0) {
@@ -226,6 +233,13 @@ function Start-BnqqWatcher {
                 $active = $false
                 try { Clear-BnqqTimerResolution | Out-Null }
                 catch { Write-Bnqq ('Timer resolution clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
+                if ($gpuLocked) {
+                    try {
+                        if (Clear-BnqqGpuClockLock -Quiet) { Write-Bnqq 'GPU: clock liberado (nvidia-smi -rgc)' 'OK' }
+                    }
+                    catch { Write-Bnqq ('GPU clock clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
+                    $gpuLocked = $false
+                }
                 Write-Bnqq 'Jogos fechados: plano anterior restaurado' 'OK'
             }
 
@@ -235,6 +249,7 @@ function Start-BnqqWatcher {
     }
     finally {
         try { Clear-BnqqTimerResolution | Out-Null } catch { }
+        if ($gpuLocked) { try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { } }
         if ($active -and $previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
     }
 }

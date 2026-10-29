@@ -60,7 +60,7 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 
 ---
 
-## 4. Catálogo — 79 tweaks
+## 4. Catálogo — 80 tweaks
 
 | Área | Itens |
 |---|---|
@@ -70,6 +70,7 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | GPU | hags-on, nvidia-max-perf, mpo-off, gpu-preference, display-optimizations, gpu-vendor-profile, auditoria HDCP (somente leitura) |
 | Display | fse-forced, fullscreen-opt |
 | Input | mouse-accel-off, keyboard-response, input-queue, usb-power-off, usb3-lpm-off, usb-suspend-off, pcie-aspm-off |
+| Áudio | audio-isolation (audiodg + Enhancements) |
 | Rede | network-throttling, network-adapter, ndis-offloads, rss-tuning, tcp-tuning, tcp-kernel, qos-dscp, dns-fast, netbios-off, delivery-opt-off |
 | Sistema | fast-startup-off, hibernate-off, visual-effects, sleep-policy, reserved-storage-off |
 | Debloat | debloat-appx, tasks-off, features-off, telemetry-off, privacy-lockdown, etw-autologgers |
@@ -90,9 +91,9 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `lowend` | 54 | Prioriza liberar CPU, RAM e disco. Debloat e serviços médios. |
 | `laptop` | 44 | Respeita bateria: no DC mantém downclock, ASPM e suspend USB; NDIS agressivo e afinidade de interrupção são ignorados. |
 | `desktop` | 57 | Equilibrado. Sem desligar HVCI. |
-| `gaming` | 70 | Agressivo: HVCI off, core parking off, memory compression off, filas HID e QoS. |
-| `fresh` | 71 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI, filas HID e QoS. |
-| `extreme` | 74 | `fresh` + mitigações de CPU off + C-states off. |
+| `gaming` | 71 | Agressivo: HVCI off, core parking off, memory compression off, filas HID, QoS e áudio. |
+| `fresh` | 72 | Pós-formatação: inclui AppX, tarefas, recursos, kernel, MSI, filas HID, QoS e áudio. |
+| `extreme` | 75 | `fresh` + mitigações de CPU off + C-states off + GPU state lock. |
 
 ---
 
@@ -114,6 +115,8 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `stability` | 3–5 min de carga + WHEA 18/19 (Curve Optimizer) |
 | `timer` | Timer resolution atual; watcher aplica 0,5 ms durante o jogo |
 | `qos` | Políticas DSCP 46 e estado do QoS Packet Scheduler |
+| `audio` | Isolamento do audiodg e Audio Enhancements; install/remove |
+| `build.ps1` | Gera `dist\BNQQ_Optimizer.exe` com UAC e TUI |
 | `bench` | CPU, fila e disco |
 | `bcd` | Estado do boot |
 | `guide` | Ajustes in-game que dão FPS de verdade |
@@ -216,6 +219,10 @@ lib/Peripherals.ps1
 lib/Timer.ps1
 lib/Stability.ps1
 lib/Qos.ps1
+lib/Audio.ps1
+bnqq-watch.ps1
+bnqq-audio.ps1
+build.ps1
 docs/what-it-does.md
 docs/RELATORIO.md   este documento
 ```
@@ -452,7 +459,7 @@ MPO já é tratado por `OverlayTestMode=5` nos perfis altos. HDCP não possui AP
 
 | Item | Resultado |
 |---|---|
-| `apply -Profile extreme` | 74 tweaks, 0 falhas, 28 exigem reboot |
+| `apply -Profile extreme` (Fase 4) | 74 tweaks, 0 falhas, 28 exigem reboot |
 | Estabilidade | 180 s, 16 threads, 0 eventos WHEA 18/19, veredito estável |
 | Timer | 15,625 ms em repouso → 0,500 ms com jogo → liberado ao fechar |
 | Keyboard Response | Flags 122, repeat 200/6, bounce 0, delay 0 |
@@ -470,6 +477,70 @@ MPO já é tratado por `OverlayTestMode=5` nos perfis altos. HDCP não possui AP
 
 ---
 
-## 17. Licença
+## 17. Fase 5 — áudio, GPU state lock e executável
+
+### 17.1 Isolamento de áudio
+
+`lib/Audio.ps1` implementa `audio-isolation`:
+
+- `DisableSpatialOnComboEndpoints=1`;
+- `PKEY_AudioEndpoint_Disable_SysFx` (`{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},7`) = 1 em endpoints Render/Capture;
+- tarefa `BNQQ Audio Isolation` elevada no logon, loop de 5 s;
+- `audiodg.exe` no CPU lógico **5** (máscara `0x20`) com prioridade **High**.
+
+O watcher usa CPUs pares (`0x5555`); o áudio fica no thread ímpar. `audiodg.exe` é protegido: um shell comum não lê afinidade/prioridade, mas a tarefa elevada aplica. O `revert` remove a tarefa e devolve audiodg ao mask completo/Normal.
+
+Validação na máquina de referência:
+
+| Item | Resultado |
+|---|---|
+| Tarefa | Running |
+| Afinidade | `0x20` |
+| Prioridade | High |
+| Endpoints com SysFx desativado | 27 |
+| Spatial global | 1 |
+
+### 17.2 NVIDIA State Lock
+
+`Get-BnqqGpuMaxClock`, `Set-BnqqGpuClockLock` e `Clear-BnqqGpuClockLock` usam `nvidia-smi`. O watcher executa `-lgc <max>,<max>` ao detectar o jogo e `-rgc` ao fechar; o `finally` também libera no encerramento. Na RTX 2060, o máximo reportado foi `2145 MHz`; `-lgc 2145,2145` retornou `GPU clocks set` e `-rgc` retornou `All done`.
+
+O lock define a faixa; o clock instantâneo pode permanecer abaixo em idle/power cap. Não é benchmark de FPS.
+
+### 17.3 Executável único
+
+`build.ps1` compila um launcher C# com `csc.exe` e embute ZIP com `bnqq.ps1`, `bnqq-watch.ps1`, `bnqq-audio.ps1`, `lib/` e `config/`. O launcher usa manifesto `requireAdministrator`, subsystem console, extração versionada em `%LOCALAPPDATA%\BNQQ_Optimizer\<versão>` e inicia a TUI via `powershell.exe`. Em erro, aguarda Enter.
+
+Validação:
+
+| Item | Resultado |
+|---|---|
+| Build privado | 105.984 bytes |
+| Build público | 86.016 bytes |
+| Manifesto | requireAdministrator presente |
+| `--check` | payload extraído com scripts/lib/config |
+| Assinatura | ausente; SmartScreen pode avisar |
+
+`dist/` está no `.gitignore`; o código e o `build.ps1` são a fonte reproduzível.
+
+### 17.4 Verificação
+
+| Item | Resultado |
+|---|---|
+| `apply -Profile extreme` no privado | 78 tweaks, 0 falhas, 28 reboot |
+| Público `apply -WhatIf -Profile extreme` | 75 aplicáveis, 0 ignorados |
+| TUI | opção 13 no privado, 10 no público |
+| Áudio | tarefa Running; `0x20`/High; 27 endpoints |
+| GPU | `-lgc`/`-rgc` aceitos pelo driver |
+| EXE | builds privado e público gerados; manifesto e payload conferidos |
+
+### 17.5 Changelog 3.0
+
+| Versão | Entrega |
+|---|---|
+| 3.0 | Áudio isolado persistente, Audio Enhancements off, NVIDIA state lock, build.ps1 com EXE auto-elevado e TUI, comando `audio`, opções de TUI e release `v3.0-final` |
+
+---
+
+## 18. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.
