@@ -1,4 +1,4 @@
-$script:Verdicts = @(
+﻿$script:Verdicts = @(
     @{ Id = 'hvci-off'; Verdict = 'proven'; Impact = '3-10% CPU'; Why = 'Cada syscall passa por validacao de integridade no hypervisor. Medido em jogos CPU-bound.' }
     @{ Id = 'credential-guard-off'; Verdict = 'proven'; Impact = '1-4% CPU'; Why = 'Mesmo hypervisor do VBS. Desligar os dois remove a camada de virtualizacao.' }
     @{ Id = 'hypervisor-off'; Verdict = 'proven'; Impact = '2-8% CPU'; Why = 'Remove o hypervisor do boot. Custo: WSL2 e Docker param de funcionar.' }
@@ -83,7 +83,7 @@ $script:Debunked = @(
     @{ Tweak = 'TcpAckFrequency / TCPNoDelay (Nagle)'; Why = 'Jogos usam UDP. Nagle so afeta TCP, que o jogo nao usa para gameplay.' }
     @{ Tweak = 'Desativar SysMain em SSD'; Why = 'Em NVMe o impacto e nulo. Em HDD ainda ajuda no boot.' }
     @{ Tweak = 'Desativar HPET no Gerenciador de Dispositivos'; Why = 'Duplicado do BCD. No Win11 e placebo ou prejudicial.' }
-    @{ Tweak = 'Limpar standby list antes de jogar'; Why = 'Standby e cache de arquivos. Limpar forca releitura do disco.' }
+    @{ Tweak = 'Limpar standby list antes de jogar'; Why = 'Standby e cache de arquivos. O Vanguard so purga abaixo de 4 GB e com jogo ativo; purgar sempre pode piorar o 1% low por releitura de disco.' }
     @{ Tweak = 'Prioridade Realtime no jogo'; Why = 'Pode travar input e audio do sistema. High e o teto seguro.' }
     @{ Tweak = 'Afinidade fixa em 1-2 nucleos'; Why = 'Impede o scheduler de migrar threads e concentra todo o jogo em poucos nucleos. O pin em todos os nucleos fisicos (game-affinity) e diferente e deve ser medido.' }
     @{ Tweak = 'Desativar SMT'; Why = 'Reduz threads disponiveis. Jogos modernos se beneficiam de SMT.' }

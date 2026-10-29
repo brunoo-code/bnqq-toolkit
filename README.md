@@ -92,6 +92,8 @@ Diagnóstico:
 .\bnqq.ps1 god        # God-Tier: CFG por jogo, paging e prioridade
 .\bnqq.ps1 god -GodAction apply
 .\bnqq.ps1 god -GodAction remove
+.\bnqq.ps1 vanguard   # Vanguard: IRQ, RSS, DXGI, SMT e standby
+.\bnqq.ps1 vanguard -VanguardAction apply
 .\bnqq.ps1 bench      # CPU, fila e disco
 .\bnqq.ps1 bcd        # estado do boot
 .\bnqq.ps1 guide      # ajustes in-game que dao FPS de verdade
@@ -196,7 +198,29 @@ CFG é desativado somente nos dois jogos, nunca globalmente; é opt-in por risco
 
 **Shader cache:** não há DWORD público/suportado em `nvlddmkm` para tamanho; o controle fica no NVIDIA App/perfil do driver. O módulo audita `DXCache`, `GLCache` e `D3DSCache` e não injeta valor inventado; o `cache` limpa os caches.
 
-O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`. Banner: **`BNQQ OPTIMIZER v4.0 God-Tier`**.
+O `[1] Deep Scan` inclui a varredura God-Tier; a TUI pública ganhou `[12]`.
+
+## Vanguard — IRQ, SMT e standby
+
+`lib/Vanguard.ps1` aplica:
+
+| Item | Resultado |
+|---|---|
+| IRQ GPU | CPU lógico 4 (`0x10`), policy 4, prioridade 3 |
+| IRQ rede | CPU lógico 6 (`0x40`), policy 4 |
+| Áudio | CPU 5, prioridade High |
+| Background | Discord/Chrome/Edge/Spotify/Firefox/Brave nos threads SMT ímpares |
+| DXGI/FSO | `SwapEffectUpgradeEnable=1` + FSO por jogo |
+| Standby | purga nativa abaixo de 4 GB livres, a cada 60 s |
+
+```powershell
+.\bnqq.ps1 vanguard
+.\bnqq.ps1 vanguard -VanguardAction apply
+```
+
+Em 8C/16T, o jogo usa todos os núcleos físicos; os CPUs 4/6 dos IRQs compartilham o mask do jogo. Isolamento absoluto exigiria reservar núcleos e reduzir o jogo. O Ethernet desta máquina não expõe RSS. `Timer coalescing` não tem API/registro suportado; não foi inventado. `Max Pre-rendered frames`, `Silk Smoothness` e `Threaded Optimization` ficam no perfil do driver/NVIDIA App, não em `nvlddmkm`; nenhuma chave fictícia foi injetada.
+
+A TUI pública ganhou `[13]`; banner **`BNQQ OPTIMIZER v5.0 Vanguard`**.
 
 ## Perfis
 
@@ -347,6 +371,8 @@ lib/Qos.ps1           politicas DSCP 46 e status do Packet Scheduler
 lib/Audio.ps1         audiodg, Audio Enhancements e tarefa de audio
 lib/ProTier.ps1       rede/MMCSS, USB suspend e dynamic tick opt-in
 lib/GodTier.ps1       CFG por jogo, FSO, paging, prioridade e auditoria shader
+lib/Vanguard.ps1      IRQ/RSS/DXGI, layout de núcleos e status
+lib/MemoryGuard.ps1   purga nativa da standby list e memória livre
 lib/Tui.ps1           banner, menu, deep scan com anomalias
 lib/Watcher.ps1       plano Ultimate, afinidade fisica, timer, GPU lock, tarefa de logon
 lib/Gpu.ps1           perfil NVIDIA/AMD por driver key
@@ -356,6 +382,7 @@ bnqq-audio.ps1        processo de isolamento do audiodg (logon)
 build.ps1             empacota a TUI em dist\BNQQ_Optimizer.exe
 config/profiles.json  perfis
 docs/what-it-does.md  efeito e risco de cada tweak
+docs/GUIA_PRO.md      guia do menu para pro-players
 docs/RELATORIO.md     relatório técnico completo
 ```
 

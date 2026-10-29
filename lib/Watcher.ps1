@@ -76,6 +76,21 @@ function Get-BnqqPhysicalCoreMask {
     return $mask
 }
 
+function Get-BnqqSmtSiblingMask {
+    $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $cpu) { return [int64]0 }
+
+    $logical = [int]$cpu.NumberOfLogicalProcessors
+    if ($logical -le 1) { return [int64]0 }
+
+    $mask = [int64]0
+    for ($i = 1; $i -lt $logical; $i += 2) {
+        $mask = $mask -bor ([int64]1 -shl $i)
+    }
+
+    return $mask
+}
+
 function Set-BnqqProcessAffinity {
     param(
         [System.Diagnostics.Process]$Process,
@@ -182,13 +197,18 @@ function Start-BnqqWatcher {
         [int]$IntervalSeconds = 2,
         [switch]$PinPhysical,
         [switch]$RespectBattery,
-        [switch]$Once
+        [switch]$Once,
+        [double]$StandbyThresholdGB = 4
     )
 
     $games = @('cs2', 'VALORANT-Win64-Shipping')
+    $backgroundNames = @('Discord', 'chrome', 'msedge', 'Spotify', 'brave', 'firefox')
     $active = $false
     $previousPlan = $null
     $gpuLocked = $false
+    $backgroundPinned = @{}
+    $lastStandbyPurge = $null
+    $standbyWarned = $false
     $mask = [int64]0
     if ($PinPhysical) { $mask = Get-BnqqPhysicalCoreMask }
 
@@ -227,6 +247,43 @@ function Start-BnqqWatcher {
                 if ($PinPhysical -and $mask -ne 0) {
                     foreach ($p in $running) { Set-BnqqProcessAffinity -Process $p -Mask $mask }
                 }
+
+                $smtMask = Get-BnqqSmtSiblingMask
+                if ($smtMask -ne 0) {
+                    $pinnedNow = 0
+                    foreach ($name in $backgroundNames) {
+                        foreach ($proc in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {
+                            if ($backgroundPinned.ContainsKey($proc.Id)) { continue }
+                            try {
+                                $previousAffinity = $proc.ProcessorAffinity
+                                if ($null -eq $previousAffinity) { continue }
+                                $proc.ProcessorAffinity = [IntPtr]$smtMask
+                                $backgroundPinned[$proc.Id] = $previousAffinity
+                                $pinnedNow++
+                            }
+                            catch { }
+                        }
+                    }
+                    if ($pinnedNow -gt 0) {
+                        Write-Bnqq ('Background pinado nos threads SMT (0x{0:X}): {1} processo(s)' -f $smtMask, $pinnedNow) 'OK'
+                    }
+                }
+
+                $freeGB = Get-BnqqFreeMemoryGB
+                if ($null -ne $freeGB -and $freeGB -lt $StandbyThresholdGB) {
+                    $canPurge = (-not $lastStandbyPurge) -or (((Get-Date) - $lastStandbyPurge).TotalSeconds -ge 60)
+                    if ($canPurge) {
+                        try {
+                            if (Clear-BnqqStandbyList) { $lastStandbyPurge = Get-Date }
+                        }
+                        catch {
+                            if (-not $standbyWarned) {
+                                Write-Bnqq ('Standby purge indisponivel: {0}' -f $_.Exception.Message) 'WARN'
+                                $standbyWarned = $true
+                            }
+                        }
+                    }
+                }
             }
             elseif ($running.Count -eq 0 -and $active) {
                 if ($previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
@@ -240,6 +297,12 @@ function Start-BnqqWatcher {
                     catch { Write-Bnqq ('GPU clock clear falhou: {0}' -f $_.Exception.Message) 'WARN' }
                     $gpuLocked = $false
                 }
+                foreach ($backgroundId in @($backgroundPinned.Keys)) {
+                    $proc = Get-Process -Id $backgroundId -ErrorAction SilentlyContinue
+                    if (-not $proc) { continue }
+                    try { $proc.ProcessorAffinity = [IntPtr]$backgroundPinned[$backgroundId] } catch { }
+                }
+                $backgroundPinned.Clear()
                 Write-Bnqq 'Jogos fechados: plano anterior restaurado' 'OK'
             }
 
@@ -250,6 +313,11 @@ function Start-BnqqWatcher {
     finally {
         try { Clear-BnqqTimerResolution | Out-Null } catch { }
         if ($gpuLocked) { try { Clear-BnqqGpuClockLock -Quiet | Out-Null } catch { } }
+        foreach ($backgroundId in @($backgroundPinned.Keys)) {
+            $proc = Get-Process -Id $backgroundId -ErrorAction SilentlyContinue
+            if (-not $proc) { continue }
+            try { $proc.ProcessorAffinity = [IntPtr]$backgroundPinned[$backgroundId] } catch { }
+        }
         if ($active -and $previousPlan) { & powercfg /setactive $previousPlan 2>$null | Out-Null }
     }
 }

@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
+    [ValidateSet('scan', 'report', 'verdict', 'apply', 'revert', 'status', 'focus', 'unfocus', 'trim', 'rebalance', 'stress', 'stability', 'timer', 'qos', 'audio', 'pro', 'god', 'vanguard', 'guide', 'debloat', 'cache', 'bench', 'bcd', 'watch', 'menu', 'help')]
     [string]$Command = 'menu',
 
     [string]$Profile = 'auto',
@@ -18,6 +18,8 @@ param(
     [string]$ProTierAction = 'status',
     [ValidateSet('status', 'apply', 'remove')]
     [string]$GodAction = 'status',
+    [ValidateSet('status', 'apply')]
+    [string]$VanguardAction = 'status',
     [switch]$PinPhysical,
     [switch]$WhatIf,
     [switch]$SkipRestorePoint,
@@ -50,6 +52,8 @@ if ($Command -eq 'menu' -and -not [Environment]::UserInteractive) {
 . (Join-Path $root 'lib\Audio.ps1')
 . (Join-Path $root 'lib\ProTier.ps1')
 . (Join-Path $root 'lib\GodTier.ps1')
+. (Join-Path $root 'lib\MemoryGuard.ps1')
+. (Join-Path $root 'lib\Vanguard.ps1')
 . (Join-Path $root 'lib\Watcher.ps1')
 . (Join-Path $root 'lib\Tui.ps1')
 
@@ -63,6 +67,7 @@ if ($Command -eq 'watch' -and $WatcherAction -in @('install', 'remove')) { $need
 if ($Command -eq 'audio' -and $AudioAction -in @('install', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'pro' -and $ProTierAction -in @('apply', 'remove')) { $needsAdmin = $true }
 if ($Command -eq 'god' -and $GodAction -in @('apply', 'remove')) { $needsAdmin = $true }
+if ($Command -eq 'vanguard' -and $VanguardAction -eq 'apply') { $needsAdmin = $true }
 
 if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     $forward = @($Command)
@@ -84,6 +89,9 @@ if ($needsAdmin -and -not (Test-BnqqAdmin) -and -not $NoElevate) {
     }
     if ($Command -eq 'god') {
         $forward += @('-GodAction', $GodAction)
+    }
+    if ($Command -eq 'vanguard') {
+        $forward += @('-VanguardAction', $VanguardAction)
     }
     Invoke-BnqqElevation -ScriptPath $MyInvocation.MyCommand.Path -ScriptArgs $forward
     return
@@ -247,6 +255,17 @@ switch ($Command) {
         }
     }
 
+    'vanguard' {
+        switch ($VanguardAction) {
+            'apply' {
+                Set-BnqqVanguard
+                $saved = Save-BnqqBackup -Directory $backupDir
+                if ($saved) { Write-Bnqq ('Backup: {0}' -f $saved) 'OK' }
+            }
+            default { Show-BnqqVanguardStatus }
+        }
+    }
+
     'guide' { Show-BnqqGuide }
     'debloat' { Show-BnqqDebloat }
     'cache' { Clear-BnqqShaderCaches }
@@ -284,6 +303,8 @@ switch ($Command) {
         Write-Host '    .\bnqq.ps1 god                  God-Tier: CFG por jogo, paging e prioridade' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 god -GodAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 god -GodAction remove' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 vanguard             Vanguard: IRQ, RSS, DXGI e standby' -ForegroundColor Gray
+        Write-Host '    .\bnqq.ps1 vanguard -VanguardAction apply' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bench                CPU, fila e disco em 10s' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 bcd                  Estado do boot (BCD)' -ForegroundColor Gray
         Write-Host '    .\bnqq.ps1 status               Resumo do que esta ativo' -ForegroundColor Gray

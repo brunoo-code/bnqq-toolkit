@@ -118,6 +118,7 @@ Consequência prática: em um notebook, core parking e hibernação nunca são t
 | `audio` | Isolamento do audiodg e Audio Enhancements; install/remove |
 | `pro` | Pro-Tier: rede/MMCSS, USB selective suspend e dynamic tick opt-in |
 | `god` | God-Tier: CFG por jogo, paging, prioridade e auditoria shader |
+| `vanguard` | Vanguard: IRQ, RSS, DXGI, SMT e standby |
 | `build.ps1` | Gera `dist\BNQQ_Optimizer.exe` com UAC e TUI |
 | `bench` | CPU, fila e disco |
 | `bcd` | Estado do boot |
@@ -224,10 +225,13 @@ lib/Qos.ps1
 lib/Audio.ps1
 lib/ProTier.ps1
 lib/GodTier.ps1
+lib/Vanguard.ps1
+lib/MemoryGuard.ps1
 bnqq-watch.ps1
 bnqq-audio.ps1
 build.ps1
 docs/what-it-does.md
+docs/GUIA_PRO.md    guia do menu para pro-players
 docs/RELATORIO.md   este documento
 ```
 
@@ -518,8 +522,8 @@ Validação:
 
 | Item | Resultado |
 |---|---|
-| Build privado | 110.592 bytes |
-| Build público | 90.624 bytes |
+| Build privado | 115.200 bytes |
+| Build público | 95.232 bytes |
 | Manifesto | requireAdministrator presente |
 | `--check` | payload extraído com scripts/lib/config |
 | Assinatura | ausente; SmartScreen pode avisar |
@@ -640,6 +644,43 @@ Verificados: paging, FSO, network throttling/responsiveness, USB selective suspe
 
 ---
 
-## 20. Licença
+## 20. Vanguard — IRQ, SMT e standby
+
+### 20.1 IRQ e layout
+
+Para 8+ threads: GPU CPU 4 (`0x10`), áudio CPU 5, rede CPU 6 (`0x40`). O `vanguard apply` grava `DevicePriority=3` na GPU, `2` na rede, `DevicePolicy=4` e `AssignmentSetOverride` binário. A GPU/rede foram aplicadas e confirmaram CPU 4/6.
+
+Em 8C/16T o jogo usa todos os núcleos físicos; os CPUs 4/6 também pertencem ao mask do jogo. Isolamento absoluto exigiria reservar núcleos e reduzir o jogo, o que não foi feito.
+
+### 20.2 Background SMT
+
+O watcher pina Discord/Chrome/Edge/Spotify/Brave/Firefox no mask ímpar (`0xAAAA`) durante o jogo e restaura ao fechar. Teste: Chrome `0xAAAA`, jogo `0x5555`, retorno `0xFFFF`; 24 processos pinados.
+
+### 20.3 Standby purger
+
+`NtSetSystemInformation` classe 80, comando 4, com `SeProfileSingleProcessPrivilege` habilitado via C#. O teste final retornou `0x00000000`; a primeira tentativa falhou com `0xC0000061` e foi corrigida. O watcher purga abaixo de 4 GB livres, no máximo a cada 60 s e somente com jogo ativo. Não foi disparado na validação (~21 GB livres).
+
+### 20.4 Itens não suportados
+
+- `Max Pre-rendered frames`, `Silk Smoothness` e `Threaded Optimization`: perfil do driver/NVIDIA App, sem chave pública em `nvlddmkm`.
+- Timer coalescing: sem registro/powercfg suportado; timer 0,5 ms e dynamic tick opt-in são os controles reais.
+- DXGI flip global: não existe override global; `SwapEffectUpgradeEnable=1` e FSO por jogo já ativos.
+- RSS pinning: Ethernet não expôs RSS neste driver.
+
+Nenhuma chave fictícia foi criada.
+
+### 20.5 TUI, build e guia
+
+Banner **`BNQQ OPTIMIZER v5.0 Vanguard`**; Deep Scan com painel Vanguard; TUI pública `[13]`, privada `[16]`; build `5.0.0`; release `v5.0-vanguard`; `docs/GUIA_PRO.md`.
+
+### 20.6 Changelog 5.0 Vanguard
+
+| Versão | Entrega |
+|---|---|
+| 5.0 | IRQ GPU/rede, background SMT, DXGI/FSO, standby nativo, Vanguard status, TUI v5.0 e guia do pro-player; auditoria de itens não suportados |
+
+---
+
+## 21. Licença
 
 MIT. Uso livre, sem garantia. Tweaks de risco alto são opt-in e documentados.

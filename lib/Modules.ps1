@@ -163,7 +163,7 @@ function Get-BnqqModuleMemory {
     }
 
     if ($standby -ne $null -and $standby -gt 8) {
-        $findings.Add((New-BnqqFinding 'info' ('Standby em {0} GB' -f $standby) 'Cache de arquivos; normal e nao prejudica jogos.' 'Nenhuma acao necessaria.' 'Neutro: limpar standby e placebo'))
+        $findings.Add((New-BnqqFinding 'info' ('Standby em {0} GB' -f $standby) 'Cache de arquivos; normal e nao prejudica jogos.' 'Vanguard purga apenas abaixo de 4 GB com jogo ativo.' 'Purgar sempre pode piorar o 1% low'))
     }
 
     $top = @(Get-Process -ErrorAction SilentlyContinue | Sort-Object WorkingSet64 -Descending | Select-Object -First 5 |
