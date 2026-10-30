@@ -28,9 +28,10 @@ O `dist/` é artefato de build e não é versionado no Git. O usuário final dev
 
 - Release: https://github.com/brunoo-code/bnqq-toolkit/releases
 - Build público: `BNQQ-Toolkit-v1.8.2.zip` ou `BNQQ_Optimizer.exe`
+- O `BNQQ_Optimizer.exe` também fica na raiz do repositório e aparece no `Code → Download ZIP`
 - O notebook precisa do HWID autorizado na allowlist do Gist
 
-Não use `Code → Download ZIP` para procurar o executável; esse ZIP contém apenas o código-fonte.
+O canal recomendado continua sendo GitHub Releases; a cópia na raiz existe para quem baixa o ZIP do código.
 
 ## Uso
 
