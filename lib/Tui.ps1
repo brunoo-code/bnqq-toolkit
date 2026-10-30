@@ -12,7 +12,7 @@
     foreach ($line in $lines) {
         Write-Host ('  ' + $line) -ForegroundColor Cyan
     }
-    Write-Host ('  BNQQ OPTIMIZER v1.8.1  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
+    Write-Host ('  BNQQ OPTIMIZER v1.8.2  |  {0}  |  {1}' -f $env:COMPUTERNAME, (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host ''
 }
 

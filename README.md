@@ -22,6 +22,16 @@ Packs tradicionais aplicam a mesma lista em qualquer máquina e vendem placebo. 
 - **GPU state lock**: watcher trava o clock NVIDIA no máximo durante o jogo e libera com `-rgc`
 - **Executável**: `build.ps1` gera `BNQQ_Optimizer.exe` auto-elevado que abre a TUI no console
 
+## Download
+
+O `dist/` é artefato de build e não é versionado no Git. O usuário final deve baixar os arquivos em **GitHub Releases**:
+
+- Release: https://github.com/brunoo-code/bnqq-toolkit/releases
+- Build público: `BNQQ-Toolkit-v1.8.2.zip` ou `BNQQ_Optimizer.exe`
+- O notebook precisa do HWID autorizado na allowlist do Gist
+
+Não use `Code → Download ZIP` para procurar o executável; esse ZIP contém apenas o código-fonte.
+
 ## Uso
 
 ```powershell
