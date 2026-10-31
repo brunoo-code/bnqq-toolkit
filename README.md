@@ -199,3 +199,6 @@ Preferencias aplicadas com sucesso guardam o backup em startup-journals, exibido
 
 ## v2.3.0 - Perfil CS2 nativo
 Novo menu 26 e comando `cs2-engine`: perfis CompetitiveLow/Minimum, autoexec preservado, atalho Steam e backup recuperavel de todos os arquivos. Consulte [funcionamento e limites](docs/CS2-ENGINE.md). Minimum reduz nitidez e pistas de sombras; nao ha ganho de FPS presumido.
+
+## v2.3.1 - Preferencias locais do VALORANT
+Novo menu 27 e comando `valorant`: sete grupos existentes em Low, selecao explicita de contas, backup e rollback. Sem somente leitura, alteracao de Vanguard, afinidade de servicos ou camuflagem. Efeito em runtime/FPS ainda nao verificado; [funcionamento e limites](docs/VALORANT-PROFILE.md).

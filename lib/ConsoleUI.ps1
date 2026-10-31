@@ -40,7 +40,8 @@ function Show-BnqqConsoleMenu {
         'Analise DPC/ISR - formato de entrada',
         'Ajuda e comandos',
         'Inicializacao opcional de aplicativos',
-        'CS2: perfil grafico e autoexec nativos'
+        'CS2: perfil grafico e autoexec nativos',
+        'VALORANT: preferencias graficas locais'
     )
     for($i=0;$i -lt $labels.Count;$i++){
         Write-Host ('  '+('[{0}]' -f ($i+1)).PadRight(5)+$labels[$i]) -ForegroundColor Gray

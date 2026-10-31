@@ -13,6 +13,7 @@ jobs:
         run: |
           ./tests/GameProfile.ps1
           ./tests/Cs2Engine.ps1
+          ./tests/ValorantProfile.ps1
       - name: Frame caps and performance regression gates
         shell: powershell
         run: |
