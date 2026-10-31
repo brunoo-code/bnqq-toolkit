@@ -132,3 +132,7 @@ Guard synthetic reconhece nomes versionados PresentMon; fixtures de recuperacao/
 ## Correcao 2.1.3 - abertura do executavel
 
 O launcher preserva os bytes de payload.stamp, extrai e verifica o ZIP em staging e publica o cache somente apos verificacao. Testes agora exercitam extracao do recurso real, reutilizacao do cache e recusa de arquivos alterados. Cache antigo e dados pessoais sao preservados.
+
+## Apresentacao 2.1.4
+
+Logo BNQQ em ciano e menu vertical recuperam a identidade visual anterior. As 24 opcoes mostram funcoes atuais; menu-preview apenas renderiza o menu, sem consultar hardware ou aplicar acoes. A correcao de extracao do launcher permanece ativa.

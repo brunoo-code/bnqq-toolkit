@@ -39,16 +39,18 @@ param(
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
-foreach($file in @('Core','Governance','Readiness','Diagnostics','DriverAudit','DpcAnalysis','PlatformAudit','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','SyntheticBench','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','BackgroundBudget','StorageMemory','Maintenance','FocusSession','CompetitionSession','NicPolicy','GpuDriver','NetworkSession','LegacyMigration','RecoveryHub')){
+foreach($file in @('Core','ConsoleUI','Governance','Readiness','Diagnostics','DriverAudit','DpcAnalysis','PlatformAudit','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','SyntheticBench','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','BackgroundBudget','StorageMemory','Maintenance','FocusSession','CompetitionSession','NicPolicy','GpuDriver','NetworkSession','LegacyMigration','RecoveryHub')){
     . (Join-Path $script:BnqqRoot ('lib\'+$file+'.ps1'))
 }
+$menuPause=$false;$menuError=$false
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
     if($Command -eq 'menu'){
-        Write-Host 'BNQQ 2.1.3 | correcao do launcher | diagnostico e experimentos reversiveis | sem ganho presumido'
+        Show-BnqqConsoleMenu -Version '2.1.4' -Edition 'PUBLIC'
         if([Environment]::UserInteractive){
-            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [7] Sessao de jogo [8] Recuperacao [9] Migracao legada [10] Sessao de upload [11] CPU Sets [12] Driver GPU [13] Memoria/NVMe [14] Checksums de rede [15] Sessao focus [16] Drivers [17] Plano competitivo [0] Sair'
-            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}default{return}}
+            $choice=Read-Host 'Escolha'
+            $menuPause=$choice -match '^(?:[1-9]|1[0-9]|2[0-4])$'
+            switch($choice){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}default{return}}
         }else{$Command='audit'}
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
@@ -56,6 +58,7 @@ try {
         return
     }
     switch($Command){
+        'menu-preview' {Show-BnqqConsoleMenu -Version '2.1.4' -Edition 'PUBLIC'}
         'audit' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
         'scan' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
         'report' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
@@ -130,7 +133,7 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 2.1.3 — Windows PowerShell 5.1 x64
+BNQQ 2.1.4 — Windows PowerShell 5.1 x64
 audit | network | display | topology | apps | status | verdict | framepacing | session | memory | nvme | nic | readiness | focus | gpu | gpu-cache | cpu-session | phase-health | net-session | recover | legacy | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware
@@ -160,4 +163,5 @@ Pacotes legados (pro/god/ultimate/etc.) foram retirados. Veja docs/MIGRATION.md.
         }
         default {throw ('Comando retirado ou desconhecido: '+$Command+'. Execute help e veja docs/MIGRATION.md; nenhum tweak legado foi aplicado.')}
     }
-}catch{Write-Error $_ -ErrorAction Continue;exit 1}
+}catch{$menuError=$true;Write-Error $_ -ErrorAction Continue;exit 1}
+finally{if($menuPause -and -not $menuError){[void](Read-Host 'Pressione Enter para fechar')}}
