@@ -9,11 +9,22 @@ function Check($ok,$text){if(-not $ok){throw $text};$script:checks++}
 function MustThrow([scriptblock]$Code){$hit=$false;try{& $Code|Out-Null}catch{$hit=$true};Check $hit 'Expected priority refusal'}
 $script:fake=[pscustomobject]@{Id=40;ProcessName='msedge';StartTime=[datetime]'2026-01-01T12:00:00Z';Handle=[IntPtr]123;PriorityClass='Normal';Disposals=0}
 $script:fake|Add-Member ScriptMethod Dispose {$this.Disposals++}
-function Get-Process {param($Id,$ErrorAction);if($Id -eq $script:fake.Id){return $script:fake}}
+$script:resolverCalls=0
+function Get-BnqqPriorityProbe {
+ param([int]$ProcessId,$Expected)
+ if($ProcessId -ne $script:fake.Id){return $null}
+ $script:scopeReads++
+ if(-not $script:scopeAllowed){throw 'Foreign session/SID fixture'}
+ [pscustomobject]@{ProcessId=$script:fake.Id;Name=$script:fake.ProcessName;StartTime=$script:fake.StartTime.ToUniversalTime().ToString('o');Priority=$script:fake.PriorityClass}
+}
+function Get-Process {param($Id,$ErrorAction);$script:resolverCalls++;if($Id -eq $script:fake.Id){return $script:fake}}
 function Assert-BnqqCpuProcessScope {param($Process,$Handle);$script:scopeReads++;Check ($Handle -eq [IntPtr]123) 'Handle was not cached';if(-not $script:scopeAllowed){throw 'Foreign session/SID fixture'}}
 try {
  $s=Get-BnqqBudgetState 40
- Check ($s.Priority -eq 'Normal' -and $script:scopeReads -eq 1 -and $script:fake.Disposals -eq 1) 'Snapshot/scope/disposal failed'
+ Check ($s.Priority -eq 'Normal' -and $script:scopeReads -eq 1 -and $script:fake.Disposals -eq 0) 'Native priority probe was bypassed'
+ Check ($script:resolverCalls -eq 0) 'Read-only budget lookup still invoked Get-Process'
+ $wrongPid=$s|Select-Object *;$wrongPid.ProcessId=99;$beforeReads=$script:scopeReads
+ Check ($null -eq (Get-BnqqBudgetState 40 $wrongPid) -and $script:scopeReads -eq $beforeReads) 'Mismatched expected PID reached native probe'
  $sample=$s|Select-Object *;$sample|Add-Member NoteProperty RateMsPerSecond 100
  $p=Get-BnqqBudgetPlan @($sample) @('msedge')
  Check ($p.Operations.Count -eq 1 -and $p.Operations[0].After.Priority -eq 'BelowNormal') 'Budget plan missing'

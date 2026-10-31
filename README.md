@@ -164,3 +164,12 @@ Prepared permanece suficiente para recuperar uma interrupcao entre as alteracoes
 A escrita e restauracao de BackgroundPriority e CpuSets agora passam o estado esperado capturado para o adaptador, em vez de substituir essa referencia por uma leitura mais recente. Isso fecha uma janela em que uma prioridade alterada externamente apos o backup poderia ser sobrescrita. As validacoes de PID, criacao, usuario, sessao e leitura posterior permanecem nos adaptadores.
 
 A mudanca no Core invalida atestados HeavyQA vinculados ao hash anterior; nenhum atestado novo e gerado automaticamente. Esta versao altera o codigo, sem aplicar perfil de Windows, rede ou jogo. Menos persistencias nao comprovam ganho de FPS ou reducao de frametime: comparacoes reais continuam pendentes da estabilidade do hardware.
+## Consulta de prioridades 2.1.8
+
+BackgroundBudget consulta identidade, usuario, sessao e prioridade via leitor C# com PROCESS_QUERY_LIMITED_INFORMATION, sem Get-Process nem abertura com acesso amplo no caminho de leitura. Nome, PID e criacao esperados continuam conferidos. Escrita e restauracao continuam nos adaptadores anteriores, com comparacao do estado esperado, whitelist de apps, journal atomico e leitura posterior. Esta versao nao amplia a whitelist nem altera a prioridade do jogo.
+
+GetExitCodeProcess reconhece encerramentos confirmados, inclusive quando outro observador ainda mantem o handle aberto. O codigo 259 isoladamente nao prova que o processo esta vivo; erros nao esclarecidos continuam propagados. O contrato CLR TelemetryV2 permite coexistencia com os tipos antigos em uma sessao PowerShell. Compilacao/JIT e verificacao no proprio processo ocorrem na preparacao; nao ha compilacao por consulta.
+
+Incident-Rollback importa a dependencia do leitor novo. Testes conferem os resultados nativos contra .NET sem alterar a prioridade, validam usuario/sessao/identidade, coexistencia do contrato antigo, whitelist e consulta do auxiliar antes/depois de sua saida cooperativa. Nenhum jogo, periferico ou perfil do Windows foi alterado. Menor custo de consulta nao comprova ganho de FPS; comparacoes reais continuam condicionadas a estabilidade.
+
+Referencias: [GetPriorityClass](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getpriorityclass) e [GetExitCodeProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodeprocess).

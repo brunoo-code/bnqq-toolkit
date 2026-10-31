@@ -1,8 +1,8 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Read-only self queries and an owned stdin-waiting helper; no game or stress workload.
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
-foreach($n in @('Core','ProcessSampling')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
+foreach($n in @('Core','ProcessSampling','BackgroundBudget')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
 $checks=0
 function Check($ok,$message){if(-not $ok){throw $message};$script:checks++}
 function MustThrow([scriptblock]$code){$hit=$false;try{& $code|Out-Null}catch{$hit=$true};Check $hit 'Expected rejection'}
@@ -13,12 +13,13 @@ try{
  $watch=New-BnqqFocusGameWatch $identity
  Check ($watch -and (Test-BnqqFocusGameWatchAlive $watch)) 'Live self not observed'
  Check (Test-BnqqFocusGameWatchAlive $watch) 'Repeated wait lost process'
- Check ($null -eq [Bnqq.ProcessTelemetry]::Watch($PID,$identity.Name,'wrong-start',(Get-BnqqOwner),[uint32]$self.SessionId)) 'Reused PID identity admitted'
- Check ($null -eq [Bnqq.ProcessTelemetry]::Watch($PID,'wrong-name',$identity.StartTime,(Get-BnqqOwner),[uint32]$self.SessionId)) 'Different image admitted'
- MustThrow {[Bnqq.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,'S-1-0-0',[uint32]$self.SessionId)}
- MustThrow {[Bnqq.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,(Get-BnqqOwner),[uint32]($self.SessionId+1))}
+ Check ($null -eq [Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,$identity.Name,'wrong-start',(Get-BnqqOwner),[uint32]$self.SessionId)) 'Reused PID identity admitted'
+ Check ($null -eq [Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,'wrong-name',$identity.StartTime,(Get-BnqqOwner),[uint32]$self.SessionId)) 'Different image admitted'
+ MustThrow {[Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,'S-1-0-0',[uint32]$self.SessionId)}
+ MustThrow {[Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,(Get-BnqqOwner),[uint32]($self.SessionId+1))}
  $watch.Dispose();$watch.Dispose()
  MustThrow {Test-BnqqFocusGameWatchAlive $watch}
+ MustThrow {Get-BnqqBudgetState $PID}
 }finally{if($watch){$watch.Dispose()};$self.Dispose()}
 $tempBase=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $temp=[IO.Path]::GetFullPath((Join-Path $tempBase ('bnqq-lifetime-'+[guid]::NewGuid().ToString('N'))))
@@ -26,7 +27,7 @@ if(-not $temp.StartsWith($tempBase,[StringComparison]::OrdinalIgnoreCase)){throw
 [void][IO.Directory]::CreateDirectory($temp)
 $child=$null;$watch=$null
 try{
- $exe=Join-Path $temp 'BnqqLifetimeFixture.exe'
+ $exe=Join-Path $temp 'msedge.exe'
  Add-Type -TypeDefinition 'public static class BnqqLifetimeFixture { public static void Main(){System.Console.ReadLine();} }' -OutputAssembly $exe -OutputType ConsoleApplication
  $start=New-Object Diagnostics.ProcessStartInfo
  $start.FileName=$exe;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle='Hidden';$start.RedirectStandardInput=$true
@@ -34,10 +35,15 @@ try{
  $identity=[pscustomobject]@{ProcessId=$child.Id;Name=$child.ProcessName;StartTime=$child.StartTime.ToUniversalTime().ToString('o')}
  $watch=New-BnqqFocusGameWatch $identity
  Check ($watch -and (Test-BnqqFocusGameWatchAlive $watch)) 'Owned helper not observed'
+ $priority=Get-BnqqBudgetState $child.Id
+ Check ($priority.Name -ceq 'msedge' -and $priority.StartTime -ceq $identity.StartTime -and $priority.Priority -ceq $child.PriorityClass.ToString()) 'Production budget getter differs from owned helper'
+ $wrong=$priority|Select-Object *;$wrong.StartTime='replacement'
+ Check ($null -eq (Get-BnqqBudgetState $child.Id $wrong)) 'Budget getter accepted another creation time'
  $child.StandardInput.Close()
  Check ($child.WaitForExit(5000)) 'Owned helper did not exit cooperatively'
  Check (-not (Test-BnqqFocusGameWatchAlive $watch)) 'Exited process reported alive'
  Check (-not (Test-BnqqFocusGameWatchAlive $watch)) 'Exited handle changed back to alive'
+ Check ($null -eq (Get-BnqqBudgetState $child.Id $priority)) 'Budget getter retained exited helper while its handle remained open'
 }finally{
  try{if($child){try{$child.StandardInput.Close();if(-not $child.WaitForExit(5000)){throw 'Helper still running'}}finally{$child.Dispose()}}}
  finally{

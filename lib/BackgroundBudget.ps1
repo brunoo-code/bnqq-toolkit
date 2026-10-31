@@ -2,15 +2,12 @@
 function Get-BnqqBudgetAllowedApps {return @('msedge','chrome','firefox','OneDrive')}
 function Get-BnqqBudgetState {
     param([int]$ProcessId,$Expected)
-    $p=Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-    if(-not $p){return $null}
-    try {
-        $handle=$p.Handle
-        if($p.ProcessName -notin (Get-BnqqBudgetAllowedApps)){throw 'Alvo de prioridade nao admitido'}
-        if($Expected -and ($p.ProcessName -ine $Expected.Name -or $p.StartTime.ToUniversalTime().ToString('o') -cne $Expected.StartTime)){return $null}
-        Assert-BnqqCpuProcessScope $p $handle
-        [pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Priority=$p.PriorityClass.ToString()}
-    }finally{$p.Dispose()}
+    if($Expected -and $Expected.ProcessId -ne $ProcessId){return $null}
+    $s=Get-BnqqPriorityProbe -ProcessId $ProcessId -Expected $Expected
+    if(-not $s){return $null}
+    if($s.Name -notin (Get-BnqqBudgetAllowedApps)){throw 'Alvo de prioridade nao admitido'}
+    if($s.ProcessId -ne $ProcessId -or ($Expected -and ($Expected.ProcessId -ne $ProcessId -or $s.Name -ine $Expected.Name -or $s.StartTime -cne $Expected.StartTime))){return $null}
+    [pscustomobject]@{ProcessId=$s.ProcessId;Name=$s.Name;StartTime=$s.StartTime;Priority=$s.Priority}
 }
 function Set-BnqqBudgetState {
     param($State,$Expected)

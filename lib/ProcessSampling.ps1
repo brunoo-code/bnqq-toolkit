@@ -1,26 +1,36 @@
-# One process enumeration per sample; native read-only handle for identity + CPU time.
+﻿# One process enumeration per sample; native read-only handle for identity + CPU time.
 function Initialize-BnqqProcessSampler {
-    if(-not ('Bnqq.ProcessTelemetry' -as [type])){Add-Type -Path (Join-Path $script:BnqqRoot 'lib\ProcessTelemetry.cs') -ErrorAction Stop}
+    if(-not ('Bnqq.TelemetryV2.ProcessTelemetry' -as [type])){Add-Type -Path (Join-Path $script:BnqqRoot 'lib\ProcessTelemetry.cs') -ErrorAction Stop}
+    if($script:BnqqSamplerContract -cne 'TelemetryV2'){$script:BnqqSamplerScope=$null}
     if(-not $script:BnqqSamplerScope){
         $p=[Diagnostics.Process]::GetCurrentProcess()
         try{
             $scope=[pscustomobject]@{Owner=(Get-BnqqOwner);Session=[uint32]$p.SessionId}
             # Compile, JIT and verify the read path during preparation, outside the polling loop.
-            if(-not [Bnqq.ProcessTelemetry]::Read($p.Id,$p.ProcessName,$scope.Owner,$scope.Session)){throw 'Falha na preparacao do sampler'}
+            if(-not [Bnqq.TelemetryV2.ProcessTelemetry]::Read($p.Id,$p.ProcessName,$scope.Owner,$scope.Session)){throw 'Falha na preparacao do sampler'}
+            if(-not [Bnqq.TelemetryV2.ProcessTelemetry]::ReadPriority($p.Id,$p.ProcessName,$p.StartTime.ToUniversalTime().ToString('o'),$scope.Owner,$scope.Session)){throw 'Falha na preparacao da consulta de prioridade'}
             $script:BnqqSamplerScope=$scope
+            $script:BnqqSamplerContract='TelemetryV2'
         }
         finally{$p.Dispose()}
     }
 }
+function Get-BnqqPriorityProbe {
+    param([int]$ProcessId,$Expected)
+    if(-not $script:BnqqSamplerScope -or $script:BnqqSamplerContract -cne 'TelemetryV2'){Initialize-BnqqProcessSampler}
+    $name=if($Expected){[string]$Expected.Name}else{''}
+    $start=if($Expected){[string]$Expected.StartTime}else{''}
+    return [Bnqq.TelemetryV2.ProcessTelemetry]::ReadPriority($ProcessId,$name,$start,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
+}
 function Get-BnqqNativeFocusSample {
     param([int]$ProcessId,[string]$Name)
     if(-not $script:BnqqSamplerScope){Initialize-BnqqProcessSampler}
-    return [Bnqq.ProcessTelemetry]::Read($ProcessId,$Name,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
+    return [Bnqq.TelemetryV2.ProcessTelemetry]::Read($ProcessId,$Name,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
 }
 function New-BnqqFocusGameWatch {
     param($Identity)
     Initialize-BnqqProcessSampler
-    return [Bnqq.ProcessTelemetry]::Watch($Identity.ProcessId,$Identity.Name,$Identity.StartTime,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
+    return [Bnqq.TelemetryV2.ProcessTelemetry]::Watch($Identity.ProcessId,$Identity.Name,$Identity.StartTime,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
 }
 function Test-BnqqFocusGameWatchAlive {
     param($Watch)
