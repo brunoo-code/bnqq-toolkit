@@ -26,8 +26,8 @@ try {
     if($Command -eq 'menu'){
         Write-Host 'BNQQ 1.8.3 | diagnostico e experimentos reversiveis | sem ganho presumido'
         if([Environment]::UserInteractive){
-            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [0] Sair'
-            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}default{return}}
+            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [0] Sair'
+            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}default{return}}
         }else{$Command='audit'}
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){

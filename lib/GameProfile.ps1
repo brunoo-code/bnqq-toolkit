@@ -24,9 +24,51 @@ function Convert-BnqqMsaaProfile {
     $replacement='${1}'+$Msaa+'${3}'
     return ,$enc.GetBytes($rx.Replace($text,$replacement))
 }
+function Find-BnqqCs2Configs {
+    param([string]$SteamRoot)
+    if(-not $SteamRoot){$SteamRoot=(Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction Stop).SteamPath}
+    if(-not $SteamRoot){throw 'Steam nao encontrado; informe -GameConfigDirectory'}
+    $users=Join-Path $SteamRoot 'userdata'
+    if(-not (Test-Path -LiteralPath $users)){return @()}
+    return @(Get-ChildItem -LiteralPath $users -Directory | Where-Object {$_.Name -match '^\d+$'} | ForEach-Object {
+        $dir=Join-Path $_.FullName '730\local\cfg'
+        if(Test-Path -LiteralPath (Join-Path $dir 'cs2_video.txt') -PathType Leaf){$dir}
+    })
+}
+function Show-BnqqCompetitiveMenu {
+    $dirs=@(Find-BnqqCs2Configs)
+    if(-not $dirs.Count){throw 'Nenhum perfil CS2 encontrado'}
+    for($i=0;$i -lt $dirs.Count;$i++){Write-Host ('[{0}] {1}' -f ($i+1),$dirs[$i])}
+    $choice=1
+    if($dirs.Count -gt 1){if(-not [int]::TryParse((Read-Host 'Selecione o perfil Steam'),[ref]$choice) -or $choice -lt 1 -or $choice -gt $dirs.Count){throw 'Selecao invalida'}}
+    $directory=$dirs[$choice-1]
+    Write-Host 'CS2 deve estar fechado. [1] MSAA 2x (reduz qualidade das bordas) [2] Restaurar backup [0] Sair'
+    switch(Read-Host 'Acao'){
+        '1' {
+            Invoke-BnqqGameProfile -Directory $directory -Action plan | Format-List
+            if((Read-Host 'Aplicar somente essa mudanca? Digite SIM') -ceq 'SIM'){Invoke-BnqqGameProfile -Directory $directory -Action apply | Format-List}
+        }
+        '2' {
+            $folder=Join-Path (Get-BnqqDataRoot) 'gameprofiles'
+            $backups=@(Get-ChildItem -LiteralPath $folder -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | ForEach-Object {
+                try{$j=Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json;if($j.Schema -eq 'BNQQ.GameProfile.1' -and $j.Owner -eq (Get-BnqqOwner) -and $j.File -ieq (Join-Path $directory 'cs2_video.txt')){[pscustomobject]@{Path=$_.FullName;Date=$j.Generated;Status=$j.Status}}}catch{Write-Warning ('Backup ilegivel: '+$_.Name)}
+            })
+            if(-not $backups.Count){throw 'Sem backups deste perfil'}
+            for($i=0;$i -lt $backups.Count;$i++){Write-Host ('[{0}] {1} {2}' -f ($i+1),$backups[$i].Date,$backups[$i].Status)}
+            $index=0
+            if(-not [int]::TryParse((Read-Host 'Backup para restaurar (0 cancela)'),[ref]$index) -or $index -lt 0 -or $index -gt $backups.Count){throw 'Selecao invalida'}
+            if($index){Invoke-BnqqGameProfile -Directory $directory -Action restore -BackupFile $backups[$index-1].Path | Format-List}
+        }
+    }
+}
 function Invoke-BnqqGameProfile {
-    param([Parameter(Mandatory)][string]$Directory,[ValidateSet('plan','apply','restore')][string]$Action='plan',
+    param([string]$Directory,[ValidateSet('plan','apply','restore')][string]$Action='plan',
           [ValidateSet(0,2,4,8)][int]$Msaa=2,[string]$BackupFile)
+    if(-not $Directory){
+        $dirs=@(Find-BnqqCs2Configs)
+        if($dirs.Count -ne 1){throw 'Perfil Steam ausente ou ambiguo; selecione -GameConfigDirectory ou use o menu competitivo'}
+        $Directory=$dirs[0]
+    }
     $path=[IO.Path]::GetFullPath((Join-Path $Directory 'cs2_video.txt'))
     if(-not [IO.File]::Exists($path)){throw 'Selecione a pasta cfg que contem cs2_video.txt'}
     $before=[IO.File]::ReadAllBytes($path)

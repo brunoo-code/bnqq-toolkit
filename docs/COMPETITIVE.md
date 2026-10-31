@@ -57,3 +57,6 @@ versão para alterações de Windows. Não reinicie apenas para aplicar este per
 O teste tests/GameProfile.ps1 exercita recusa de schema desconhecido/duplicado,
 jogo aberto, alteração externa, preview sem escrita, backup único e rollback
 idempotente exato. Não executa o jogo nem altera a configuração real do usuário.
+
+## Acesso simplificado
+O menu inicial oferece [5] Perfil competitivo CS2, incluindo selecao de conta Steam, preview, aplicacao e restauracao por backup selecionado. competitive sem -GameConfigDirectory descobre automaticamente uma unica conta; recusa ausencia/ambiguidade. No privado, config/competitive-personal.json guarda declaracoes dos perifericos como referencia, sem aplicar firmware ou polling automaticamente.
