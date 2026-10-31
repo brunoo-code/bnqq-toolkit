@@ -1,8 +1,8 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Full controller lifecycle with fake clock/processes/CPU Sets/SCM. No host tuning.
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
-foreach($n in @('Core','Governance','CpuSession','BackgroundBudget','Maintenance','NetworkSession','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
+foreach($n in @('Core','Governance','CpuSession','ProcessSampling','BackgroundBudget','Maintenance','NetworkSession','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('bnqq-focus-'+[guid]::NewGuid().ToString('N'))
 $script:BnqqDataRoot=$temp;$script:checks=0
 function Check($ok,$text){if(-not $ok){throw $text};$script:checks++}
@@ -118,6 +118,7 @@ try{
  Restore-BnqqFocusEpoch $state
  Reset;$script:qa=$false;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge};Check ($script:cpuWrites -eq 0 -and $script:serviceWrites -eq 0) 'QA gate wrote state'
  Reset;$r=Invoke-BnqqFocusSession -Action run -Apps msedge -PauseSearch
+ Check ($r.SamplingOverhead.Calls -gt 0 -and $r.SamplingOverhead.MeanMs -ge 0 -and $r.SamplingOverhead.MaxMs -ge $r.SamplingOverhead.MeanMs) 'Sampling cost aggregates invalid'
  Check ($r.Status -eq 'Restored' -and $r.Epochs -eq 2 -and $r.Changes -eq 6) 'Dynamic discovery, rate cap or focus epochs failed'
  Check $script:frameGuardChecked 'FrameBench guard not exercised';Check ($script:serviceWrites -eq 2) 'Service flapped on Alt+Tab';AssertRestored
  Reset;$script:failCpu=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -PauseSearch};AssertRestored

@@ -136,3 +136,13 @@ O launcher preserva os bytes de payload.stamp, extrai e verifica o ZIP em stagin
 ## Apresentacao 2.1.4
 
 Logo BNQQ em ciano e menu vertical recuperam a identidade visual anterior. As 24 opcoes mostram funcoes atuais; menu-preview apenas renderiza o menu, sem consultar hardware ou aplicar acoes. A correcao de extracao do launcher permanece ativa.
+
+## Motor de amostragem 2.1.5
+
+Focus/compete enumera os apps selecionados em uma chamada por amostra, com deduplicacao sem distinguir maiusculas. Antes, havia uma chamada por nome de app. O leitor C# abre somente PROCESS_QUERY_LIMITED_INFORMATION, valida SID e sessao pelo token do mesmo handle e obtem criacao + CPU em uma chamada GetProcessTimes. O nome real do executavel tambem e conferido. Nao altera jogo, registro, prioridade ou afinidade durante a leitura.
+
+Compilacao/JIT e verificacao no proprio controlador ocorrem na preparacao, apos o gate de estabilidade e antes do loop. Permanecem os limites de 128 processos e 128 erros distintos. Todos os wrappers e handles sao liberados, inclusive em falhas e snapshots acima do limite. SamplingOverhead informa numero de amostras, media e maximo de duracao somente da coleta; nao mede o custo total do controlador nem latencia de entrada. Sao agregados em memoria, sem escrita por amostra.
+
+Esta mudanca reduz chamadas redundantes e permissoes solicitadas. Nao comprova aumento de FPS ou melhora de percentis; isso exige comparacao controlada quando o hardware estiver estavel. Os gates WHEA/HeavyQA e o bloqueio de Focus dinamico no FrameBench permanecem ativos.
+
+APIs documentadas: [GetProcessTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes), [QueryFullProcessImageName](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-queryfullprocessimagenamew), [GetTokenInformation](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-gettokeninformation).

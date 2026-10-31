@@ -30,29 +30,6 @@ function Test-BnqqFocusStop {
     $s=Get-Content -LiteralPath $file -Raw -ErrorAction Stop|ConvertFrom-Json
     return ($s.Id -ceq $Id -and $s.Owner -ceq (Get-BnqqOwner))
 }
-function Get-BnqqFocusSamples {
-    param([string[]]$Apps)
-    $rows=@();$count=0
-    foreach($app in @($Apps|Select-Object -Unique)){
-        if($app -notin (Get-BnqqCpuAllowedApps)){throw 'Aplicativo focus nao admitido'}
-        foreach($p in @(Get-Process -Name $app -ErrorAction SilentlyContinue)){
-            try{
-                if(++$count -gt 128){throw 'Mais de 128 processos; sessao recusada'}
-                Assert-BnqqCpuProcessScope $p $p.Handle
-                $rows+=@([pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');CpuMs=$p.TotalProcessorTime.TotalMilliseconds})
-            }catch{
-                if($count -gt 128){throw}
-                if(-not $script:BnqqFocusSampleErrors){$script:BnqqFocusSampleErrors=@{}}
-                $key=[string]$p.Id+'|'+$_.Exception.Message
-                if($script:BnqqFocusSampleErrors.Count -lt 128 -and -not $script:BnqqFocusSampleErrors.ContainsKey($key)){
-                    $script:BnqqFocusSampleErrors[$key]=$true;Write-BnqqNightLog 'FOCUS-SAMPLE-SKIP' $key
-                }
-            }
-            finally{if($p -is [IDisposable]){$p.Dispose()}}
-        }
-    }
-    return $rows
-}
 function Select-BnqqFocusBusy {
     param($Previous,$Current,[double]$ElapsedSeconds,[double]$MinCpuMsPerSecond=25)
     if($ElapsedSeconds -le 0 -or $ElapsedSeconds -gt 30){return @()}
@@ -142,6 +119,7 @@ function Invoke-BnqqFocusSession {
     if(-not @($Apps).Count -and -not $PauseSearch -and -not $DeferMaintenance -and -not @($UploadApps).Count){throw 'Selecione apps, upload ou manutencao; nenhum alvo implicito'}
     Assert-BnqqHeavyQa -WorkloadOnly
     $script:BnqqFocusSampleErrors=@{}
+    if(@($Apps).Count){Initialize-BnqqProcessSampler}
     if(($plan.Maintenance.RequiresAdmin -or @($UploadApps).Count) -and -not (Test-BnqqAdmin)){throw 'Manutencao/upload temporarios exigem administrador'}
     $gameProcesses=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($Game)) -ErrorAction Stop)
     try{
@@ -166,6 +144,7 @@ function Invoke-BnqqFocusSession {
             foreach($op in $plan.Maintenance.Operations){Invoke-BnqqJournalOperation $maintenance $op;Assert-BnqqPhaseHealth $since}
         }
         $previous=@();$sampleTime=0.0;$nextHealth=0.0;$nextSample=0.0;$quietSamples=0;$admitAfter=0.0;$idleRestores=0
+        $sampleCalls=0L;$sampleTotalMs=0.0;$sampleMaxMs=0.0
         while($clock.Elapsed.TotalMinutes -lt $MaxMinutes){
             $live=Get-BnqqFocusIdentity $identity.ProcessId
             if(-not $live -or -not (Test-BnqqSameValue $identity $live) -or (Test-BnqqFocusStop $id)){break}
@@ -173,7 +152,10 @@ function Invoke-BnqqFocusSession {
             if((Get-BnqqForegroundPid) -ne $identity.ProcessId){
                 Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0;$quietSamples=0;$admitAfter=0.0
             }elseif(@($Apps).Count -and $clock.Elapsed.TotalSeconds -ge $nextSample){
+                $sampleStarted=[Diagnostics.Stopwatch]::GetTimestamp()
                 $current=@(Get-BnqqFocusSamples $Apps);$now=$clock.Elapsed.TotalSeconds
+                $sampleMs=1000.0*([Diagnostics.Stopwatch]::GetTimestamp()-$sampleStarted)/[Diagnostics.Stopwatch]::Frequency
+                $sampleCalls++;$sampleTotalMs+=$sampleMs;$sampleMaxMs=[Math]::Max($sampleMaxMs,$sampleMs)
                 if($Policy -eq 'Priority' -and $state.Journal -and (Test-BnqqFocusQuiet $previous $current ($now-$sampleTime))){$quietSamples++}else{$quietSamples=0}
                 if($quietSamples -ge 3){
                     Restore-BnqqFocusEpoch $state;$quietSamples=0;$admitAfter=$now+15;$idleRestores++
@@ -196,7 +178,7 @@ function Invoke-BnqqFocusSession {
             }
         }
     }
-    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;IdleRestores=$idleRestores;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});NetworkJournal=$(if($networkLease){$networkLease.File});PerformanceMeasured=$false;RebootRequired=$false}
+    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;IdleRestores=$idleRestores;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});NetworkJournal=$(if($networkLease){$networkLease.File});SamplingOverhead=@{Calls=$sampleCalls;MeanMs=$(if($sampleCalls){$sampleTotalMs/$sampleCalls}else{0.0});MaxMs=$sampleMaxMs;Scope='Process sampling only; excludes startup, admission, health checks and restoration';Storage='In-memory aggregates; no per-sample file writes'};PerformanceMeasured=$false;RebootRequired=$false}
 }
 function Show-BnqqFocusMenu {
     Write-Host 'Focus: amostragem de CPU de apps escolhidos; restaura no Alt+Tab/saida. Manutencao opcional so durante o jogo.'

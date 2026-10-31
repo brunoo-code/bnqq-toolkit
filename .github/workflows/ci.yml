@@ -1,4 +1,4 @@
-name: Windows regression
+﻿name: Windows regression
 on: [push, pull_request]
 jobs:
   windows:
@@ -43,6 +43,7 @@ jobs:
           ./tests/GovernanceScopes.ps1
           ./tests/NicActivation.ps1
           ./tests/Maintenance.ps1
+          ./tests/ProcessSampling.ps1
           ./tests/FocusSession.ps1
           ./tests/BackgroundBudget.ps1
           ./tests/FocusCli.ps1
