@@ -72,3 +72,5 @@ Veja os [12 módulos](docs/MODULES.md), o [plano com linhas anteriores](docs/PAT
 ## Comparacao com referencia existente
 
 Veja [sincronizacao publica e framebench -Effective](docs/PUBLIC_SYNC.md). O modo clean altera temporariamente apenas prioridade/afinidade do jogo; nao restaura o Windows ao estado de fabrica. Uma unica dupla de capturas nao comprova eficacia.
+
+Perfil grafico reversivel CS2: veja [docs/COMPETITIVE.md](docs/COMPETITIVE.md). O comando competitive altera apenas MSAA com backup; nao libera tweaks bloqueados por WHEA.

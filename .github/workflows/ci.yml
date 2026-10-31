@@ -1,4 +1,4 @@
-name: Windows regression
+﻿name: Windows regression
 on: [push, pull_request]
 jobs:
   windows:
@@ -8,6 +8,9 @@ jobs:
       - name: Regression without tuning the host
         shell: powershell
         run: ./tests/Regression.ps1
+      - name: Reversible game preference fixtures
+        shell: powershell
+        run: ./tests/GameProfile.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

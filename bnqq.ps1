@@ -13,11 +13,13 @@ param(
     [string]$Scenario,[string]$SettingsHash,[string]$ExperimentId,
     [ValidateSet('baseline','candidate')][string]$Variant='baseline',
     [string]$SwapChain,[string]$PresentMonPath,[string[]]$CaptureFiles,
-    [switch]$Effective,[switch]$PrepareCleanState,[string]$BaselineFile
+    [switch]$Effective,[switch]$PrepareCleanState,[string]$BaselineFile,
+    [string]$GameConfigDirectory,[ValidateSet('plan','apply','restore')][string]$CompetitiveAction='plan',
+    [ValidateSet(0,2,4,8)][int]$Msaa=2
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
-foreach($file in @('Core','Governance','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench')){
+foreach($file in @('Core','Governance','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile')){
     . (Join-Path $script:BnqqRoot ('lib\'+$file+'.ps1'))
 }
 try {
@@ -56,6 +58,7 @@ try {
             $lock=Enter-BnqqStateLock
             try{Restore-BnqqJournal $BackupFile | ConvertTo-Json -Depth 8}finally{$lock.Dispose()}
         }
+        'competitive' {if($DryRun){$CompetitiveAction='plan'};Invoke-BnqqGameProfile -Directory $GameConfigDirectory -Action $CompetitiveAction -Msaa $Msaa -BackupFile $BackupFile | ConvertTo-Json -Depth 6}
         'heavyqa' {Test-BnqqHeavyQA -Minutes $HeavyMinutes -Threads $HeavyThreads | ConvertTo-Json -Depth 6}
         'watch' {
             switch($WatcherAction){
@@ -73,7 +76,7 @@ try {
         'help' {
             Write-Host @'
 BNQQ 1.8.3 — Windows PowerShell 5.1 x64
-audit | network | display | topology | apps | status | verdict
+audit | network | display | topology | apps | status | verdict | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware
 apply -Profile recording-off                    exige QA e journal sem pendencias
@@ -85,6 +88,7 @@ watch -WatcherAction stop                       saida cooperativa
 framebench -Scenario MAPA_CENA -SettingsHash HASH -ExperimentId ID -Variant baseline
 framebench -Effective -BaselineFile result.json -PrepareCleanState [-DryRun]
 compare -CaptureFiles A1.json,B1.json,A2.json,B2.json,A3.json,B3.json
+competitive -GameConfigDirectory PASTA_CFG -CompetitiveAction plan|apply|restore [-Msaa 2] [-BackupFile JOURNAL]
 Pacotes legados (pro/god/ultimate/etc.) foram retirados. Veja docs/MIGRATION.md.
 '@
         }
