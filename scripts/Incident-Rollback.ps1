@@ -3,8 +3,8 @@
 param([Parameter(Mandatory)][string]$BackupFile)
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
-. (Join-Path $script:BnqqRoot 'lib\Core.ps1')
-. (Join-Path $script:BnqqRoot 'lib\Apps.ps1')
-if(-not (Test-BnqqAdmin)){throw 'Restauracao exige administrador'}
-$lock=Enter-BnqqStateLock
-try{Restore-BnqqJournal -File $BackupFile | ConvertTo-Json -Depth 8}finally{$lock.Dispose()}
+foreach($name in @('Core','Apps','Governance','GameProfile','FramePacing','GameSession','CpuSession','NetworkSession','LegacyMigration','RecoveryHub')){
+    . (Join-Path $script:BnqqRoot ('lib\'+$name+'.ps1'))
+}
+try{Invoke-BnqqRecovery -File $BackupFile | ConvertTo-Json -Depth 10}
+catch{Write-BnqqNightLog 'INCIDENT-FAILED' $_.Exception.Message;throw}

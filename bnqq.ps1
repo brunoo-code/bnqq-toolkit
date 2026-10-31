@@ -20,20 +20,22 @@ param(
     [ValidateSet('plan','run','restore')][string]$SessionAction='plan',[string[]]$SessionApps,
     [ValidateSet('plan','apply','restore')][string]$LegacyAction='plan',[string[]]$LegacyFiles,
     [ValidateSet('plan','run','restore')][string]$NetworkAction='plan',[string[]]$NetworkApps,
-    [ValidateRange(64,1000000)][int]$UploadKbps=512
+    [ValidateRange(64,1000000)][int]$UploadKbps=512,
+    [ValidateSet('plan','run','restore')][string]$CpuAction='plan',
+    [ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$UnparkCpu
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
-foreach($file in @('Core','Governance','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','NetworkSession','LegacyMigration','RecoveryHub')){
+foreach($file in @('Core','Governance','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','NetworkSession','LegacyMigration','RecoveryHub')){
     . (Join-Path $script:BnqqRoot ('lib\'+$file+'.ps1'))
 }
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
     if($Command -eq 'menu'){
-        Write-Host 'BNQQ 1.8.7 | diagnostico e experimentos reversiveis | sem ganho presumido'
+        Write-Host 'BNQQ 2.0.0 fase 1 | diagnostico e experimentos reversiveis | sem ganho presumido'
         if([Environment]::UserInteractive){
-            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [7] Sessao de jogo [8] Recuperacao [9] Migracao legada [10] Sessao de upload [0] Sair'
-            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}default{return}}
+            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [7] Sessao de jogo [8] Recuperacao [9] Migracao legada [10] Sessao de upload [11] CPU Sets [0] Sair'
+            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}default{return}}
         }else{$Command='audit'}
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
@@ -65,6 +67,8 @@ try {
             try{Restore-BnqqJournal $BackupFile | ConvertTo-Json -Depth 8}finally{$lock.Dispose()}
         }
         'legacy' {if($DryRun){$LegacyAction='plan'};Invoke-BnqqLegacyMigration -Action $LegacyAction -Files $LegacyFiles -BackupFile $BackupFile | ConvertTo-Json -Depth 9}
+        'cpu-session' {if($DryRun){$CpuAction='plan'};Invoke-BnqqCpuSession -Action $CpuAction -Apps $SessionApps -BackgroundCores $BackgroundCores -UnparkCpu:$UnparkCpu -Game $FrameProcess -File $BackupFile | ConvertTo-Json -Depth 12}
+        'phase-health' {Get-BnqqPhaseHealth -Since (Get-Date).AddHours(-72) | ConvertTo-Json -Depth 5}
         'net-session' {if($DryRun){$NetworkAction='plan'};Invoke-BnqqNetworkSession -Action $NetworkAction -Apps $NetworkApps -UploadKbps $UploadKbps -Game $FrameProcess -File $BackupFile | ConvertTo-Json -Depth 9}
         'session' {if($DryRun){$SessionAction='plan'};Invoke-BnqqGameSession -Action $SessionAction -Apps $SessionApps -Game $FrameProcess -File $BackupFile | ConvertTo-Json -Depth 8}
         'recover' {if($DryRun -or -not $BackupFile){Get-BnqqRecoveryCatalog | ConvertTo-Json -Depth 4}else{Invoke-BnqqRecovery $BackupFile | ConvertTo-Json -Depth 8}}
@@ -86,8 +90,8 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 1.8.7 — Windows PowerShell 5.1 x64
-audit | network | display | topology | apps | status | verdict | framepacing | session | net-session | recover | legacy | competitive
+BNQQ 2.0.0 — Windows PowerShell 5.1 x64
+audit | network | display | topology | apps | status | verdict | framepacing | session | cpu-session | phase-health | net-session | recover | legacy | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware
 apply -Profile recording-off                    exige QA e journal sem pendencias
@@ -101,6 +105,7 @@ framebench -Effective -BaselineFile result.json -PrepareCleanState [-DryRun]
 compare -CaptureFiles A1.json,B1.json,A2.json,B2.json,A3.json,B3.json
 competitive -GameConfigDirectory PASTA_CFG -CompetitiveAction plan|apply|restore [-Msaa 2] [-BackupFile JOURNAL]
 net-session -NetworkAction plan|run|restore -NetworkApps OneDrive.exe [-UploadKbps 512] [-BackupFile JOURNAL]
+cpu-session -CpuAction plan|run|restore -SessionApps msedge [-BackgroundCores 2] [-UnparkCpu] [-BackupFile JOURNAL]
 Pacotes legados (pro/god/ultimate/etc.) foram retirados. Veja docs/MIGRATION.md.
 '@
         }

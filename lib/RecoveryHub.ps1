@@ -15,7 +15,7 @@ function Invoke-BnqqRecovery {
     if($j.Owner -ne (Get-BnqqOwner)){throw 'Backup de outro usuario; nenhuma restauracao iniciada'}
     switch([string]$j.Schema){
         '2' {
-            if(-not (Test-BnqqAdmin)){throw 'Backup Windows exige administrador'}
+            if(@($j.Entries|Where-Object {$_.Kind -notin @('Process','CpuSets')}).Count -and -not (Test-BnqqAdmin)){throw 'Backup Windows exige administrador'}
             $lock=Enter-BnqqStateLock
             try{return (Restore-BnqqJournal $File)}finally{$lock.Dispose()}
         }

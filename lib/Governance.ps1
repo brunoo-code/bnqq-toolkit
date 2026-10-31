@@ -22,7 +22,7 @@ function Get-BnqqConfigurationFingerprint {
     if(-not $cpu -or -not $gpu.Count -or -not $mem.Count){throw 'Fingerprint incompleto'}
     $source=@(Get-ChildItem (Join-Path $script:BnqqRoot 'lib') -File | Sort-Object Name | ForEach-Object {(Get-FileHash $_.FullName -Algorithm SHA256 -ErrorAction Stop).Hash})
     $registry=@(Get-BnqqRegistryTargets | ForEach-Object {Get-RegSnapshot $_.Path $_.Name})
-    $state=[ordered]@{Boot=$os.LastBootUpTime.ToUniversalTime().ToString('o');Build=$os.BuildNumber;CPU=$cpu.Name;Threads=$cpu.NumberOfLogicalProcessors;GPU=$gpu;Memory=$mem;Power=(Get-BnqqPowerSnapshot);Registry=$registry;Sources=$source}
+    $state=[ordered]@{Boot=$os.LastBootUpTime.ToUniversalTime().ToString('o');Build=$os.BuildNumber;CPU=$cpu.Name;Threads=$cpu.NumberOfLogicalProcessors;GPU=$gpu;Memory=$mem;Power=(Get-BnqqPowerSnapshot);Parking=(Get-BnqqPowerSnapshot -Setting CPMINCORES);Registry=$registry;Sources=$source}
     $sha=[Security.Cryptography.SHA256]::Create()
     try{return ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($state|ConvertTo-Json -Depth 8 -Compress))))).Replace('-','')}
     finally{$sha.Dispose()}

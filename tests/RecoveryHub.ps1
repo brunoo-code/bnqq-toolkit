@@ -22,6 +22,14 @@ try {
   Check ($script:routed -eq $case[1]) 'Wrong recovery adapter'
  }
  Check (@(Get-BnqqRecoveryCatalog).Count -eq 6) 'Catalog missing backup type'
+ $processBackup=Join-Path $temp 'journals\cpu-only.json'
+ Write-BnqqAtomicJson @{Schema=2;Owner=(Get-BnqqOwner);Entries=@(@{Kind='CpuSets'})} $processBackup
+ function Test-BnqqAdmin {return $false}
+ $script:routed='';Invoke-BnqqRecovery $processBackup
+ Check ($script:routed -eq 'Windows') 'User CPU Sets recovery must not require admin preemptively'
+ Write-BnqqAtomicJson @{Schema=2;Owner=(Get-BnqqOwner);Entries=@(@{Kind='Power'})} $processBackup
+ $script:routed='';MustThrow {Invoke-BnqqRecovery $processBackup};Check (-not $script:routed) 'Power recovery lost admin guard'
+ function Test-BnqqAdmin {return $true}
  $file=Join-Path $temp 'sessions\invalid.json'
  Write-BnqqAtomicJson @{Schema='Legacy';Owner=(Get-BnqqOwner)} $file
  $script:routed='';MustThrow {Invoke-BnqqRecovery $file};Check (-not $script:routed) 'Unknown schema must not dispatch'

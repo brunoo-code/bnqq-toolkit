@@ -64,7 +64,7 @@ function Test-BnqqPartialState {
     if($Op.Kind -eq 'Registry'){
         return (-not $Op.Before.Existed -and -not $Actual.Existed -and $Actual.Path -eq $Op.Before.Path -and $Actual.Name -eq $Op.Before.Name)
     }
-    $fields=if($Op.Kind -eq 'Power'){@('AC','DC')}elseif($Op.Kind -eq 'Process'){@('Priority','Affinity')}else{@()}
+    $fields=if($Op.Kind -eq 'Power'){@('AC','DC')}elseif($Op.Kind -eq 'Process'){@('Priority','Affinity')}elseif($Op.Kind -eq 'CpuSets'){@('Sets')}else{@()}
     if(-not $fields.Count){return $false}
     $candidate=$Actual|Select-Object *
     foreach($field in $fields){
@@ -91,13 +91,26 @@ function Assert-BnqqOperation {
             if($Op.After.Kind -ne 'DWord' -or $Op.After.Value -ne 0 -or -not $Op.After.Existed){throw 'Destino de registro invalido'}
         }
         'Power' {
-            if($Op.Before.Scheme -notmatch '^[0-9a-fA-F-]{36}$' -or $Op.Before.Setting -ne 'IDLEDISABLE' -or $Op.Before.Sub -ne 'SUB_PROCESSOR' -or $Op.After.Scheme -ne $Op.Before.Scheme -or $Op.After.Setting -ne $Op.Before.Setting -or $Op.After.Sub -ne $Op.Before.Sub){throw 'Operacao de energia invalida'}
-            foreach($v in @($Op.Before.AC,$Op.Before.DC,$Op.After.AC,$Op.After.DC)){if($v -notin @(0,1)){throw 'Indice de energia invalido'}}
+            if($Op.Before.Scheme -notmatch '^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$' -or $Op.Before.Setting -notin @('IDLEDISABLE','CPMINCORES') -or $Op.Before.Sub -ne 'SUB_PROCESSOR' -or $Op.After.Scheme -ne $Op.Before.Scheme -or $Op.After.Setting -ne $Op.Before.Setting -or $Op.After.Sub -ne $Op.Before.Sub){throw 'Operacao de energia invalida'}
+            $max=if($Op.Before.Setting -eq 'CPMINCORES'){100}else{1}
+            foreach($v in @($Op.Before.AC,$Op.Before.DC,$Op.After.AC,$Op.After.DC)){if($v -is [bool] -or [string]$v -notmatch '^\d{1,3}$' -or [int]$v -gt $max){throw 'Indice de energia invalido'}}
+            if($Op.Before.Setting -eq 'CPMINCORES' -and ($Op.After.AC -ne 100 -or $Op.After.DC -ne $Op.Before.DC)){throw 'Core parking permite somente AC=100, preservando DC'}
         }
         'Process' {
             if($Op.Before.Name -notin @('cs2','VALORANT-Win64-Shipping') -or $Op.Before.ProcessId -le 0 -or $Op.After.ProcessId -ne $Op.Before.ProcessId -or $Op.After.StartTime -ne $Op.Before.StartTime -or $Op.After.Name -ne $Op.Before.Name){throw 'Identidade de processo invalida'}
             if($Op.Before.Priority -notin @('Idle','BelowNormal','Normal','AboveNormal','High') -or $Op.After.Priority -notin @('Normal','AboveNormal')){throw 'Prioridade fora da politica'}
             if([int64]$Op.Before.Affinity -le 0 -or [int64]$Op.After.Affinity -le 0){throw 'Mascara invalida'}
+            if(([int64]$Op.After.Affinity -band [int64]$Op.Before.Affinity) -ne [int64]$Op.After.Affinity){throw 'Afinidade nao pode expandir a mascara original'}
+        }
+        'CpuSets' {
+            if($Op.Before.Name -notin (Get-BnqqCpuAllowedApps) -or $Op.Before.ProcessId -le 0 -or $Op.After.ProcessId -ne $Op.Before.ProcessId -or $Op.After.StartTime -cne $Op.Before.StartTime -or $Op.After.Name -cne $Op.Before.Name){throw 'Identidade CPU Sets nao admitida'}
+            foreach($state in @($Op.Before,$Op.After)){
+                if($null -eq $state.Sets -or @($state.Sets).Count -gt 256){throw 'Lista CPU Sets invalida'}
+                foreach($id in @($state.Sets)){if([string]$id -notmatch '^\d{1,10}$' -or [decimal]$id -gt [uint32]::MaxValue){throw 'ID CPU Set invalido'}}
+                if(@($state.Sets|Select-Object -Unique).Count -ne @($state.Sets).Count){throw 'IDs CPU Sets duplicados'}
+            }
+            if(-not @($Op.After.Sets).Count){throw 'Aplicacao CPU Sets vazia'}
+            if(@($Op.Before.Sets).Count -and @($Op.After.Sets|Where-Object {$_ -notin $Op.Before.Sets}).Count){throw 'CPU Sets nao pode expandir restricao preexistente'}
         }
         'Shortcut' {
             Assert-BnqqShortcutPath $Op.Before.Path
@@ -108,35 +121,40 @@ function Assert-BnqqOperation {
     }
 }
 function Get-BnqqPowerSnapshot {
-    param([string]$Scheme)
+    param([string]$Scheme,[ValidateSet('IDLEDISABLE','CPMINCORES')][string]$Setting='IDLEDISABLE')
     if(-not $Scheme){
         $raw=(& powercfg.exe /getactivescheme) -join ' '
         if($LASTEXITCODE -ne 0){throw 'Falha ao consultar plano'}
         $Scheme=[regex]::Match($raw,'[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}').Value
     }
     if(-not $Scheme){throw 'Plano desconhecido'}
-    $raw=(& powercfg.exe /qh $Scheme SUB_PROCESSOR IDLEDISABLE) -join ' '
-    if($LASTEXITCODE -ne 0){throw 'IDLEDISABLE nao exposto'}
+    $raw=(& powercfg.exe /qh $Scheme SUB_PROCESSOR $Setting) -join ' '
+    if($LASTEXITCODE -ne 0){throw ($Setting+' nao exposto')}
     $hex=[regex]::Matches($raw,'0x([0-9a-fA-F]+)')
     if($hex.Count -lt 2){throw 'Indices de energia desconhecidos'}
-    return [pscustomobject]@{Scheme=$Scheme;Sub='SUB_PROCESSOR';Setting='IDLEDISABLE';AC=[Convert]::ToInt32($hex[$hex.Count-2].Groups[1].Value,16);DC=[Convert]::ToInt32($hex[$hex.Count-1].Groups[1].Value,16)}
+    return [pscustomobject]@{Scheme=$Scheme;Sub='SUB_PROCESSOR';Setting=$Setting;AC=[Convert]::ToInt32($hex[$hex.Count-2].Groups[1].Value,16);DC=[Convert]::ToInt32($hex[$hex.Count-1].Groups[1].Value,16)}
 }
+function Get-BnqqCpuAllowedApps {return @('msedge','chrome','firefox','Discord','OneDrive')}
 function Get-BnqqProcessSnapshot {
     param([int]$ProcessId)
     $p=Get-Process -Id $ProcessId -ErrorAction Stop
-    return [pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Priority=$p.PriorityClass.ToString();Affinity=([int64]$p.ProcessorAffinity).ToString()}
+    try{return [pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Priority=$p.PriorityClass.ToString();Affinity=([int64]$p.ProcessorAffinity).ToString()}}
+    finally{$p.Dispose()}
 }
 function Get-BnqqOperationState {
     param($Op)
     switch($Op.Kind){
         'Registry' {Get-RegSnapshot $Op.Before.Path $Op.Before.Name}
         'Shortcut' {Get-BnqqShortcutSnapshot $Op.Before.Path}
-        'Power' {Get-BnqqPowerSnapshot $Op.Before.Scheme}
+        'Power' {Get-BnqqPowerSnapshot -Scheme $Op.Before.Scheme -Setting $Op.Before.Setting}
+        'CpuSets' {Get-BnqqCpuSetProcessState $Op.Before.ProcessId $Op.Before}
         'Process' {
             $p=Get-Process -Id $Op.Before.ProcessId -ErrorAction SilentlyContinue
             if(-not $p){return $null}
-            if($p.StartTime.ToUniversalTime().ToString('o') -ne $Op.Before.StartTime){return $null}
-            Get-BnqqProcessSnapshot $p.Id
+            try {
+                if($p.StartTime.ToUniversalTime().ToString('o') -ne $Op.Before.StartTime -or $p.ProcessName -ine $Op.Before.Name){return $null}
+                Get-BnqqProcessSnapshot $p.Id
+            }finally{$p.Dispose()}
         }
     }
 }
@@ -146,8 +164,9 @@ function Set-BnqqOperationState {
     switch($Op.Kind){
         'Registry' {Set-BnqqRegistrySnapshot $State}
         'Shortcut' {Set-BnqqShortcutSnapshot $State}
+        'CpuSets' {Set-BnqqCpuSetProcessState $State (Get-BnqqOperationState $Op)}
         'Power' {
-            $current=Get-BnqqPowerSnapshot $State.Scheme
+            $current=Get-BnqqPowerSnapshot -Scheme $State.Scheme -Setting $State.Setting
             $changed=$false
             foreach($mode in @('AC','DC')){
                 if($current.$mode -eq $State.$mode){continue}
@@ -165,8 +184,15 @@ function Set-BnqqOperationState {
             $live=Get-BnqqOperationState $Op
             if(-not $live){return}
             $p=Get-Process -Id $State.ProcessId -ErrorAction Stop
-            $p.PriorityClass=$State.Priority
-            $p.ProcessorAffinity=[IntPtr][int64]$State.Affinity
+            try {
+                # Cache the handle before checking identity, then mutate that object.
+                $handle=$p.Handle
+                if($p.StartTime.ToUniversalTime().ToString('o') -cne $State.StartTime -or $p.ProcessName -ine $State.Name){throw 'Identidade mudou antes da escrita'}
+                $current=[pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$State.StartTime;Priority=$p.PriorityClass.ToString();Affinity=([int64]$p.ProcessorAffinity).ToString()}
+                if(-not (Test-BnqqSameValue $live $current)){throw 'Processo mudou antes da escrita'}
+                if($current.Priority -cne $State.Priority){$p.PriorityClass=$State.Priority}
+                if($current.Affinity -cne $State.Affinity){$p.ProcessorAffinity=[IntPtr][int64]$State.Affinity}
+            }finally{$p.Dispose()}
         }
     }
 }
@@ -201,7 +227,7 @@ function Restore-BnqqJournal {
         if($op.Status -in @('Restored','Exited')){continue}
         try {
             $actual=Get-BnqqOperationState $op
-            if($op.Kind -eq 'Process' -and -not $actual){$op.Status='Exited'}
+            if($op.Kind -in @('Process','CpuSets') -and -not $actual){$op.Status='Exited'}
             elseif(Test-BnqqSameValue $actual $op.Before){$op.Status='Restored'}
             else {
                 # Failed/prepared operations can be partial; applied operations must still match.
