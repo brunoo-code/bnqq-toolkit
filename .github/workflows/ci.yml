@@ -1,0 +1,19 @@
+name: Windows regression
+on: [push, pull_request]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Regression without tuning the host
+        shell: powershell
+        run: ./tests/Regression.ps1
+      - name: Compile launcher and payload
+        shell: powershell
+        run: ./build.ps1 -KeepBuild
+      - name: Effective comparison fixtures without tuning
+        shell: powershell
+        run: ./tests/EffectiveBench.ps1
+      - name: Verify embedded payload and argument quoting without launching
+        shell: powershell
+        run: ./tests/Launcher.ps1

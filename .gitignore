@@ -1,7 +1,15 @@
-﻿reports/
+reports/
 backups/
 dist/
 build/
 *.log
+*.etl
 .vscode/
 license.key
+
+license.key
+*.pfx
+*.pem
+*.key
+keygen.ps1
+lib/License.ps1

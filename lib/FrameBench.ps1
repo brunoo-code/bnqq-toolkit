@@ -1,143 +1,123 @@
-function Get-BnqqPresentMonPath {
-    $cmd = Get-Command presentmon -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
-
-    $roots = @(
-        (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'),
-        (Join-Path $env:ProgramFiles 'Intel\PresentMon'),
-        (Join-Path ${env:ProgramFiles(x86)} 'Intel\PresentMon')
-    )
-    foreach ($root in $roots) {
-        if (-not (Test-Path -LiteralPath $root)) { continue }
-        $found = Get-ChildItem -LiteralPath $root -Recurse -Filter 'presentmon.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) { return $found.FullName }
+﻿function Get-BnqqPresentMonPath {
+    $cmd=Get-Command presentmon.exe -ErrorAction SilentlyContinue
+    if($cmd){return $cmd.Source}
+    foreach($dir in @((Join-Path $env:ProgramFiles 'Intel\PresentMon'),(Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'))){
+        if(Test-Path $dir){$f=Get-ChildItem $dir -Recurse -Filter 'PresentMon*.exe' -File -ErrorAction SilentlyContinue | Where-Object {$_.Name -notmatch 'service|overlay'} | Select-Object -First 1;if($f){return $f.FullName}}
     }
-    return $null
+    throw 'PresentMon console nao encontrado. Informe -PresentMonPath; sem download automatico.'
 }
-
+function Convert-BnqqFiniteNumber {
+    param($Text)
+    $v=[double]0
+    if(-not [double]::TryParse([string]$Text,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$v) -or [double]::IsNaN($v) -or [double]::IsInfinity($v)){throw 'Numero nao finito ou ausente'}
+    return $v
+}
+function Get-BnqqPercentile {
+    param([double[]]$Sorted,[double]$P)
+    # Nearest-rank, not reciprocal of average slowest 1%.
+    return $Sorted[[math]::Max(0,[math]::Ceiling($P*$Sorted.Length)-1)]
+}
 function Get-BnqqFrameStats {
-    param([string]$CsvPath, [int]$SkipSeconds = 0)
-
-    if (-not (Test-Path -LiteralPath $CsvPath)) { throw 'CSV de frametime nao encontrado' }
-    $rows = @(Import-Csv -LiteralPath $CsvPath)
-    $invariant = [Globalization.CultureInfo]::InvariantCulture
-    $numberStyle = [Globalization.NumberStyles]::Float
-    $frames = New-Object 'System.Collections.Generic.List[object]'
-    foreach ($row in $rows) {
-        $ms = 0.0
-        if (-not [double]::TryParse([string]$row.MsBetweenPresents, $numberStyle, $invariant, [ref]$ms)) { continue }
-        if ($ms -le 0) { continue }
-        $time = 0.0
-        [double]::TryParse([string]$row.TimeInMs, $numberStyle, $invariant, [ref]$time) | Out-Null
-        $frames.Add([pscustomobject]@{ TimeMs = $time; Ms = $ms })
+    param([Parameter(Mandatory)][string]$CsvPath,[ValidateRange(0,30)][int]$SkipSeconds=0,[int]$ProcessId=0,[string]$SwapChain='',[ValidateRange(0,300)][double]$MinimumSeconds=10)
+    $rows=@(Import-Csv -LiteralPath $CsvPath -ErrorAction Stop)
+    if(-not $rows.Count){throw 'CSV vazio'}
+    $headers=@($rows[0].PSObject.Properties.Name)
+    $durationColumn=if($headers -contains 'MsBetweenPresents'){'MsBetweenPresents'}elseif($headers -contains 'FrameTime'){'FrameTime'}else{throw 'Schema desconhecido: faltam MsBetweenPresents/FrameTime'}
+    $timeColumn=@('TimeInMs','CPUStartTimeInMs','CPUStartTime')|Where-Object {$headers -contains $_}|Select-Object -First 1
+    if(-not $timeColumn -or $headers -notcontains 'ProcessID' -or $headers -notcontains 'SwapChainAddress'){throw 'Schema sem timestamp/PID/swap chain'}
+    if($ProcessId){$rows=@($rows|Where-Object {[string]$_.ProcessID -eq [string]$ProcessId})}
+    if($SwapChain){$rows=@($rows|Where-Object {$_.SwapChainAddress -eq $SwapChain})}
+    if(-not $rows.Count){throw 'Nenhum frame para filtro selecionado'}
+    $streams=@($rows|Group-Object ProcessID,SwapChainAddress,PresentRuntime)
+    if($streams.Count -ne 1){throw ('Multiplos streams: selecione PID e SwapChain; fontes encontradas: '+(($streams|ForEach-Object {$_.Name+' ('+$_.Count+')'}) -join '; '))}
+    $valid=New-Object 'Collections.Generic.List[object]';$rejected=0
+    foreach($r in $rows){
+        try{
+            $ms=Convert-BnqqFiniteNumber $r.$durationColumn
+            $time=Convert-BnqqFiniteNumber $r.$timeColumn
+            if($ms -le 0 -or $time -lt 0){throw 'Intervalo invalido'}
+            $valid.Add([pscustomobject]@{Time=$time;Ms=$ms})
+        }catch{$rejected++}
     }
-    if ($frames.Count -eq 0) { throw 'CSV sem frames validos' }
-
-    $skipMs = 0.0
-    if ($SkipSeconds -gt 0) {
-        $firstTime = ($frames | Measure-Object TimeMs -Minimum).Minimum
-        $skipMs = $firstTime + ($SkipSeconds * 1000)
-    }
-
-    $times = New-Object 'System.Collections.Generic.List[double]'
-    foreach ($frame in $frames) {
-        if ($frame.TimeMs -lt $skipMs) { continue }
-        $times.Add([double]$frame.Ms)
-    }
-    if ($times.Count -eq 0) { throw 'Nenhum frame apos o warmup' }
-
-    $count = $times.Count
-    $sorted = $times.ToArray()
-    [Array]::Sort($sorted)
-    [Array]::Reverse($sorted)
-    $count1 = [math]::Max(1, [int][math]::Ceiling($count * 0.01))
-    $count01 = [math]::Max(1, [int][math]::Ceiling($count * 0.001))
-    $avgMs = ($times | Measure-Object -Average).Average
-    $p1Ms = ($sorted[0..($count1 - 1)] | Measure-Object -Average).Average
-    $p01Ms = ($sorted[0..($count01 - 1)] | Measure-Object -Average).Average
-    $variance = (($times | ForEach-Object { ($_ - $avgMs) * ($_ - $avgMs) } | Measure-Object -Sum).Sum) / $count
-
+    if($valid.Count -lt 2 -or $rejected -gt [math]::Max(1,$rows.Count*.01)){throw 'Amostra invalida ou mais de 1% de linhas rejeitadas'}
+    $first=($valid|Measure-Object Time -Minimum).Minimum
+    $valid=@($valid|Where-Object {$_.Time -ge $first+1000*$SkipSeconds}|Sort-Object Time)
+    if($valid.Count -lt 2){throw 'Amostra insuficiente apos warmup'}
+    for($i=1;$i -lt $valid.Count;$i++){if($valid[$i].Time -le $valid[$i-1].Time){throw 'Timestamps duplicados/sem progressao no mesmo stream'}}
+    $duration=($valid[-1].Time-$valid[0].Time)/1000
+    if($duration -lt $MinimumSeconds){throw 'Captura curta demais para comparacao'}
+    $times=[double[]]@($valid|ForEach-Object {$_.Ms});[Array]::Sort($times)
+    $avg=($times|Measure-Object -Average).Average
+    $slow=$times.Clone();[Array]::Reverse($slow)
+    $low1=($slow[0..([math]::Ceiling($times.Length*.01)-1)]|Measure-Object -Average).Average
+    $low01=($slow[0..([math]::Ceiling($times.Length*.001)-1)]|Measure-Object -Average).Average
+    $variance=($times|ForEach-Object {($_-$avg)*($_-$avg)}|Measure-Object -Sum).Sum/$times.Length
+    $stutters=@($times|Where-Object {$_ -gt 16.667}).Count
     return [pscustomobject]@{
-        Csv = $CsvPath
-        Frames = $count
-        DurationSeconds = [math]::Round((($times | Measure-Object -Sum).Sum / 1000), 2)
-        AvgFps = [math]::Round(1000 / $avgMs, 2)
-        AvgMs = [math]::Round($avgMs, 3)
-        Low1Fps = [math]::Round(1000 / $p1Ms, 2)
-        Low1Ms = [math]::Round($p1Ms, 3)
-        Low01Fps = [math]::Round(1000 / $p01Ms, 2)
-        Low01Ms = [math]::Round($p01Ms, 3)
-        MaxMs = [math]::Round($sorted[0], 3)
-        MinMs = [math]::Round($sorted[-1], 3)
-        JitterMs = [math]::Round([math]::Sqrt($variance), 3)
+        Schema=2;Csv=[IO.Path]::GetFullPath($CsvPath);Metric=$durationColumn;TimeColumn=$timeColumn
+        ProcessId=$rows[0].ProcessID;SwapChain=$rows[0].SwapChainAddress;Runtime=$rows[0].PresentRuntime
+        PresentModes=@($rows|Select-Object -ExpandProperty PresentMode -Unique -ErrorAction SilentlyContinue)
+        Frames=$times.Length;RejectedRows=$rejected;SkipSeconds=$SkipSeconds;DurationSeconds=[math]::Round($duration,4)
+        AvgFps=[math]::Round(1000/$avg,3);AvgMs=$avg;Low1Fps=[math]::Round(1000/$low1,3);Low01Fps=[math]::Round(1000/$low01,3)
+        JitterMs=[math]::Sqrt($variance);P95Ms=(Get-BnqqPercentile $times .95);P99Ms=(Get-BnqqPercentile $times .99);P999Ms=(Get-BnqqPercentile $times .999)
+        MinMs=$times[0];MaxMs=$times[-1];Over16Ms=$stutters;Over33Ms=@($times|Where-Object {$_ -gt 33.333}).Count
+        StuttersPerMinute=60*$stutters/$duration;StutterDefinition='Interval >16.667 ms; fixed reporting threshold, not a universal perceptual threshold'
+        Claim='Frame/present interval; not end-to-end input latency or a tweak effectiveness verdict'
     }
 }
-
 function Invoke-BnqqFrameBench {
-    param(
-        [ValidateRange(10, 300)][int]$Seconds = 60,
-        [string]$ProcessName = 'cs2.exe',
-        [ValidateRange(0, 30)][int]$SkipSeconds = 5,
-        [string]$Hotkey = '',
-        [string]$OutputFile
-    )
-
-    $pm = Get-BnqqPresentMonPath
-    if (-not $pm) { throw 'PresentMon nao encontrado. Instale com: winget install Intel.PresentMon.Console' }
-    if (-not (Test-BnqqAdmin)) { throw 'PresentMon exige elevacao' }
-
-    $baseName = [IO.Path]::GetFileNameWithoutExtension($ProcessName)
-    $game = @(Get-Process -Name $baseName -ErrorAction SilentlyContinue | Select-Object -First 1)
-    if ($game.Count -eq 0) { throw ('Processo {0} nao esta aberto; abra o jogo antes do benchmark' -f $ProcessName) }
-    $game = $game[0]
-    $affinity = [int64]$game.ProcessorAffinity
-    $priority = $game.PriorityClass
-    Write-Bnqq ('FrameBench: {0} PID {1} | afinidade 0x{2:X} | prioridade {3}' -f $game.ProcessName, $game.Id, $affinity, $priority) 'INFO'
-    if (Get-Command Get-BnqqSafeGameMask -ErrorAction SilentlyContinue) {
-        $expectedMask = [int64](Get-BnqqSafeGameMask)
-        if ($expectedMask -ne 0 -and $affinity -ne $expectedMask) {
-            Write-Bnqq ('Afinidade fora do esperado 0x{0:X}; o watcher pode nao ter aplicado o plano' -f $expectedMask) 'WARN'
-        }
-    }
-    if ($priority -ne [System.Diagnostics.ProcessPriorityClass]::AboveNormal) {
-        Write-Bnqq ('Prioridade {0}; o padrao do watcher e AboveNormal' -f $priority) 'WARN'
-    }
-
-    if (-not $OutputFile) {
-        $dir = Join-Path $script:BnqqRoot 'reports'
-        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
-        $OutputFile = Join-Path $dir ('framebench-{0}.csv' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-    }
-    if (Test-Path -LiteralPath $OutputFile) { Remove-Item -LiteralPath $OutputFile -Force -ErrorAction SilentlyContinue }
-
-    $args = @(
-        '--process_name', $ProcessName,
-        '--output_file', $OutputFile,
-        '--timed', $Seconds,
-        '--terminate_after_timed',
-        '--session_name', ('BNQQ-FrameBench-' + [guid]::NewGuid().ToString('N'))
-    )
-    if ($Hotkey) { $args += @('--hotkey', $Hotkey) }
-
-    Write-Bnqq ('FrameBench: capturando {0}s de {1}' -f $Seconds, $ProcessName) 'STEP'
-    if ($Hotkey) { Write-Bnqq ('Pressione {0} para iniciar a captura' -f $Hotkey) 'INFO' }
-    & $pm @args 2>&1 | ForEach-Object { Write-Bnqq ([string]$_) 'INFO' }
-    if ($LASTEXITCODE -ne 0) { throw ('PresentMon falhou: exit {0}' -f $LASTEXITCODE) }
-
-    $stats = Get-BnqqFrameStats -CsvPath $OutputFile -SkipSeconds $SkipSeconds
-    $jsonPath = [IO.Path]::ChangeExtension($OutputFile, '.json')
-    $stats | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
-    Write-Host ''
-    Write-Host '  FRAMEBENCH' -ForegroundColor Cyan
-    Write-Host ('    CSV            {0}' -f $stats.Csv) -ForegroundColor Gray
-    Write-Host ('    JSON           {0}' -f $jsonPath) -ForegroundColor Gray
-    Write-Host ('    Frames         {0} em {1}s (skip {2}s)' -f $stats.Frames, $stats.DurationSeconds, $SkipSeconds) -ForegroundColor Gray
-    Write-Host ('    FPS medio      {0}' -f $stats.AvgFps) -ForegroundColor Gray
-    Write-Host ('    1% Low          {0} FPS  ({1} ms)' -f $stats.Low1Fps, $stats.Low1Ms) -ForegroundColor Yellow
-    Write-Host ('    0.1% Low        {0} FPS  ({1} ms)' -f $stats.Low01Fps, $stats.Low01Ms) -ForegroundColor Yellow
-    Write-Host ('    Frametime       avg {0} ms | max {1} ms | min {2} ms' -f $stats.AvgMs, $stats.MaxMs, $stats.MinMs) -ForegroundColor Gray
-    Write-Host ('    Jitter          {0} ms (desvio padrao)' -f $stats.JitterMs) -ForegroundColor Gray
-    Write-Host ''
-    return $stats
+    param([ValidateRange(10,300)][int]$Seconds=60,[string]$ProcessName='cs2.exe',[ValidateRange(0,30)][int]$SkipSeconds=5,[string]$Hotkey='',
+        [Parameter(Mandatory)][string]$Scenario,[Parameter(Mandatory)][string]$SettingsHash,[Parameter(Mandatory)][string]$ExperimentId,
+        [Parameter(Mandatory)][ValidateSet('baseline','candidate')][string]$Variant,[string]$SwapChain='',[string]$PresentMonPath)
+    if($Seconds-$SkipSeconds -lt 10){throw 'Exigir pelo menos 10s uteis apos warmup'}
+    if(-not $PresentMonPath){$PresentMonPath=Get-BnqqPresentMonPath}
+    if(-not (Test-Path -LiteralPath $PresentMonPath -PathType Leaf)){throw 'PresentMon ausente'}
+    $game=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($ProcessName)) -ErrorAction Stop)
+    if($game.Count -ne 1){throw 'Selecione exatamente uma instancia do jogo'}
+    $game=$game[0]
+    $session=Join-Path (Get-BnqqDataRoot) ('captures\'+[guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($session)
+    $output=Join-Path $session 'frames.csv'
+    $started=[datetime]::UtcNow.ToString('o')
+    $machine=Get-BnqqHardware
+    $context=[pscustomobject]@{ExperimentId=$ExperimentId;Scenario=$Scenario;SettingsHash=$SettingsHash;Game=$ProcessName;OS=@($machine.OS|Select-Object Version,BuildNumber);GPU=@($machine.GPU|Select-Object Name,DriverVersion,CurrentHorizontalResolution,CurrentVerticalResolution,CurrentRefreshRate);CPU=@($machine.ObservedCPU|Select-Object Name,NumberOfCores,NumberOfLogicalProcessors)}
+    if(-not @($context.OS).Count -or -not @($context.GPU).Count -or -not @($context.CPU).Count){throw 'Contexto de captura incompleto'}
+    $arguments=@('--process_id',[string]$game.Id,'--output_file',$output,'--timed',[string]$Seconds,'--terminate_after_timed','--session_name',('BNQQ-'+[guid]::NewGuid().ToString('N')))
+    if($Hotkey){$arguments+=@('--hotkey',$Hotkey)}
+    Write-Host 'Capture o mesmo cenario aquecido. Nao use o watcher com intervencoes variaveis. CSV nao mede automaticamente mouse-tela.'
+    & $PresentMonPath @arguments | ForEach-Object {Write-Host ([string]$_)}
+    if($LASTEXITCODE -ne 0){throw ('PresentMon falhou: '+$LASTEXITCODE)}
+    $files=@(Get-ChildItem -LiteralPath $session -Filter 'frames*.csv' -File)
+    if($files.Count -ne 1){throw 'Esperada uma captura; use uma sessao/hotkey por rodada e inspecione os CSVs produzidos'}
+    $stats=Get-BnqqFrameStats $files[0].FullName -SkipSeconds $SkipSeconds -ProcessId $game.Id -SwapChain $SwapChain
+    $result=[pscustomobject]@{Schema=2;Started=$started;Context=$context;Variant=$Variant;PresentMonHash=(Get-FileHash $PresentMonPath).Hash;Process=(Get-BnqqProcessSnapshot $game.Id);Stats=$stats;Effective=$null;Verdict='UNCOMPARED'}
+    $path=Join-Path $session 'result.json';Write-BnqqAtomicJson $result $path
+    Write-Host ('Resultado: '+$path)
+    return $result
 }
-
+function Compare-BnqqFrameBench {
+    param([Parameter(Mandatory)][string[]]$Files)
+    $runs=@($Files|ForEach-Object {Get-Content -LiteralPath $_ -Raw -Encoding UTF8 -ErrorAction Stop|ConvertFrom-Json}|Sort-Object Started)
+    if(@($Files|Select-Object -Unique).Count -ne $Files.Count){throw 'Rodadas duplicadas'}
+    $a=@($runs|Where-Object Variant -eq 'baseline');$b=@($runs|Where-Object Variant -eq 'candidate')
+    if($a.Count -lt 3 -or $b.Count -lt 3){throw 'Exigir pelo menos 3 baselines e 3 candidatas intercaladas'}
+    $ref=$runs[0]
+    foreach($run in $runs){
+        if($run.PSObject.Properties.Name -contains 'CaptureIntegrity' -and -not $run.CaptureIntegrity.Passed){throw 'Captura com guard reprovado; excluir da comparacao'}
+        if($run.Variant -notin @('baseline','candidate') -or $run.Schema -ne 2 -or $run.Stats.Schema -ne 2 -or -not (Test-BnqqSameValue $run.Context $ref.Context) -or $run.PresentMonHash -cne $ref.PresentMonHash -or $run.Stats.Metric -ne $ref.Stats.Metric -or $run.Stats.Runtime -ne $ref.Stats.Runtime -or $run.Stats.SkipSeconds -ne $ref.Stats.SkipSeconds){throw 'Rodadas de contextos/ferramentas/metricas diferentes'}
+        foreach($metric in @('AvgFps','P99Ms','P999Ms','JitterMs','StuttersPerMinute')){
+            $v=Convert-BnqqFiniteNumber $run.Stats.$metric
+            if($v -lt 0 -or ($metric -in @('AvgFps','P99Ms','P999Ms') -and $v -eq 0)){throw 'Metrica invalida'}
+        }
+        if($run.Stats.DurationSeconds -lt 10 -or $run.Stats.Frames -lt 1000){throw 'Amostra insuficiente'}
+    }
+    $transitions=0
+    for($i=1;$i -lt $runs.Count;$i++){if($runs[$i].Variant -ne $runs[$i-1].Variant){$transitions++}}
+    if($transitions -lt 3){throw 'Ordem agrupada: intercale A/B/BA para controlar drift'}
+    $base=@($a|ForEach-Object {$_.Stats.P99Ms});$candidate=@($b|ForEach-Object {$_.Stats.P99Ms})
+    $baseAvg=($base|Measure-Object -Average).Average;$candidateAvg=($candidate|Measure-Object -Average).Average
+    $faster=($candidate|Measure-Object -Maximum).Maximum -lt ($base|Measure-Object -Minimum).Minimum
+    $fpsOk=($b|ForEach-Object {$_.Stats.AvgFps}|Measure-Object -Average).Average -ge .99*($a|ForEach-Object {$_.Stats.AvgFps}|Measure-Object -Average).Average
+    $tailOk=($b|ForEach-Object {$_.Stats.P999Ms}|Measure-Object -Average).Average -le ($a|ForEach-Object {$_.Stats.P999Ms}|Measure-Object -Average).Average
+    return [pscustomobject]@{BaselineRuns=$a.Count;CandidateRuns=$b.Count;P99BaselineMs=$baseAvg;P99CandidateMs=$candidateAvg;P99DeltaPercent=100*($candidateAvg/$baseAvg-1);Effective=$(if($faster -and $fpsOk -and $tailOk){$true}else{$null});Verdict=$(if($faster -and $fpsOk -and $tailOk){'Vantagem de p99 nesta amostra controlada; repetir em outras sessoes'}else{'INCONCLUSIVE_OR_REGRESSION'});Limit='Sem teste de significancia formal; intervalo entre rodadas e contexto informado nao provam causalidade. Sem garantia universal ou de input lag.'}
+}

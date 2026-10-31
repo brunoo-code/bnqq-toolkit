@@ -1,0 +1,58 @@
+﻿Mapa de funcoes apos o patch 1.8.3. O diff Git fornece cada linha alterada.
+lib/Apps.ps1:1 function Get-BnqqChromiumAudit {
+lib/Apps.ps1:17 function Assert-BnqqShortcutPath {
+lib/Apps.ps1:25 function Remove-BnqqBadFlags {
+lib/Apps.ps1:29 function Get-BnqqShortcutSnapshot {
+lib/Apps.ps1:36 function Set-BnqqShortcutSnapshot {
+lib/Apps.ps1:43 function Repair-BnqqChromiumFlags {
+lib/Core.ps1:2 function Get-BnqqDataRoot {
+lib/Core.ps1:6 function Test-BnqqAdmin {
+lib/Core.ps1:10 function Write-Bnqq { param([string]$Message,[string]$Level='INFO'); Write-Host "[$Level] $Message" }
+lib/Core.ps1:11 function Write-BnqqAtomicJson {
+lib/Core.ps1:24 function Get-BnqqOwner { return [Security.Principal.WindowsIdentity]::GetCurrent().User.Value }
+lib/Core.ps1:25 function Enter-BnqqStateLock {
+lib/Core.ps1:31 function Get-BnqqRegistryTargets {
+lib/Core.ps1:35 function Get-RegSnapshot {
+lib/Core.ps1:42 function Set-BnqqRegistrySnapshot {
+lib/Core.ps1:60 function Test-BnqqSameValue { param($A,$B); return (($A|ConvertTo-Json -Compress -Depth 15) -ceq ($B|ConvertTo-Json -Compress -Depth 15)) }
+lib/Core.ps1:61 function Test-BnqqPartialState {
+lib/Core.ps1:76 function New-BnqqJournal {
+lib/Core.ps1:84 function Assert-BnqqOperation {
+lib/Core.ps1:110 function Get-BnqqPowerSnapshot {
+lib/Core.ps1:124 function Get-BnqqProcessSnapshot {
+lib/Core.ps1:129 function Get-BnqqOperationState {
+lib/Core.ps1:143 function Set-BnqqOperationState {
+lib/Core.ps1:173 function Invoke-BnqqJournalOperation {
+lib/Core.ps1:193 function Restore-BnqqJournal {
+lib/Core.ps1:221 function Assert-BnqqNoPendingJournal {
+lib/Diagnostics.ps1:1 function Get-BnqqHardware {
+lib/Diagnostics.ps1:21 function Show-BnqqDisplayGuidance {
+lib/FrameBench.ps1:1 function Get-BnqqPresentMonPath {
+lib/FrameBench.ps1:9 function Convert-BnqqFiniteNumber {
+lib/FrameBench.ps1:15 function Get-BnqqPercentile {
+lib/FrameBench.ps1:20 function Get-BnqqFrameStats {
+lib/FrameBench.ps1:68 function Invoke-BnqqFrameBench {
+lib/FrameBench.ps1:98 function Compare-BnqqFrameBench {
+lib/Governance.ps1:1 function Get-BnqqWheaEvents {
+lib/Governance.ps1:11 function Assert-BnqqWheaBaseline {
+lib/Governance.ps1:16 function Get-BnqqConfigurationFingerprint {
+lib/Governance.ps1:30 function Get-BnqqLatestHeavyQa {
+lib/Governance.ps1:41 function Assert-BnqqHeavyQa {
+lib/HeavyQA.ps1:1 function Test-BnqqHeavyQA {
+lib/HeavyQA.ps1:50 function New-BnqqVerifiedLoad {return (New-Object Bnqq.VerifiedLoad)}
+lib/HeavyQA.ps1:51 function Get-BnqqQaNow {return [datetime]::UtcNow}
+lib/License.ps1:6 function Get-BnqqHwid {
+lib/License.ps1:38 function Get-BnqqLicensePath {
+lib/License.ps1:42 function Test-BnqqLicense {
+lib/License.ps1:98 function Show-BnqqLicenseFailure {
+lib/NetworkAudit.ps1:1 function Get-BnqqNetworkAudit {
+lib/Optimize.ps1:1 function Get-BnqqCatalog { return @(Get-BnqqRegistryTargets) }
+lib/Optimize.ps1:2 function Invoke-BnqqApply {
+lib/Optimize.ps1:37 function Assert-BnqqRecordingCapability {
+lib/RuntimeLatency.ps1:1 function Initialize-BnqqForeground {
+lib/RuntimeLatency.ps1:13 function Get-BnqqForegroundPid {Initialize-BnqqForeground; return [Bnqq.Foreground]::Pid()}
+lib/RuntimeLatency.ps1:14 function New-BnqqRuntimeOperation {
+lib/Topology.ps1:1 function Get-BnqqTopology {
+lib/Topology.ps1:5 function Get-BnqqSafeGameMask {
+lib/Watcher.ps1:1 function Start-BnqqWatcher {
+lib/Watcher.ps1:51 function Stop-BnqqWatcher {

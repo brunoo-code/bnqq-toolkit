@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [string]$OutputPath,
-    [string]$Version = '1.8.2',
+    [string]$Version = '1.8.3',
     [switch]$KeepBuild
 )
 
@@ -26,6 +26,7 @@ $compressionRef = Join-Path $framework 'System.IO.Compression.FileSystem.dll'
 if (-not (Test-Path -LiteralPath $csc)) { throw "csc.exe nao encontrado em $framework" }
 if (-not (Test-Path -LiteralPath $compressionRef)) { throw "System.IO.Compression.FileSystem.dll nao encontrado em $framework" }
 
+if ([IO.Path]::GetFullPath($buildDir) -ne ([IO.Path]::GetFullPath((Join-Path $root 'build')))) { throw 'Build path invalido' }
 if (Test-Path -LiteralPath $buildDir) { Remove-Item -LiteralPath $buildDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
@@ -39,6 +40,14 @@ foreach ($item in @('lib', 'config')) {
 
 $payloadStamp = [Guid]::NewGuid().ToString('N')
 $payloadStamp | Set-Content -LiteralPath (Join-Path $staging 'payload.stamp') -Encoding ASCII
+
+$manifestLines=@(Get-ChildItem -LiteralPath $staging -Recurse -File | Sort-Object FullName | ForEach-Object {
+    '{0}|{1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash, $_.FullName.Substring($staging.Length+1)
+})
+$manifestFile=Join-Path $staging 'files.sha256'
+$manifestLines | Set-Content -LiteralPath $manifestFile -Encoding UTF8
+$manifestHash=(Get-FileHash $manifestFile -Algorithm SHA256).Hash
+
 $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
 if ($tar) {
     & $tar.Source -a -c -f $zipPath -C $staging .
@@ -54,6 +63,8 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BnqqLauncher
 {
@@ -61,6 +72,31 @@ namespace BnqqLauncher
     {
         private const string AppVersion = "__APP_VERSION__";
         private const string PayloadStamp = "__PAYLOAD_STAMP__";
+        private const string ManifestHash = "__MANIFEST_HASH__";
+        private static string HashFile(string path) {
+            using(SHA256 sha=SHA256.Create()) using(FileStream file=File.OpenRead(path))
+                return BitConverter.ToString(sha.ComputeHash(file)).Replace("-","");
+        }
+        private static void Verify(string dir) {
+            string manifest=Path.Combine(dir,"files.sha256");
+            if(HashFile(manifest)!=ManifestHash) throw new IOException("Manifesto do payload alterado");
+            foreach(string line in File.ReadAllLines(manifest)) {
+                string[] parts=line.Split(new char[]{'|'},2);
+                if(parts.Length!=2) throw new IOException("Manifesto invalido");
+                string path=Path.GetFullPath(Path.Combine(dir,parts[1]));
+                if(!path.StartsWith(Path.GetFullPath(dir)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)
+                    || HashFile(path)!=parts[0]) throw new IOException("Payload divergente: "+parts[1]);
+            }
+        }
+        private static string Quote(string value) {
+            StringBuilder b=new StringBuilder(); b.Append('"');int slashes=0;
+            foreach(char c in value) {
+                if(c=='\\') {slashes++;continue;}
+                if(c=='"') {b.Append('\\',slashes*2+1);b.Append(c);slashes=0;continue;}
+                b.Append('\\',slashes);slashes=0;b.Append(c);
+            }
+            b.Append('\\',slashes*2);b.Append('"');return b.ToString();
+        }
 
         private static int Main(string[] args)
         {
@@ -69,7 +105,7 @@ namespace BnqqLauncher
                 string baseDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "BNQQ_Optimizer",
-                    AppVersion);
+                    AppVersion + "-" + PayloadStamp);
                 string script = Path.Combine(baseDir, "bnqq.ps1");
                 string stampPath = Path.Combine(baseDir, "payload.stamp");
                 bool current = File.Exists(script) && File.Exists(stampPath)
@@ -79,7 +115,7 @@ namespace BnqqLauncher
                 {
                     if (Directory.Exists(baseDir))
                     {
-                        try { Directory.Delete(baseDir, true); } catch { }
+                        throw new IOException("Payload incompleto: use outro build; dados anteriores foram preservados.");
                     }
                     Directory.CreateDirectory(baseDir);
 
@@ -95,6 +131,8 @@ namespace BnqqLauncher
                     File.WriteAllText(stampPath, PayloadStamp);
                 }
 
+                Verify(baseDir);
+
                 if (args.Length > 0 && string.Equals(args[0], "--check", StringComparison.OrdinalIgnoreCase))
                 {
                     Console.WriteLine("payload=" + baseDir);
@@ -103,8 +141,9 @@ namespace BnqqLauncher
                 }
 
                 ProcessStartInfo psi = new ProcessStartInfo();
-                psi.FileName = "powershell.exe";
+                psi.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
                 psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\"";
+                foreach(string arg in args) psi.Arguments += " " + Quote(arg);
                 psi.WorkingDirectory = baseDir;
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = false;
@@ -133,7 +172,7 @@ namespace BnqqLauncher
     }
 }
 '@
-$csharp = $csharp.Replace('__APP_VERSION__', $Version).Replace('__PAYLOAD_STAMP__', $payloadStamp)
+$csharp = $csharp.Replace('__APP_VERSION__', $Version).Replace('__PAYLOAD_STAMP__', $payloadStamp).Replace('__MANIFEST_HASH__', $manifestHash)
 $csharp | Set-Content -LiteralPath $csPath -Encoding UTF8
 
 $manifest = @'
@@ -178,5 +217,6 @@ Write-Host ('Tamanho: {0:N0} bytes' -f $info.Length) -ForegroundColor Gray
 Write-Host 'Manifesto: requireAdministrator (UAC ao clicar)' -ForegroundColor Gray
 
 if (-not $KeepBuild) {
+    if ([IO.Path]::GetFullPath($buildDir) -ne ([IO.Path]::GetFullPath((Join-Path $root 'build')))) { throw 'Build path invalido' }
     Remove-Item -LiteralPath $buildDir -Recurse -Force -ErrorAction SilentlyContinue
 }

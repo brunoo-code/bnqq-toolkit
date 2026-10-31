@@ -1,0 +1,11 @@
+{
+  "CPU": null,
+  "Cores": null,
+  "Threads": null,
+  "Board": null,
+  "GPU": null,
+  "RamGB": null,
+  "RamMTs": null,
+  "FclkMHz": null,
+  "Source": "Unconfigured public declaration; measured sources never replaced by assumed hardware"
+}

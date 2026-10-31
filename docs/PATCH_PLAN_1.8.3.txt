@@ -1,0 +1,154 @@
+﻿BNQQ v1.8.3 - plano cirurgico anterior ao patch
+Escopo: somente optimizer-bnqq; o bnqq-toolkit publico nao sera publicado por esta tarefa.
+Os numeros abaixo referem-se ao HEAD 9a3baa4 antes da refatoracao.
+Os pacotes legados de mutacao serao retirados da distribuicao ativa; recuperaveis pelo Git.
+FILE lib/Core.ps1
+9: function Test-BnqqAdmin {
+15: function Invoke-BnqqElevation {
+29: function Start-BnqqLog {
+42: function Write-Bnqq {
+67: function Get-RegSnapshot {
+99: function Set-BnqqReg {
+130: function Set-BnqqMeta {
+135: function Save-BnqqBackup {
+157: function Restore-BnqqBackup {
+232: function New-BnqqRestorePoint {
+247: function Test-BnqqCmd {
+FILE lib/Watcher.ps1
+1: function Get-BnqqActivePlanGuid {
+8: function Get-BnqqPlanGuidByName {
+19: function New-BnqqUltimatePlan {
+38: function Set-BnqqUltimatePlanValues {
+62: function Get-BnqqPhysicalCoreMask {
+79: function Get-BnqqSafeGameMask {
+100: function Get-BnqqSafeBackgroundMask {
+114: function Get-BnqqSmtSiblingMask {
+129: function Set-BnqqProcessAffinity {
+145: function Get-BnqqWatcherTask {
+149: function Show-BnqqWatcherStatus {
+171: function Install-BnqqWatcher {
+211: function Uninstall-BnqqWatcher {
+231: function Start-BnqqWatcher {
+FILE lib/HeavyQA.ps1
+1: function Get-BnqqLatestHeavyQa {
+30: function Assert-BnqqHeavyQa {
+37: function Test-BnqqHeavyQA {
+FILE lib/FrameBench.ps1
+1: function Get-BnqqPresentMonPath {
+18: function Get-BnqqFrameStats {
+76: function Invoke-BnqqFrameBench {
+FILE lib/Optimize.ps1
+452: function Get-BnqqCatalog {
+456: function Get-BnqqProfile {
+472: function Set-BnqqPowerValue {
+483: function Set-BnqqCoreParking {
+493: function New-BnqqPowerPlan {
+538: function Set-BnqqPagefile {
+553: function Set-BnqqServices {
+574: function Set-BnqqNetworkAdapter {
+610: function Invoke-BnqqApply {
+FILE lib/Apps.ps1
+1: function Get-BnqqAppAudit {
+49: function Show-BnqqAppAudit {
+83: function Set-BnqqBrowserBackground {
+98: function Set-BnqqDiscordTweaks {
+130: function Set-BnqqStartupTrim {
+149: function Set-BnqqFastStartup {
+156: function Set-BnqqHibernate {
+163: function Set-BnqqMemoryCompression {
+175: function Set-BnqqVisualEffects {
+190: function Set-BnqqDefenderExclusions {
+232: function Set-BnqqProcessPriority {
+257: function Set-BnqqHypervisorOff {
+263: function Set-BnqqHypervisorOn {
+269: function Get-BnqqBcdAudit {
+282: function Set-BnqqPlatformClock {
+288: function Show-BnqqBcd {
+306: function Set-BnqqGpuPreference {
+333: function Set-BnqqDisplayOptimizations {
+354: function Set-BnqqDefenderCpuLimit {
+364: function Set-BnqqLargeSystemCache {
+369: function Set-BnqqMitigationsOff {
+376: function Set-BnqqCStates {
+390: function Set-BnqqBrowserChoking {
+406: function Set-BnqqShortcutFlags {
+452: function Restore-BnqqShortcuts {
+472: function Set-BnqqAiCleanup {
+FILE lib/Kernel.ps1
+1: function Get-BnqqInterruptTargets {
+27: function Get-BnqqDeviceKey {
+36: function New-BnqqAffinityMask {
+50: function Set-BnqqMsiPriority {
+85: function Set-BnqqInterruptAffinity {
+116: function Add-BnqqNetAdapterBackup {
+135: function Set-BnqqNdisOffloads {
+187: function Set-BnqqRssTuning {
+231: function Set-BnqqTcpKernel {
+262: function Set-BnqqNtfsShortNames {
+272: function Set-BnqqEtwAutologgers {
+295: function Set-BnqqPremiumNetworkOffloads {
+312: function Set-BnqqPremiumPowerSettings {
+345: function Set-BnqqBcdTimer {
+357: function Set-BnqqBcdDynamicTick {
+379: function Get-BnqqKernelAudit {    $targets = Get-BnqqInterruptTargets
+412: function Show-BnqqKernelAudit {
+FILE lib/LatencyTune.ps1
+1: function Get-BnqqLatencyPowerIndex {
+17: function Get-BnqqLatencyTcpStatus {
+31: function Get-BnqqLatencyTuneStatus {
+50: function Show-BnqqLatencyTuneStatus {
+82: function Set-BnqqLatencyTcp {
+102: function Set-BnqqLatencyPower {
+165: function Set-BnqqLatencyTune {
+FILE lib/Analyze.ps1
+1: function Get-PowerIndex {
+18: function Get-BnqqHardware {
+78: function Get-BnqqBios {
+136: function Get-BnqqOs {
+202: function Get-BnqqLoad {
+230: function Add-Finding {
+249: function Test-BnqqGpuRebarUnsupported {
+258: function Get-BnqqFindings {
+430: function Invoke-BnqqAnalysis {
+459: function Show-BnqqReport {
+FILE lib/Stability.ps1
+1: function Get-BnqqWheaEvents {
+93: function Test-BnqqStability {
+FILE lib/Ultimate.ps1
+1: function Set-BnqqUltimateAiOff {
+11: function Set-BnqqUltimateServices {
+52: function Set-BnqqUltimateMmcSS {
+62: function Set-BnqqUltimateDesktopHeap {
+75: function Set-BnqqUltimateVbsOff {
+85: function Set-BnqqUltimate {
+106: function Get-BnqqUltimateStatus {
+131: function Show-BnqqUltimateStatus {
+FILE lib/Services.ps1
+72: function Get-BnqqServiceCatalog {
+76: function Get-BnqqServiceAudit {
+96: function Show-BnqqServiceAudit {
+132: function Set-BnqqServiceTier {
+FILE lib/BnqqProcessLasso.cs
+13: private const uint PROCESS_MODE_BACKGROUND_BEGIN = 0x00100000;
+14: private const uint PROCESS_MODE_BACKGROUND_END = 0x00200000;
+15: private const int ProcessMemoryPriority = 39;
+17: private const int MaxPendingEvents = 64;
+18: private const int MaxTrackedProcesses = 512;
+173: if (Tracked.Count >= MaxTrackedProcesses)
+192: bool background = SetPriorityClass(handle, PROCESS_MODE_BACKGROUND_BEGIN);
+242: if (Interlocked.Increment(ref _pending) > MaxPendingEvents)
+279: if (state.BackgroundMode) SetPriorityClass(handle, PROCESS_MODE_BACKGROUND_END);
+1 Governanca: novo Governance.ps1, fingerprint de boot/config e WHEA fail-closed.
+2 Watcher/Lasso: substituir loops de intervencao por observacao limitada; prioridade e afinidade experimentais opcionais.
+3 Memoria: eliminar purge/trim de caminhos automaticos e perfis.
+4 Topologia: novo Topology.cs com GetLogicalProcessorInformationEx, CIM apenas para corroboracao.
+5 DWM/MPO: diagnostico de present mode, sem OverlayTestMode automatico.
+6 Rede: diagnostico TCP/UDP e portas, sem tuning global.
+7 Prioridade: AboveNormal opcional por processo identificado, sem MMCSS customizado.
+8 Chromium: retirar flags invertidas e oferecer limpeza exata e reversivel de atalhos legados.
+9 Estado: diario duravel por sessao, restauracao inversa, validacao de alvos e conflitos.
+10 QA: carga C# com verificacao aritmetica, I/O verificado e monitoramento WHEA durante carga e idle.
+11 Telemetria: identidade declarada versus observada, unknown e fontes independentes.
+12 Framebench: validacao schema/stream, percentis, metadados e comparacao controlada.
+13 Git: testes isolados, build, revisao de diff, commit e push automaticos.
+Nao executar apply, rollback de maquina, stress prolongado ou instalar tarefas nesta tarefa.
