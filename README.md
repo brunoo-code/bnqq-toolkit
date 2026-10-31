@@ -124,3 +124,7 @@ Gerador de rajadas CPU/memoria verificada, com deadline nativo e coordenador mon
 ## Etapa 2.1.1 - sessao competitiva integrada
 
 compete reune prioridade dinamica, manutencao opcional e upload de apps explicitamente selecionados, em um unico controlador com restauracao. Inventario diferencia NVIDIA/AMD/Intel/Unknown sem copiar ajustes entre drivers. Sem alteracoes do jogo, clocks ou GPU. Veja [comportamento e limites](docs/COMPETITION-SESSION.md). Recuperacao de incidentes cobre as prioridades novas e journal NIC ativo solicita restauracao ativa.
+
+## Etapa 2.1.2 - fechamento da campanha
+
+Guard synthetic reconhece nomes versionados PresentMon; fixtures de recuperacao/gerador validam o caminho antes da limpeza. O mapa dos 20 vetores consolida acoes existentes e pendencias. Codigo e CI nao comprovam ganho de desempenho do hardware; medicao real continua condicionada a estabilidade.

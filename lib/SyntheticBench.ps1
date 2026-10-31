@@ -36,12 +36,11 @@ function Get-BnqqSyntheticHostSample {
     finally{$p.Dispose()}
 }
 function Assert-BnqqSyntheticNoGame {
-    $names=@('cs2','VALORANT-Win64-Shipping','PresentMon','PresentMon64','PresentMon-1.10.0-x64')
-    foreach($name in $names){
-        $found=@(Get-Process -Name $name -ErrorAction SilentlyContinue)
-        try{if($found.Count){throw ('Synthetic recusado com jogo/captura ativo: '+$name)}}
-        finally{foreach($p in $found){$p.Dispose()}}
-    }
+    $processes=@(Get-Process -ErrorAction Stop)
+    try{
+        $blocked=@($processes|Where-Object {$_.ProcessName -in @('cs2','VALORANT-Win64-Shipping') -or $_.ProcessName -like 'PresentMon*'})
+        if($blocked.Count){throw ('Synthetic recusado com jogo/PresentMon ativo: '+(($blocked|Select-Object -ExpandProperty ProcessName -Unique)-join ', '))}
+    }finally{foreach($p in $processes){$p.Dispose()}}
     if(Get-Command Assert-BnqqNoDynamicFocus -ErrorAction SilentlyContinue){Assert-BnqqNoDynamicFocus}
 }
 function Invoke-BnqqSyntheticBench {

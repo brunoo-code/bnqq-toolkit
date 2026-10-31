@@ -55,4 +55,8 @@ try {
  $results=@(Get-ChildItem $temp -Recurse -Filter '*.json'|ForEach-Object {Get-Content $_.FullName -Raw|ConvertFrom-Json})
  Check (@($results|Where-Object Verdict -eq 'FAILED').Count -eq 2) 'Failures were published as successful measurements'
  ('PASS: synthetic '+$script:checks+' checks; C# kernel fixture, bounds, no native load, WHEA/game refusal, success/fault cleanup and durable results')
-}finally{if([IO.Directory]::Exists($temp)){[IO.Directory]::Delete($temp,$true)}}
+}finally{
+ $full=[IO.Path]::GetFullPath($temp);$allowedRoot=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+ if(-not $full.StartsWith($allowedRoot,[StringComparison]::OrdinalIgnoreCase) -or (Split-Path $full -Leaf) -notlike 'bnqq-synthetic-*'){throw 'Unsafe synthetic fixture cleanup'}
+ if([IO.Directory]::Exists($full)){[IO.Directory]::Delete($full,$true)}
+}

@@ -54,6 +54,7 @@ jobs:
           ./tests/SyntheticBench.ps1
           ./tests/SyntheticCli.ps1
           ./tests/SyntheticNativeCI.ps1
+          ./tests/SyntheticProcessGuard.ps1
           ./tests/CompetitionSession.ps1
           ./tests/CompetitionCli.ps1
           ./tests/IncidentIntegration.ps1

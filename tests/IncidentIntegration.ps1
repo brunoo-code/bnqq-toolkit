@@ -14,4 +14,8 @@ try{
  $r=Get-Content $file -Raw|ConvertFrom-Json
  if($r.Status -ne 'Restored' -or $r.Entries[0].Status -ne 'Exited'){throw 'Incident entrypoint did not recover new priority kind'}
  'PASS: incident script loads background-priority adapter and recovers an exited identity without mutation'
-}finally{if([IO.Directory]::Exists($temp)){[IO.Directory]::Delete($temp,$true)}}
+}finally{
+ $full=[IO.Path]::GetFullPath($temp);$allowedRoot=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+ if(-not $full.StartsWith($allowedRoot,[StringComparison]::OrdinalIgnoreCase) -or (Split-Path $full -Leaf) -notlike 'bnqq-incident-*'){throw 'Unsafe incident fixture cleanup'}
+ if([IO.Directory]::Exists($full)){[IO.Directory]::Delete($full,$true)}
+}
