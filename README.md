@@ -182,3 +182,14 @@ Journal e verificacao de estado esperado permanecem obrigatorios nos controlador
 O fingerprint WorkloadOnly agora inclui BackgroundBudget.ps1, ProcessSampling.ps1 e ProcessTelemetry.cs, alem dos quatro arquivos anteriores. Alterar/remover o backend invalida o atestado; nenhum HeavyQA novo e gerado automaticamente. Testes usam um auxiliar ocioso proprio para aplicar BelowNormal e restaurar seu estado original pelo journal, validando tambem recusas de nome, criacao, usuario, sessao, prioridade anterior e classe nao admitida. Nenhum app do usuario ou jogo e modificado nesses testes.
 
 Reducao de custo interno nao comprova aumento de FPS ou melhora de percentis. Testes reais continuam condicionados a estabilidade do hardware. Referencia: [SetPriorityClass](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setpriorityclass).
+## Preferencias de inicializacao 2.2.0
+
+Novo comando startup e opcao 25 permitem desativar somente registros HKCU Run selecionados de RobloxPlayerBeta e Spotify desktop. O plano exige executavel local com nome e assinatura de fabricante verificados; aplicar exige selecao explicita. A preferencia e independente dos perfis de energia/clock/captura e nao executa carga. Nenhum gate WHEA/HeavyQA existente foi removido.
+
+O comando original, tipo e existencia sao preservados no journal atomico antes da remocao do valor. Rollback restaura o comando exato, inclusive aspas, argumentos e variaveis de ambiente; conflitos externos nao sao sobrescritos. O arquivo de backup anterior nao e substituido por reaplicacoes sem mudancas. Recuperacao geral e Incident-Rollback reconhecem o novo tipo Startup.
+
+Riot Client, Vanguard (vgk/vgc e bandeja), FACEIT, Discord e componentes de seguranca estao fora da whitelist. Nao se encerram aplicativos, jogos ou servicos. Nao se altera startup de drivers. O efeito e nos proximos logins; nao se solicita reinicio nem se declara ganho imediato de FPS. Aplicativos/atualizadores podem recriar sua entrada. Inicializacoes por tarefas/pacotes ou por outros usuarios ficam fora do escopo.
+
+No PC privado, somente RobloxPlayerBeta foi desativado e sua ausencia no Run foi verificada. Riot Client, FACEIT e Start de vgk/vgc permaneceram iguais; a transmissao no navegador foi preservada. O backup pessoal fica apenas no AppData, nunca no payload publico.
+
+Referencia: [Run e RunOnce da Microsoft](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys). A Riot tambem documenta o [Vanguard Pre-Check e a configuracao de vgc](https://support.riotgames.com/en-us/riot/security/set-vgc-as-automatic/); o otimizador nao presume que Manual signifique defeito nem muda o modo de carregamento do anti-cheat.

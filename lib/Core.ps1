@@ -88,6 +88,7 @@ function New-BnqqJournal {
 function Assert-BnqqOperation {
     param($Op)
     switch($Op.Kind){
+        'Startup' {Assert-BnqqStartupOperation $Op}
         'BackgroundPriority' {
             if($Op.Before.Name -notin (Get-BnqqBudgetAllowedApps) -or $Op.Before.ProcessId -le 0 -or -not $Op.Before.StartTime -or $Op.After.ProcessId -ne $Op.Before.ProcessId -or $Op.After.StartTime -cne $Op.Before.StartTime -or $Op.After.Name -cne $Op.Before.Name){throw 'Identidade de prioridade background invalida'}
             if($Op.Before.Priority -notin @('Normal','AboveNormal','High') -or $Op.After.Priority -cne 'BelowNormal'){throw 'Transicao de prioridade background invalida'}
@@ -158,6 +159,7 @@ function Get-BnqqProcessSnapshot {
 function Get-BnqqOperationState {
     param($Op)
     switch($Op.Kind){
+        'Startup' {Get-RegSnapshot $Op.Before.Path $Op.Before.Name}
         'BackgroundPriority' {Get-BnqqBudgetState $Op.Before.ProcessId $Op.Before}
         'ScheduledTask' {Get-BnqqTaskState $Op.Before}
         'Service' {Get-BnqqSearchState}
@@ -179,6 +181,10 @@ function Set-BnqqOperationState {
     param($Op,$State,$ExpectedState)
     Assert-BnqqOperation $Op
     switch($Op.Kind){
+        'Startup' {
+            $expected=if($PSBoundParameters.ContainsKey('ExpectedState')){$ExpectedState}else{Get-BnqqOperationState $Op}
+            Set-BnqqStartupState $Op $State $expected
+        }
         'BackgroundPriority' {
             $expected=if($PSBoundParameters.ContainsKey('ExpectedState')){$ExpectedState}else{Get-BnqqOperationState $Op}
             Set-BnqqBudgetState $State $expected

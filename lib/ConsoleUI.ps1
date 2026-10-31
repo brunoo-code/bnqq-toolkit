@@ -1,4 +1,4 @@
-# Presentation only: importing/rendering never probes hardware or applies settings.
+﻿# Presentation only: importing/rendering never probes hardware or applies settings.
 function Show-BnqqConsoleMenu {
     param([string]$Version,[ValidateSet('PUBLIC','PRIVATE')][string]$Edition='PUBLIC')
     $logo=@(
@@ -38,7 +38,8 @@ function Show-BnqqConsoleMenu {
         'USB e perifericos - consulta',
         'Seguranca / VBS - consulta',
         'Analise DPC/ISR - formato de entrada',
-        'Ajuda e comandos'
+        'Ajuda e comandos',
+        'Inicializacao opcional de aplicativos'
     )
     for($i=0;$i -lt $labels.Count;$i++){
         Write-Host ('  '+('[{0}]' -f ($i+1)).PadRight(5)+$labels[$i]) -ForegroundColor Gray
