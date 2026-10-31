@@ -21,6 +21,9 @@ jobs:
         run: |
           ./tests/GameSession.ps1
           ./tests/RecoveryHub.ps1
+      - name: Legacy IFEO migration fixtures
+        shell: powershell
+        run: ./tests/LegacyMigration.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild
