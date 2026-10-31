@@ -155,3 +155,12 @@ No modo Priority, o plano segue a ordem de atividade medida e encerra a consulta
 Testes exercitam observacao somente de leitura no proprio teste e em um pequeno auxiliar que aguarda EOF na entrada padrao, sem jogo ou stress. Fixtures do controlador cobrem reutilizacao de PID, falha de espera, recusa de abertura e liberacao mesmo com falha de restauracao. Menos chamadas no controlador nao comprovam mais FPS: comparacoes de frametime continuam pendentes da estabilidade do hardware.
 
 Referencia: [WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject) e [direitos de acesso de processos](https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights).
+## Persistencia 2.1.7 - lote de prioridades
+
+O Focus Priority prepara ate duas operacoes no mesmo journal atomico antes da primeira alteracao e confirma o lote depois de verificar individualmente os destinos. Para dois candidatos, sao duas gravacoes duraveis em vez de quatro, excluindo a criacao do journal. O teto continua em dois candidatos por rodada e 512 participantes por periodo. O modo CPU Sets continua aplicando suas operacoes individualmente. A recuperacao continua verificando e persistindo cada entrada, sem agrupar o rollback.
+
+Prepared permanece suficiente para recuperar uma interrupcao entre as alteracoes e a confirmacao final. Falha na preparacao impede escritas nos alvos; falha posterior deixa o journal recuperavel. O lote recusa nomes/tipos indevidos, duplicatas internas, conflito no estado anterior e periodo pendente. Testes usam arquivos atomicos reais com estados de processos simulados, incluindo indisponibilidade de disco apos a primeira alteracao e recusa de sobrescrever prioridade externa.
+
+A escrita e restauracao de BackgroundPriority e CpuSets agora passam o estado esperado capturado para o adaptador, em vez de substituir essa referencia por uma leitura mais recente. Isso fecha uma janela em que uma prioridade alterada externamente apos o backup poderia ser sobrescrita. As validacoes de PID, criacao, usuario, sessao e leitura posterior permanecem nos adaptadores.
+
+A mudanca no Core invalida atestados HeavyQA vinculados ao hash anterior; nenhum atestado novo e gerado automaticamente. Esta versao altera o codigo, sem aplicar perfil de Windows, rede ou jogo. Menos persistencias nao comprovam ganho de FPS ou reducao de frametime: comparacoes reais continuam pendentes da estabilidade do hardware.

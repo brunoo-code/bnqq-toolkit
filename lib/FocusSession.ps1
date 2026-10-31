@@ -86,6 +86,9 @@ function Update-BnqqFocusEpoch {
         }
     })
     $candidates=@($ranked|Sort-Object Rate -Descending|Select-Object -First 2)
+    if(-not $candidates.Count){return}
+    if($State.Journal -and $State.Journal.Data.Entries.Count+$candidates.Count -gt 512){throw 'Limite de 512 participantes por periodo; restaurar e encerrar'}
+    $batch=@()
     foreach($candidate in $candidates){
         if(-not $State.Journal){
             if(++$State.Epochs -gt 64){throw 'Limite de 64 periodos de foco; restaurar e encerrar'}
@@ -94,8 +97,15 @@ function Update-BnqqFocusEpoch {
         }
         if($State.Journal.Data.Entries.Count -ge 512){throw 'Limite de 512 participantes por periodo; restaurar e encerrar'}
         $candidate.Operation|Add-Member -NotePropertyName ActivityEvidence -NotePropertyValue ([pscustomobject]@{CpuMsPerSecond=$candidate.Rate;WindowSeconds=$ElapsedSeconds;ThresholdMsPerSecond=25;SampledUtc=[datetime]::UtcNow.ToString('o');FpsBenefitProven=$false})
-        Invoke-BnqqJournalOperation $State.Journal $candidate.Operation
-        $State.Touched[$candidate.Key]=$true;$State.Changes++
+        if($Policy -eq 'Priority'){$batch+=@($candidate.Operation)}
+        else{
+            Invoke-BnqqJournalOperation $State.Journal $candidate.Operation
+            $State.Touched[$candidate.Key]=$true;$State.Changes++
+        }
+    }
+    if($batch.Count){
+        Invoke-BnqqPriorityBatch $State.Journal $batch
+        foreach($candidate in $candidates){$State.Touched[$candidate.Key]=$true;$State.Changes++}
     }
 }
 function Restore-BnqqFocusEpoch {

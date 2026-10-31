@@ -176,15 +176,21 @@ function Get-BnqqOperationState {
     }
 }
 function Set-BnqqOperationState {
-    param($Op,$State)
+    param($Op,$State,$ExpectedState)
     Assert-BnqqOperation $Op
     switch($Op.Kind){
-        'BackgroundPriority' {Set-BnqqBudgetState $State (Get-BnqqOperationState $Op)}
+        'BackgroundPriority' {
+            $expected=if($PSBoundParameters.ContainsKey('ExpectedState')){$ExpectedState}else{Get-BnqqOperationState $Op}
+            Set-BnqqBudgetState $State $expected
+        }
         'ScheduledTask' {Set-BnqqMaintenanceState $Op $State}
         'Service' {Set-BnqqMaintenanceState $Op $State}
         'Registry' {Set-BnqqRegistrySnapshot $State}
         'Shortcut' {Set-BnqqShortcutSnapshot $State}
-        'CpuSets' {Set-BnqqCpuSetProcessState $State (Get-BnqqOperationState $Op)}
+        'CpuSets' {
+            $expected=if($PSBoundParameters.ContainsKey('ExpectedState')){$ExpectedState}else{Get-BnqqOperationState $Op}
+            Set-BnqqCpuSetProcessState $State $expected
+        }
         'Power' {
             $current=Get-BnqqPowerSnapshot -Scheme $State.Scheme -Setting $State.Setting
             $changed=$false
@@ -225,13 +231,52 @@ function Invoke-BnqqJournalOperation {
     # Write-ahead: if this fails, the target is never changed.
     Write-BnqqAtomicJson $Journal.Data $Journal.File
     try {
-        Set-BnqqOperationState $Operation $Operation.After
+        Set-BnqqOperationState $Operation $Operation.After -ExpectedState $Operation.Before
         $actual=Get-BnqqOperationState $Operation
         if(-not (Test-BnqqSameValue $actual $Operation.After)){throw 'Leitura posterior divergiu do destino'}
         $Operation.Status='Applied'
         Write-BnqqAtomicJson $Journal.Data $Journal.File
     } catch {
         $Operation.Status='Failed'; $Journal.Data.Status='NeedsRecovery'
+        Write-BnqqAtomicJson $Journal.Data $Journal.File
+        throw
+    }
+}
+function Invoke-BnqqPriorityBatch {
+    param($Journal,[object[]]$Operations)
+    # Bounded priority-only write-ahead batch. Prepared entries already support
+    # recovery if the process exits between target writes and the final commit.
+    if(@($Operations).Count -lt 1 -or @($Operations).Count -gt 2){throw 'Lote aceita uma ou duas prioridades'}
+    if($Journal.Data.Schema -ne 2 -or $Journal.Data.Owner -cne (Get-BnqqOwner) -or $Journal.Data.Status -cne 'Open'){throw 'Journal de lote invalido'}
+    if(@($Journal.Data.Entries).Count+@($Operations).Count -gt 512){throw 'Limite de 512 participantes por periodo'}
+    # The owning session admits only fully completed batches. Avoid repeatedly
+    # revalidating the whole epoch here; recovery validates every persisted entry.
+    if(@($Journal.Data.Entries).Count -and $Journal.Data.Entries[-1].Status -cne 'Applied'){throw 'Lote anterior pendente'}
+    $identities=@{}
+    foreach($op in $Operations){
+        if($op.Kind -cne 'BackgroundPriority'){throw 'Lote exclusivo de prioridade em segundo plano'}
+        Assert-BnqqOperation $op
+        $key=[string]$op.Before.ProcessId+'|'+$op.Before.StartTime
+        if($identities.ContainsKey($key)){throw 'Processo duplicado no lote'}
+        $identities[$key]=$true
+        if(-not (Test-BnqqSameValue (Get-BnqqOperationState $op) $op.Before)){throw 'Alvo do lote mudou desde a captura'}
+    }
+    foreach($op in $Operations){$op|Add-Member NoteProperty Status 'Prepared' -Force}
+    $Journal.Data.Entries=@($Journal.Data.Entries)+@($Operations)
+    # Persist every original state before the first target write. Do not suppress errors.
+    Write-BnqqAtomicJson $Journal.Data $Journal.File
+    $current=$null
+    try{
+        foreach($op in $Operations){
+            $current=$op
+            Set-BnqqOperationState $op $op.After -ExpectedState $op.Before
+            if(-not (Test-BnqqSameValue (Get-BnqqOperationState $op) $op.After)){throw 'Leitura posterior do lote divergiu'}
+            $op.Status='Applied'
+        }
+        Write-BnqqAtomicJson $Journal.Data $Journal.File
+    }catch{
+        if($current){$current.Status='Failed'}
+        $Journal.Data.Status='NeedsRecovery'
         Write-BnqqAtomicJson $Journal.Data $Journal.File
         throw
     }
@@ -252,7 +297,7 @@ function Restore-BnqqJournal {
             else {
                 # Failed/prepared operations can be partial; applied operations must still match.
                 if(-not (Test-BnqqSameValue $actual $op.After) -and -not ($op.Status -in @('Prepared','Failed') -and (Test-BnqqPartialState $op $actual))){throw 'Conflito: alvo alterado fora desta sessao'}
-                Set-BnqqOperationState $op $op.Before
+                Set-BnqqOperationState $op $op.Before -ExpectedState $actual
                 if(-not (Test-BnqqSameValue (Get-BnqqOperationState $op) $op.Before)){throw 'Restauracao nao verificada'}
                 $op.Status='Restored'
             }

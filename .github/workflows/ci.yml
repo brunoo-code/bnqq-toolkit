@@ -47,6 +47,7 @@ jobs:
           ./tests/ProcessLifetime.ps1
           ./tests/FocusSession.ps1
           ./tests/BackgroundBudget.ps1
+          ./tests/PriorityBatch.ps1
           ./tests/FocusCli.ps1
           ./tests/DriverAudit.ps1
           ./tests/DpcAnalysis.ps1
