@@ -2,7 +2,9 @@
 
 O comando `valorant` edita exclusivamente sete chaves **já presentes** em `[ScalabilityGroups]` no `GameUserSettings.ini`: `sg.ShadowQuality`, `sg.AntiAliasingQuality`, `sg.PostProcessQuality`, `sg.TextureQuality`, `sg.EffectsQuality`, `sg.FoliageQuality` e `sg.ShadingQuality`. Define nível `0`, sem inserir seções/chaves ausentes nem alterar outros grupos, resolução, sensibilidade ou binds.
 
-Na [documentação de escalabilidade da Epic](https://dev.epicgames.com/documentation/unreal-engine/customizing-device-profiles-and-scalability-for-android?application_version=4.27), `0` é o nível Low do framework. Isso **não comprova** que todos esses grupos sejam consumidos pelo VALORANT, correspondam às opções de seu menu ou produzam ganho de FPS. O cliente pode ignorar ou substituir valores. O comando informa `FpsGainProven=false` e efeito de runtime não verificado. Não é uma remoção de conteúdo da engine.
+Na [documentação de escalabilidade da Epic](https://dev.epicgames.com/documentation/unreal-engine/customizing-device-profiles-and-scalability-in-unreal-engine-projects-for-android), `0` é o nível Low do framework. Isso **não comprova** que todos esses grupos sejam consumidos pelo VALORANT, correspondam às opções de seu menu ou produzam ganho de FPS. O cliente pode ignorar ou substituir valores. O comando informa `FpsGainProven=false` e efeito de runtime não verificado. Não é uma remoção de conteúdo da engine.
+
+O título “UE4 Engine Stripping” não descreve o cliente atual: a [Riot anunciou a migração de UE4.27 para UE5.3 no patch 11.02, em julho de 2025](https://playvalorant.com/en-gb/news/game-updates/valorant-patch-notes-11-02/). Não transplantamos receitas de outro jogo/versão nem alteramos configurações internas de renderização.
 
 Para ajustes com suporte do fabricante, a [Riot recomenda as opções do menu gráfico](https://support.riotgames.com/en-us/riot/performance/optimize-graphics-settings-for-better-fps-windows-and-mac). Não divulgamos redução de custo GPU/frametime como medida até haver confirmação de que os valores foram aceitos e uma comparação controlada.
 
