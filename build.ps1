@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [string]$OutputPath,
-    [string]$Version = '2.1.2',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$')][string]$Version = '2.1.3',
     [switch]$KeepBuild
 )
 
@@ -98,40 +98,41 @@ namespace BnqqLauncher
             b.Append('\\',slashes*2);b.Append('"');return b.ToString();
         }
 
+        private static string EnsurePayload(string parent) {
+            parent=Path.GetFullPath(parent);
+            string baseDir=Path.Combine(parent,AppVersion+"-"+PayloadStamp);
+            if(Directory.Exists(baseDir)) { Verify(baseDir);return baseDir; }
+            Directory.CreateDirectory(parent);
+            string staging=baseDir+".extract-"+Guid.NewGuid().ToString("N");
+            string zip=Path.Combine(Path.GetTempPath(),"bnqq-payload-"+Guid.NewGuid().ToString("N")+".zip");
+            try {
+                using(Stream resource=Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")) {
+                    if(resource==null)throw new InvalidOperationException("payload.zip ausente no executavel");
+                    using(FileStream file=File.Create(zip)){resource.CopyTo(file);}
+                }
+                // Preserve every hashed byte, including payload.stamp's newline.
+                ZipFile.ExtractToDirectory(zip,staging);
+                Verify(staging);
+                try{Directory.Move(staging,baseDir);}
+                catch(IOException){if(!Directory.Exists(baseDir))throw;Verify(baseDir);}
+                Verify(baseDir);
+                return baseDir;
+            } finally {
+                try{if(File.Exists(zip))File.Delete(zip);}catch{}
+                string prefix=parent.TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+                if(!Path.GetFullPath(staging).StartsWith(prefix,StringComparison.OrdinalIgnoreCase))throw new IOException("Caminho temporario invalido");
+                if(Directory.Exists(staging))Directory.Delete(staging,true);
+            }
+        }
+
         private static int Main(string[] args)
         {
             try
             {
-                string baseDir = Path.Combine(
+                string baseDir = EnsurePayload(Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "BNQQ_Optimizer",
-                    AppVersion + "-" + PayloadStamp);
+                    "BNQQ_Optimizer"));
                 string script = Path.Combine(baseDir, "bnqq.ps1");
-                string stampPath = Path.Combine(baseDir, "payload.stamp");
-                bool current = File.Exists(script) && File.Exists(stampPath)
-                    && File.ReadAllText(stampPath).Trim() == PayloadStamp;
-
-                if (!current)
-                {
-                    if (Directory.Exists(baseDir))
-                    {
-                        throw new IOException("Payload incompleto: use outro build; dados anteriores foram preservados.");
-                    }
-                    Directory.CreateDirectory(baseDir);
-
-                    string zip = Path.Combine(Path.GetTempPath(), "bnqq-payload-" + Guid.NewGuid().ToString("N") + ".zip");
-                    using (Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip"))
-                    {
-                        if (resource == null) throw new InvalidOperationException("payload.zip ausente no executavel");
-                        using (FileStream file = File.Create(zip)) { resource.CopyTo(file); }
-                    }
-
-                    try { ZipFile.ExtractToDirectory(zip, baseDir); }
-                    finally { try { File.Delete(zip); } catch { } }
-                    File.WriteAllText(stampPath, PayloadStamp);
-                }
-
-                Verify(baseDir);
 
                 if (args.Length > 0 && string.Equals(args[0], "--check", StringComparison.OrdinalIgnoreCase))
                 {

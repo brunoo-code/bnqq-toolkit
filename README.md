@@ -128,3 +128,7 @@ compete reune prioridade dinamica, manutencao opcional e upload de apps explicit
 ## Etapa 2.1.2 - fechamento da campanha
 
 Guard synthetic reconhece nomes versionados PresentMon; fixtures de recuperacao/gerador validam o caminho antes da limpeza. O mapa dos 20 vetores consolida acoes existentes e pendencias. Codigo e CI nao comprovam ganho de desempenho do hardware; medicao real continua condicionada a estabilidade.
+
+## Correcao 2.1.3 - abertura do executavel
+
+O launcher preserva os bytes de payload.stamp, extrai e verifica o ZIP em staging e publica o cache somente apos verificacao. Testes agora exercitam extracao do recurso real, reutilizacao do cache e recusa de arquivos alterados. Cache antigo e dados pessoais sao preservados.
