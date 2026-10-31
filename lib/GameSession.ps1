@@ -1,4 +1,4 @@
-# Opt-in, fixed-participant session. No suspend/kill, affinity, timer or memory purge.
+﻿# Opt-in, fixed-participant session. No suspend/kill, affinity, timer or memory purge.
 function Get-BnqqSessionAllowedApps {
     return @('msedge','chrome','firefox','Discord','OneDrive','LAMZU Aurora','AJAZZ Driver')
 }
@@ -79,7 +79,7 @@ function Invoke-BnqqGameSession {
     }
     if($Action -eq 'run'){
         if(-not $Apps.Count){throw 'Escolha -SessionApps; lista vazia nunca altera aplicativos'}
-        Assert-BnqqHeavyQa
+        Assert-BnqqHeavyQa -WorkloadOnly
     }
     $lock=Enter-BnqqStateLock
     try {

@@ -114,7 +114,7 @@ function Invoke-BnqqCpuSession {
     if($Action -eq 'restore'){return (Invoke-BnqqRecovery $File)}
     $lock=$null;$j=$null;$since=Get-Date
     try {
-        Assert-BnqqHeavyQa
+        if($UnparkCpu){Assert-BnqqHeavyQa}else{Assert-BnqqHeavyQa -WorkloadOnly}
         $lock=Enter-BnqqStateLock;Assert-BnqqNoPendingJournal
         $plan=Get-BnqqCpuSessionPlan $Apps $BackgroundCores -UnparkCpu:$UnparkCpu
         foreach($errorText in $plan.Errors){Write-BnqqNightLog 'CPU-SKIP' $errorText}

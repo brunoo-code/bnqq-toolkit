@@ -40,6 +40,8 @@ jobs:
       - name: Focus and maintenance leases (mock adapters)
         shell: powershell
         run: |
+          ./tests/GovernanceScopes.ps1
+          ./tests/NicActivation.ps1
           ./tests/Maintenance.ps1
           ./tests/FocusSession.ps1
       - name: Compile launcher and payload

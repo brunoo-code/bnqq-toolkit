@@ -203,6 +203,7 @@ public static class QueueStress {
 
     # HeavyQA orchestration under virtual time and deterministic workers. No 10-minute stress.
     $script:clock=[datetime]::UtcNow;$script:phase='idle';$script:qaMode='pass';$script:stopped=$false
+    function Get-BnqqQaPowerEvents {param($Since);return @()}
     function Get-BnqqQaNow {$script:clock=$script:clock.AddSeconds(15);return $script:clock}
     function Start-Sleep {param($Seconds,$Milliseconds)}
     function New-BnqqVerifiedLoad {

@@ -4,9 +4,10 @@ param([switch]$Apply,[string[]]$Apps=@('msedge','chrome','firefox','Discord','On
     [ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$UnparkCpu,
     [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe')
 $ErrorActionPreference='Stop'
+$phaseStarted=Get-Date
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
 foreach($name in @('Core','Governance','CpuSession','GameSession')){. (Join-Path $script:BnqqRoot ('lib\'+$name+'.ps1'))}
-$result=[pscustomobject]@{Schema='BNQQ.Phase1.1';Started=[datetime]::UtcNow.ToString('o');Status='Preview';Plan=$null;Result=$null;Error=$null;Health=$null;Journal=$null;Rollback=$null;PerformanceMeasured=$false}
+$result=[pscustomobject]@{Schema='BNQQ.Phase1.1';Started=[datetime]::UtcNow.ToString('o');Status='Preview';Plan=$null;Result=$null;Error=$null;Health=$null;HistoricHealth72h=$null;Journal=$null;Rollback=$null;PerformanceMeasured=$false}
 try {
     $result.Plan=Get-BnqqCpuSessionPlan $Apps $BackgroundCores -UnparkCpu:$UnparkCpu
     if($Apply){
@@ -20,7 +21,8 @@ try {
 }finally{
     # This check does not clear logs or claim recovery from a BSOD. Only the
     # current vector's durable journal may be restored, never an unrelated backup.
-    $result.Health=Get-BnqqPhaseHealth -Since (Get-Date).AddHours(-72)
+    $result.Health=Get-BnqqPhaseHealth -Since $phaseStarted
+$result.HistoricHealth72h=Get-BnqqPhaseHealth -Since (Get-Date).AddHours(-72)
     if(-not $result.Health.Healthy){
         if($result.Journal){
             try {

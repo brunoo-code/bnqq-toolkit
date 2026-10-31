@@ -91,7 +91,7 @@ function Invoke-BnqqNetworkSession {
     if($Action -eq 'run'){
         $plan=Get-BnqqNetworkSessionPlan $Apps $UploadKbps
         if(-not $plan.Apps.Count){throw 'Escolha apps; lista vazia nunca limita a conexao inteira'}
-        Assert-BnqqHeavyQa
+        Assert-BnqqHeavyQa -WorkloadOnly
     }
     $lock=Enter-BnqqStateLock
     try {

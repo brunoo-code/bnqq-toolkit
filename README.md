@@ -1,4 +1,4 @@
-# BNQQ Toolkit Public 2.0.3
+# BNQQ Toolkit Public 2.0.4
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -92,3 +92,7 @@ Motor 1.8.5: sessao de prioridade opt-in e recuperacao unificada. Veja [docs/SES
 ### Fase 4: concorrencia durante o jogo
 
 Modo `focus`: CPU Sets de background apos atividade medida, restauracao no Alt+Tab, indexador e manutencao temporarios opt-in. Sem alvo implicito nem ganho de FPS presumido. [Comportamento, limites e rollback](docs/V2-PHASE4.md).
+
+### Fase 5: da preparacao a aplicacao
+
+`readiness` separa historico WHEA de falhas neste boot. Recursos reversiveis exigem novo HeavyQA schema 3; energia/clocks mantem a regra de 72h. O atestado de recursos acompanha hardware e implementacao do teste, sem vencer a cada novo modulo. `nic -NicAction activate` aplica a configuracao salva com reset explicito do adaptador e leitura do driver; `restore-active` restaura tambem o estado carregado. [Detalhes e limites](docs/V2-PHASE5.md).

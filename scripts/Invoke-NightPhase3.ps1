@@ -2,9 +2,10 @@
 [CmdletBinding()]
 param([switch]$Apply,[string]$AdapterName)
 $ErrorActionPreference='Stop'
+$phaseStarted=Get-Date
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
 foreach($n in @('Core','Governance','CpuSession','StorageMemory','NicPolicy')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
-$r=[pscustomobject]@{Schema='BNQQ.Phase3.1';Started=[datetime]::UtcNow.ToString('o');Memory=$null;Vectors=@();Health=$null;PerformanceMeasured=$false}
+$r=[pscustomobject]@{Schema='BNQQ.Phase3.1';Started=[datetime]::UtcNow.ToString('o');Memory=$null;Vectors=@();Health=$null;HistoricHealth72h=$null;PerformanceMeasured=$false}
 try{$r.Memory=Get-BnqqMemoryReport}catch{Write-BnqqNightLog 'PHASE3-MEMORY-UNKNOWN' $_.Exception.Message}
 foreach($vector in @('NVMe','NIC')){
     $e=[pscustomobject]@{Vector=$vector;Status='Preview';Result=$null;Journal=$null;Error=$null;Rollback=$null}
@@ -15,7 +16,8 @@ foreach($vector in @('NVMe','NIC')){
     }catch{$e.Status='BlockedOrFailed';$e.Error=$_.Exception.Message;$e.Journal=$_.Exception.Data['BnqqJournal'];Write-BnqqNightLog ('PHASE3-'+$vector+'-FAILED') $e.Error}
     $r.Vectors+=@($e)
 }
-$r.Health=Get-BnqqPhaseHealth -Since (Get-Date).AddHours(-72)
+$r.Health=Get-BnqqPhaseHealth -Since $phaseStarted
+$r.HistoricHealth72h=Get-BnqqPhaseHealth -Since (Get-Date).AddHours(-72)
 if(-not $r.Health.Healthy){
     foreach($e in $r.Vectors){
         if($e.Journal){

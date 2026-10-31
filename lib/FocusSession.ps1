@@ -1,4 +1,4 @@
-# Bounded, sampled background CPU placement; never touches the game's scheduling.
+﻿# Bounded, sampled background CPU placement; never touches the game's scheduling.
 function Get-BnqqFocusIdentity {
     param([int]$ProcessId)
     $p=Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
@@ -116,7 +116,7 @@ function Invoke-BnqqFocusSession {
     $plan=Get-BnqqFocusPlan $Apps $BackgroundCores -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance
     if($Action -eq 'plan'){return $plan}
     if(-not @($Apps).Count -and -not $PauseSearch -and -not $DeferMaintenance){throw 'Selecione apps ou manutencao; nenhum alvo implicito'}
-    Assert-BnqqHeavyQa
+    Assert-BnqqHeavyQa -WorkloadOnly
     $script:BnqqFocusSampleErrors=@{}
     if($plan.Maintenance.RequiresAdmin -and -not (Test-BnqqAdmin)){throw 'Manutencao temporaria exige administrador'}
     $gameProcesses=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($Game)) -ErrorAction Stop)

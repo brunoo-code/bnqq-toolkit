@@ -7,10 +7,11 @@
     $lock=Enter-BnqqStateLock
     $load=New-BnqqVerifiedLoad
     $file=Join-Path (Get-BnqqDataRoot) ([guid]::NewGuid().ToString('N')+'.qa.bin')
-    $started=Get-Date;$fingerprint=$null;$events=@();$errorText=$null;$complete=$false;$cpuOk=$false;$ioOk=$false
+    $started=Get-Date;$fingerprint=$null;$resourceFingerprint=$null;$strictStable=$false;$events=@();$powerEvents=@();$errorText=$null;$complete=$false;$cpuOk=$false;$ioOk=$false
     try {
         Assert-BnqqNoPendingJournal
         $fingerprint=Get-BnqqConfigurationFingerprint
+        $resourceFingerprint=Get-BnqqConfigurationFingerprint -WorkloadOnly
         # Invalidate any previous PASS before starting, even if this run crashes.
         Write-BnqqAtomicJson @{Schema=2;Verdict='RUNNING';Generated=[datetime]::UtcNow.ToString('o')} (Join-Path (Get-BnqqDataRoot) 'heavyqa.json')
         $initial=Get-BnqqWheaEvents -Since $started
@@ -20,6 +21,8 @@
         while((Get-BnqqQaNow) -lt $deadline){
             Start-Sleep -Seconds 2
             $probe=Get-BnqqWheaEvents -Since $started
+            $powerEvents=@(Get-BnqqQaPowerEvents -Since $started)
+            if($powerEvents.Count){throw 'Kernel-Power 41 durante carga'}
             if($probe.Error){throw $probe.Error}
             if(@($probe.Events).Count){$events=@($probe.Events);throw 'WHEA durante carga'}
             if($load.Failed -or -not $load.Running){throw 'Worker CPU/I/O falhou ou encerrou antes do prazo'}
@@ -31,17 +34,20 @@
         while((Get-BnqqQaNow) -lt $deadline){
             Start-Sleep -Seconds 2
             $probe=Get-BnqqWheaEvents -Since $started
+            $powerEvents=@(Get-BnqqQaPowerEvents -Since $started)
+            if($powerEvents.Count){throw 'Kernel-Power 41 durante cauda idle'}
             if($probe.Error){throw $probe.Error}
             if(@($probe.Events).Count){$events=@($probe.Events);throw 'WHEA durante cauda idle'}
         }
-        if((Get-BnqqConfigurationFingerprint) -cne $fingerprint){throw 'Configuracao mudou durante o teste'}
+        $strictStable=(Get-BnqqConfigurationFingerprint) -ceq $fingerprint
+        if((Get-BnqqConfigurationFingerprint -WorkloadOnly) -cne $resourceFingerprint){throw 'Contexto de hardware/teste mudou durante a carga'}
         $complete=$cpuOk -and $ioOk
     }catch{$errorText=$_.Exception.Message}
     finally{
         try{
             try{$load.Dispose();if(Test-Path $file){Remove-Item -LiteralPath $file -ErrorAction Stop}}
             catch{$errorText='Cleanup: '+$_.Exception.Message;$complete=$false}
-            $result=[pscustomobject]@{Schema=2;Owner=(Get-BnqqOwner);Generated=[datetime]::UtcNow.ToString('o');Started=$started.ToUniversalTime().ToString('o');Fingerprint=$fingerprint;Seconds=$Minutes*60;IdleTailSeconds=$IdleTailSeconds;Threads=$Threads;CpuVerified=$cpuOk;IoVerified=$ioOk;CpuPasses=$load.CpuPasses;IoPasses=$load.IoPasses;Completed=$complete;WheaCount=$events.Count;Error=$errorText;Verdict=$(if($complete -and -not $errorText){'PASS'}else{'FAIL'});Limit='Sem erro detectado nesta carga e janela. Nao certifica estabilidade absoluta, CO, RAM ou GPU; BIOS/CO externos nao sao totalmente observaveis.'}
+            $result=[pscustomobject]@{Schema=3;Owner=(Get-BnqqOwner);Generated=[datetime]::UtcNow.ToString('o');Started=$started.ToUniversalTime().ToString('o');Fingerprint=$fingerprint;ResourceFingerprint=$resourceFingerprint;StrictConfigurationVerified=$strictStable;KernelPower41Count=$powerEvents.Count;Seconds=$Minutes*60;IdleTailSeconds=$IdleTailSeconds;Threads=$Threads;CpuVerified=$cpuOk;IoVerified=$ioOk;CpuPasses=$load.CpuPasses;IoPasses=$load.IoPasses;Completed=$complete;WheaCount=$events.Count;Error=$errorText;Verdict=$(if($complete -and -not $errorText){'PASS'}else{'FAIL'});Limit='Sem erro detectado nesta carga e janela. Nao certifica estabilidade absoluta, CO, RAM ou GPU; BIOS/CO externos nao sao totalmente observaveis.'}
             Write-BnqqAtomicJson $result (Join-Path (Get-BnqqDataRoot) 'heavyqa.json')
         }finally{$lock.Dispose()}
     }
@@ -49,3 +55,8 @@
 }
 function New-BnqqVerifiedLoad {return (New-Object Bnqq.VerifiedLoad)}
 function Get-BnqqQaNow {return [datetime]::UtcNow}
+function Get-BnqqQaPowerEvents {
+    param([datetime]$Since)
+    try{return @(Get-WinEvent -FilterHashtable @{LogName='System';ProviderName='Microsoft-Windows-Kernel-Power';Id=41;StartTime=$Since} -ErrorAction Stop)}
+    catch{if($_.FullyQualifiedErrorId -like 'NoMatchingEventsFound*'){return @()};throw}
+}
