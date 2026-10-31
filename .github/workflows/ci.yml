@@ -51,6 +51,9 @@ jobs:
           ./tests/DriverCli.ps1
           ./tests/PlatformAudit.ps1
           ./tests/SessionProcessScope.ps1
+          ./tests/SyntheticBench.ps1
+          ./tests/SyntheticCli.ps1
+          ./tests/SyntheticNativeCI.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

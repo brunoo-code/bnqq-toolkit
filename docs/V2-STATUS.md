@@ -1,4 +1,4 @@
-﻿# Estado dos 20 vetores — 2.0.9
+﻿# Estado dos 20 vetores — 2.1.0
 
 Implementar uma funcao nao demonstra ganho de desempenho. Nenhum vetor abaixo
 autoriza aplicar ajustes em hardware com WHEA ativo. O inventario deve separar
@@ -66,3 +66,9 @@ sem alteracoes de seguranca, firmware ou IRQ. WHEA 18 bloqueia recursos em
 Vetores 7/14/19: prioridade adaptativa com liberacao apos atividade baixa,
 histerese e cooldown; sessao legada verifica escopo e corrida de prioridade.
 Sem aplicacao no host com WHEA, sem ganho de desempenho declarado.
+
+## Etapa 2.1.0 (fase 11)
+
+Vetores 3/18/19: gerador sintetico C# CPU/memoria com limites, contador verificado
+e medidor do processo hospedeiro. Referencia FrameBench anexavel, sem equivalencia
+de carga com o prefire. Nao executado neste host com WHEA recente.

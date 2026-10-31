@@ -116,3 +116,7 @@ Consultas timers, usb-topology e security, sem alteracoes de BCD/IRQ/seguranca. 
 ## Etapa 2.0.9 - controle adaptativo
 
 Priority libera o periodo apos tres amostras de atividade baixa e respeita cooldown de 15 segundos. A sessao antiga tambem verifica usuario/sessao e prioridade no handle antes da escrita. Nenhum ganho de FPS foi demonstrado. Veja [controle de background](docs/BACKGROUND-BUDGET.md).
+
+## Etapa 2.1.0 - carga sintetica C#
+
+Gerador de rajadas CPU/memoria verificada, com deadline nativo e coordenador monitorado. Nao reproduz o prefire nem emite certificado de estabilidade. Captura FrameBench pode ser anexada como referencia, sem calibracao ficticia. Veja [limites e testes](docs/SYNTHETIC-BENCH.md). WHEA recente impede iniciar carga.
