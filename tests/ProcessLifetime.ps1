@@ -33,10 +33,15 @@ try{
  $start=New-Object Diagnostics.ProcessStartInfo
  $start.FileName=$exe;$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle='Hidden';$start.RedirectStandardInput=$true
  $child=[Diagnostics.Process]::Start($start)
+ # Hosted runners may launch children BelowNormal. Establish the journal's
+ # admitted baseline on this owned fixture only; do not relax production policy.
+ Write-Output ('Owned fixture launch priority: '+$child.PriorityClass.ToString())
+ $child.PriorityClass=[Diagnostics.ProcessPriorityClass]::Normal
  $identity=[pscustomobject]@{ProcessId=$child.Id;Name=$child.ProcessName;StartTime=$child.StartTime.ToUniversalTime().ToString('o')}
  $watch=New-BnqqFocusGameWatch $identity
  Check ($watch -and (Test-BnqqFocusGameWatchAlive $watch)) 'Owned helper not observed'
  $priority=Get-BnqqBudgetState $child.Id
+ Check ($priority.Priority -ceq 'Normal') 'Owned fixture baseline is not Normal'
  Check ($priority.Name -ceq 'msedge' -and $priority.StartTime -ceq $identity.StartTime -and $priority.Priority -ceq $child.PriorityClass.ToString()) 'Production budget getter differs from owned helper'
  $wrong=$priority|Select-Object *;$wrong.StartTime='replacement'
  Check ($null -eq (Get-BnqqBudgetState $child.Id $wrong)) 'Budget getter accepted another creation time'
