@@ -16,19 +16,20 @@ param(
     [switch]$Effective,[switch]$PrepareCleanState,[string]$BaselineFile,
     [string]$GameConfigDirectory,[ValidateSet('plan','apply','restore')][string]$CompetitiveAction='plan',
     [ValidateSet(0,2,4,8)][int]$Msaa=2,
-    [int]$GameCap=-1,[int]$MenuCap=120
+    [int]$GameCap=-1,[int]$MenuCap=120,
+    [ValidateSet('plan','run','restore')][string]$SessionAction='plan',[string[]]$SessionApps
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
-foreach($file in @('Core','Governance','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing')){
+foreach($file in @('Core','Governance','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','RecoveryHub')){
     . (Join-Path $script:BnqqRoot ('lib\'+$file+'.ps1'))
 }
 try {
     if($Command -eq 'menu'){
-        Write-Host 'BNQQ 1.8.4 | diagnostico e experimentos reversiveis | sem ganho presumido'
+        Write-Host 'BNQQ 1.8.5 | diagnostico e experimentos reversiveis | sem ganho presumido'
         if([Environment]::UserInteractive){
-            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [0] Sair'
-            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}default{return}}
+            Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [7] Sessao de jogo [8] Recuperacao [0] Sair'
+            switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}default{return}}
         }else{$Command='audit'}
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
@@ -59,6 +60,8 @@ try {
             $lock=Enter-BnqqStateLock
             try{Restore-BnqqJournal $BackupFile | ConvertTo-Json -Depth 8}finally{$lock.Dispose()}
         }
+        'session' {if($DryRun){$SessionAction='plan'};Invoke-BnqqGameSession -Action $SessionAction -Apps $SessionApps -Game $FrameProcess -File $BackupFile | ConvertTo-Json -Depth 8}
+        'recover' {if($DryRun -or -not $BackupFile){Get-BnqqRecoveryCatalog | ConvertTo-Json -Depth 4}else{Invoke-BnqqRecovery $BackupFile | ConvertTo-Json -Depth 8}}
         'framepacing' {if($DryRun){$CompetitiveAction='plan'};Invoke-BnqqFramePacing -Directory $GameConfigDirectory -Action $CompetitiveAction -GameCap $GameCap -MenuCap $MenuCap -BackupFile $BackupFile | ConvertTo-Json -Depth 6}
         'competitive' {if($DryRun){$CompetitiveAction='plan'};Invoke-BnqqGameProfile -Directory $GameConfigDirectory -Action $CompetitiveAction -Msaa $Msaa -BackupFile $BackupFile | ConvertTo-Json -Depth 6}
         'heavyqa' {Test-BnqqHeavyQA -Minutes $HeavyMinutes -Threads $HeavyThreads | ConvertTo-Json -Depth 6}
@@ -77,8 +80,8 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 1.8.4 — Windows PowerShell 5.1 x64
-audit | network | display | topology | apps | status | verdict | framepacing | competitive
+BNQQ 1.8.5 — Windows PowerShell 5.1 x64
+audit | network | display | topology | apps | status | verdict | framepacing | session | recover | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware
 apply -Profile recording-off                    exige QA e journal sem pendencias

@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [string]$OutputPath,
-    [string]$Version = '1.8.4',
+    [string]$Version = '1.8.5',
     [switch]$KeepBuild
 )
 

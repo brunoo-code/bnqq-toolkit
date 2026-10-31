@@ -1,4 +1,4 @@
-﻿# BNQQ Toolkit Public 1.8.4
+﻿# BNQQ Toolkit Public 1.8.5
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -76,3 +76,5 @@ Veja [sincronizacao publica e framebench -Effective](docs/PUBLIC_SYNC.md). O mod
 Perfil grafico reversivel CS2: veja [docs/COMPETITIVE.md](docs/COMPETITIVE.md). O comando competitive altera apenas MSAA com backup; nao libera tweaks bloqueados por WHEA.
 
 Atualizacao do motor 1.8.4: [modulos FPS](docs/FPS-1.8.4.md), caps reversiveis de menu/partida e gates contra regressao de lows/jitter. Nenhum ganho percentual demonstrado.
+
+Motor 1.8.5: sessao de prioridade opt-in e recuperacao unificada. Veja [docs/SESSION-1.8.5.md](docs/SESSION-1.8.5.md). Sem ganho de FPS demonstrado.

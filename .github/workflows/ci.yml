@@ -16,6 +16,11 @@ jobs:
         run: |
           ./tests/FramePacing.ps1
           ./tests/PerformanceGates.ps1
+      - name: Session lifecycle and unified recovery
+        shell: powershell
+        run: |
+          ./tests/GameSession.ps1
+          ./tests/RecoveryHub.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild
