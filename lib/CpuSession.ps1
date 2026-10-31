@@ -2,6 +2,16 @@
     if(-not ('Bnqq.CpuSets' -as [type])){Add-Type -Path (Join-Path $script:BnqqRoot 'lib\CpuSets.cs') -ErrorAction Stop}
 }
 function Get-BnqqCpuSetTable {Initialize-BnqqCpuSets;return @([Bnqq.CpuSets]::Enumerate())}
+function Assert-BnqqCpuProcessScope {
+    param($Process,[IntPtr]$Handle)
+    Initialize-BnqqCpuSets
+    if(-not $script:BnqqCpuScope){
+        $self=[Diagnostics.Process]::GetCurrentProcess();$identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+        try{$script:BnqqCpuScope=[pscustomobject]@{SessionId=$self.SessionId;Owner=$identity.User.Value}}
+        finally{$self.Dispose();$identity.Dispose()}
+    }
+    if($Process.SessionId -ne $script:BnqqCpuScope.SessionId -or [Bnqq.CpuSets]::OwnerSid($Handle) -cne $script:BnqqCpuScope.Owner){throw 'CPU Sets recusado: processo de outro usuario/sessao'}
+}
 function Write-BnqqNightLog {
     param([string]$Stage,[string]$Message)
     $root=Get-BnqqDataRoot;[void][IO.Directory]::CreateDirectory($root)
@@ -26,6 +36,7 @@ function Get-BnqqCpuSetProcessState {
     try {
         $handle=$p.Handle;$start=$p.StartTime.ToUniversalTime().ToString('o');$name=$p.ProcessName
         if($Expected -and ($start -cne $Expected.StartTime -or $name -ine $Expected.Name)){return $null}
+        Assert-BnqqCpuProcessScope $p $handle
         return [pscustomobject]@{ProcessId=$p.Id;Name=$name;StartTime=$start;Sets=@([Bnqq.CpuSets]::Read($handle))}
     }finally{$p.Dispose()}
 }
@@ -36,6 +47,7 @@ function Set-BnqqCpuSetProcessState {
     $p=Get-Process -Id $State.ProcessId -ErrorAction Stop
     try {
         $handle=$p.Handle
+        Assert-BnqqCpuProcessScope $p $handle
         $live=[pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Sets=@([Bnqq.CpuSets]::Read($handle))}
         if(-not (Test-BnqqSameValue $live $Expected) -or $live.StartTime -cne $State.StartTime -or $live.Name -ine $State.Name){throw 'Processo/CPU Sets mudou antes da escrita'}
         $available=@(Get-BnqqCpuSetTable|Select-Object -ExpandProperty Id)

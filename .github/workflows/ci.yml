@@ -1,4 +1,4 @@
-﻿name: Windows regression
+name: Windows regression
 on: [push, pull_request]
 jobs:
   windows:
@@ -37,6 +37,11 @@ jobs:
         run: |
           ./tests/StorageMemory.ps1
           ./tests/NicPolicy.ps1
+      - name: Focus and maintenance leases (mock adapters)
+        shell: powershell
+        run: |
+          ./tests/Maintenance.ps1
+          ./tests/FocusSession.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

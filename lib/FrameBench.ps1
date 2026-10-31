@@ -73,6 +73,7 @@ function Invoke-BnqqFrameBench {
     if($GpuTelemetry -and $Hotkey){throw 'Telemetria GPU exige captura temporizada sem hotkey para preservar a janela de coleta'}
     if(-not $PresentMonPath){$PresentMonPath=Get-BnqqPresentMonPath}
     if(-not (Test-Path -LiteralPath $PresentMonPath -PathType Leaf)){throw 'PresentMon ausente'}
+    if(Get-Command Assert-BnqqNoDynamicFocus -ErrorAction SilentlyContinue){Assert-BnqqNoDynamicFocus}
     $game=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($ProcessName)) -ErrorAction Stop)
     if($game.Count -ne 1){throw 'Selecione exatamente uma instancia do jogo'}
     $game=$game[0]

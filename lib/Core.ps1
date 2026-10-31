@@ -60,6 +60,10 @@ function Set-BnqqRegistrySnapshot {
 function Test-BnqqSameValue { param($A,$B); return (($A|ConvertTo-Json -Compress -Depth 15) -ceq ($B|ConvertTo-Json -Compress -Depth 15)) }
 function Test-BnqqPartialState {
     param($Op,$Actual)
+    if($Op.Kind -eq 'Service' -and $Actual -and $Op.Status -in @('Prepared','Failed') -and $Actual.State -in @(2,3)){
+        $copy=$Actual|Select-Object *;$copy.State=$Op.Before.State
+        return (Test-BnqqSameValue $copy $Op.Before)
+    }
     if(-not $Actual){return $false}
     if($Op.Kind -eq 'Registry'){
         return (-not $Op.Before.Existed -and -not $Actual.Existed -and $Actual.Path -eq $Op.Before.Path -and $Actual.Name -eq $Op.Before.Name)
@@ -84,6 +88,8 @@ function New-BnqqJournal {
 function Assert-BnqqOperation {
     param($Op)
     switch($Op.Kind){
+        'ScheduledTask' {Assert-BnqqMaintenanceOperation $Op}
+        'Service' {Assert-BnqqMaintenanceOperation $Op}
         'Registry' {
             $target=@(Get-BnqqRegistryTargets | Where-Object {$_.Path -ieq $Op.Before.Path -and $_.Name -ceq $Op.Before.Name})
             if($target.Count -ne 1 -or $Op.After.Path -ine $Op.Before.Path -or $Op.After.Name -cne $Op.Before.Name){throw 'Alvo de registro fora da lista auditada'}
@@ -148,6 +154,8 @@ function Get-BnqqProcessSnapshot {
 function Get-BnqqOperationState {
     param($Op)
     switch($Op.Kind){
+        'ScheduledTask' {Get-BnqqTaskState $Op.Before}
+        'Service' {Get-BnqqSearchState}
         'Registry' {Get-RegSnapshot $Op.Before.Path $Op.Before.Name}
         'Shortcut' {Get-BnqqShortcutSnapshot $Op.Before.Path}
         'Power' {Get-BnqqPowerSnapshot -Scheme $Op.Before.Scheme -Setting $Op.Before.Setting}
@@ -166,6 +174,8 @@ function Set-BnqqOperationState {
     param($Op,$State)
     Assert-BnqqOperation $Op
     switch($Op.Kind){
+        'ScheduledTask' {Set-BnqqMaintenanceState $Op $State}
+        'Service' {Set-BnqqMaintenanceState $Op $State}
         'Registry' {Set-BnqqRegistrySnapshot $State}
         'Shortcut' {Set-BnqqShortcutSnapshot $State}
         'CpuSets' {Set-BnqqCpuSetProcessState $State (Get-BnqqOperationState $Op)}

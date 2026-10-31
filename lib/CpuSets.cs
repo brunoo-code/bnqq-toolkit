@@ -7,6 +7,14 @@ namespace Bnqq {
   public uint Id; public ushort Group; public byte Logical, Core, Cache, Efficiency, Flags;
  }
  public static class CpuSets {
+  [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
+  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+  public static string OwnerSid(IntPtr process) {
+   IntPtr token;
+   if(!OpenProcessToken(process,8,out token))throw new Win32Exception();
+   try{using(var identity=new System.Security.Principal.WindowsIdentity(token)){return identity.User.Value;}}
+   finally{CloseHandle(token);}
+  }
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetSystemCpuSetInformation(IntPtr p,uint n,out uint needed,IntPtr process,uint flags);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessDefaultCpuSets(IntPtr process,[Out] uint[] ids,uint count,out uint needed);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetProcessDefaultCpuSets(IntPtr process,uint[] ids,uint count);

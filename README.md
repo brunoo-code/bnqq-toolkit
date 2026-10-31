@@ -1,8 +1,8 @@
-﻿# BNQQ Toolkit Public 2.0.2
+# BNQQ Toolkit Public 2.0.3
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
-Sincronizado do núcleo privado `optimizer-bnqq`, commit `a9d03250520980eea0d99713cf4380a1a18ed624`. A distribuição pública não inclui gate de HWID/licença, chave de assinatura ou preset pessoal. O histórico público foi preservado; não houve merge de objetos Git privados.
+Núcleo compartilhado com o repositório privado `optimizer-bnqq`, com atualizações publicadas em ambos. A distribuição pública não inclui gate de HWID/licença, chave de assinatura ou preset pessoal. O histórico público foi preservado; não houve merge de objetos Git privados.
 
 ## Começar sem modificar o Windows
 
@@ -88,3 +88,7 @@ Motor 1.8.5: sessao de prioridade opt-in e recuperacao unificada. Veja [docs/SES
 2.0.1 fase 2 (vetores 2/13/18): backend NVIDIA por perfil existente, shader cache preservado e telemetria GPU nativa opcional no FrameBench. Menu 12; veja [docs/V2-PHASE2.md](docs/V2-PHASE2.md). Sem ganho de FPS presumido.
 
 2.0.2 fase 3 (vetores 3/5/6): memoria nativa, politica StorNVMe opcional e checksums IP/UDP por capacidade do driver, com configuracao sem restart de rede. Menus 13/14; veja [docs/V2-PHASE3.md](docs/V2-PHASE3.md). Sem ganho de FPS presumido.
+
+### Fase 4: concorrencia durante o jogo
+
+Modo `focus`: CPU Sets de background apos atividade medida, restauracao no Alt+Tab, indexador e manutencao temporarios opt-in. Sem alvo implicito nem ganho de FPS presumido. [Comportamento, limites e rollback](docs/V2-PHASE4.md).
