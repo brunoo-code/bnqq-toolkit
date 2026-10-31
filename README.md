@@ -1,4 +1,4 @@
-﻿# BNQQ Toolkit Public 2.0.0
+﻿# BNQQ Toolkit Public 2.0.1
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -84,3 +84,5 @@ Motor 1.8.5: sessao de prioridade opt-in e recuperacao unificada. Veja [docs/SES
 1.8.7: sessao temporaria de upload para apps de sincronizacao, com criacao/verificacao/remocao de politicas QoS, recuperacao e regras de estabilidade. Menu 10; veja [docs/NETWORK-SESSION.md](docs/NETWORK-SESSION.md). Nenhum ganho de FPS ou ping presumido.
 
 2.0.0 fase 1 (vetores 1/4/19): CPU Sets de apps concorrentes, core parking AC opcional e rollback monitorado. Veja [docs/V2-PHASE1.md](docs/V2-PHASE1.md). Nao representa os 20 vetores concluidos ou ganho de FPS certificado.
+
+2.0.1 fase 2 (vetores 2/13/18): backend NVIDIA por perfil existente, shader cache preservado e telemetria GPU nativa opcional no FrameBench. Menu 12; veja [docs/V2-PHASE2.md](docs/V2-PHASE2.md). Sem ganho de FPS presumido.

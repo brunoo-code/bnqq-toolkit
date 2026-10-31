@@ -68,13 +68,15 @@ function Get-BnqqFrameStats {
 function Invoke-BnqqFrameBench {
     param([ValidateRange(10,300)][int]$Seconds=60,[string]$ProcessName='cs2.exe',[ValidateRange(0,30)][int]$SkipSeconds=5,[string]$Hotkey='',
         [Parameter(Mandatory)][string]$Scenario,[Parameter(Mandatory)][string]$SettingsHash,[Parameter(Mandatory)][string]$ExperimentId,
-        [Parameter(Mandatory)][ValidateSet('baseline','candidate')][string]$Variant,[string]$SwapChain='',[string]$PresentMonPath)
+        [Parameter(Mandatory)][ValidateSet('baseline','candidate')][string]$Variant,[string]$SwapChain='',[string]$PresentMonPath,[switch]$GpuTelemetry)
     if($Seconds-$SkipSeconds -lt 10){throw 'Exigir pelo menos 10s uteis apos warmup'}
+    if($GpuTelemetry -and $Hotkey){throw 'Telemetria GPU exige captura temporizada sem hotkey para preservar a janela de coleta'}
     if(-not $PresentMonPath){$PresentMonPath=Get-BnqqPresentMonPath}
     if(-not (Test-Path -LiteralPath $PresentMonPath -PathType Leaf)){throw 'PresentMon ausente'}
     $game=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($ProcessName)) -ErrorAction Stop)
     if($game.Count -ne 1){throw 'Selecione exatamente uma instancia do jogo'}
     $game=$game[0]
+    try {
     $session=Join-Path (Get-BnqqDataRoot) ('captures\'+[guid]::NewGuid().ToString('N'))
     [void][IO.Directory]::CreateDirectory($session)
     $output=Join-Path $session 'frames.csv'
@@ -85,15 +87,44 @@ function Invoke-BnqqFrameBench {
     $arguments=@('--process_id',[string]$game.Id,'--output_file',$output,'--timed',[string]$Seconds,'--terminate_after_timed','--session_name',('BNQQ-'+[guid]::NewGuid().ToString('N')))
     if($Hotkey){$arguments+=@('--hotkey',$Hotkey)}
     Write-Host 'Capture o mesmo cenario aquecido. Nao use o watcher com intervencoes variaveis. CSV nao mede automaticamente mouse-tela.'
-    & $PresentMonPath @arguments | ForEach-Object {Write-Host ([string]$_)}
-    if($LASTEXITCODE -ne 0){throw ('PresentMon falhou: '+$LASTEXITCODE)}
+    $recorder=$null;$gpuData=$null
+    try {
+        if($GpuTelemetry){
+            $recorder=Start-BnqqGpuRecorder $Seconds
+            $context|Add-Member -NotePropertyName GpuInstrumentation -NotePropertyValue ([pscustomobject]@{Provider='NVAPI';IntervalMs=500;LibraryHash=$recorder.LibraryHash})
+        }
+        & $PresentMonPath @arguments | ForEach-Object {Write-Host ([string]$_)}
+        if($LASTEXITCODE -ne 0){throw ('PresentMon falhou: '+$LASTEXITCODE)}
+    }finally{if($recorder){$gpuData=Stop-BnqqGpuRecorder $recorder}}
     $files=@(Get-ChildItem -LiteralPath $session -Filter 'frames*.csv' -File)
     if($files.Count -ne 1){throw 'Esperada uma captura; use uma sessao/hotkey por rodada e inspecione os CSVs produzidos'}
     $stats=Get-BnqqFrameStats $files[0].FullName -SkipSeconds $SkipSeconds -ProcessId $game.Id -SwapChain $SwapChain
     $result=[pscustomobject]@{Schema=2;Started=$started;Context=$context;Variant=$Variant;PresentMonHash=(Get-FileHash $PresentMonPath).Hash;Process=(Get-BnqqProcessSnapshot $game.Id);Stats=$stats;Effective=$null;Verdict='UNCOMPARED'}
+    if($GpuTelemetry){$result|Add-Member -NotePropertyName GpuTelemetry -NotePropertyValue $gpuData}
     $path=Join-Path $session 'result.json';Write-BnqqAtomicJson $result $path
     Write-Host ('Resultado: '+$path)
     return $result
+    }finally{if($game -is [Diagnostics.Process]){$game.Dispose()}}
+}
+function Assert-BnqqGpuCaptureQuality {
+    param($Capture)
+    if(-not $Capture.Context.GpuInstrumentation){
+        if($Capture.GpuTelemetry){throw 'Telemetria sem contrato de instrumentacao'}
+        return
+    }
+    $mode=$Capture.Context.GpuInstrumentation;$t=$Capture.GpuTelemetry
+    if($mode.Provider -cne 'NVAPI' -or $mode.IntervalMs -ne 500 -or $mode.LibraryHash -cnotmatch '^[A-F0-9]{64}$' -or $t.Schema -ne 1 -or $t.Provider -cne 'NVAPI' -or $t.LibraryHash -cne $mode.LibraryHash -or $t.IntervalMs -ne 500 -or $t.DeviceWide -isnot [bool] -or -not $t.DeviceWide -or $t.Status -cne 'Complete' -or $t.Error){throw 'Telemetria GPU incompleta/inconsistente'}
+    $rows=@($t.Samples)
+    if($rows.Count -lt 2 -or $rows.Count -gt 610){throw 'Amostras GPU fora dos limites'}
+    $previous=-1.0;$first=0.0
+    for($i=0;$i -lt $rows.Count;$i++){
+        $r=$rows[$i];$seconds=Convert-BnqqFiniteNumber $r.Seconds
+        $busy=Convert-BnqqFiniteNumber $r.GpuPercent;$temp=Convert-BnqqFiniteNumber $r.TemperatureC
+        if($seconds -lt 0 -or $seconds -le $previous -or ($previous -ge 0 -and $seconds-$previous -gt 2) -or $busy -lt 0 -or $busy -gt 100 -or $temp -lt -50 -or $temp -gt 150){throw 'Serie temporal GPU invalida/lacunas excessivas'}
+        foreach($key in @('GraphicsMHz','MemoryMHz')){if($null -ne $r.$key -and (Convert-BnqqFiniteNumber $r.$key) -lt 0){throw 'Clock GPU invalido'}}
+        if($i -eq 0){$first=$seconds};$previous=$seconds
+    }
+    if(($previous-$first)+1 -lt 0.8*(Convert-BnqqFiniteNumber $Capture.Stats.DurationSeconds)){throw 'Cobertura temporal GPU insuficiente'}
 }
 function Compare-BnqqFrameBench {
     param([Parameter(Mandatory)][string[]]$Files)
@@ -103,6 +134,7 @@ function Compare-BnqqFrameBench {
     if($a.Count -lt 3 -or $b.Count -lt 3){throw 'Exigir pelo menos 3 baselines e 3 candidatas intercaladas'}
     $ref=$runs[0]
     foreach($run in $runs){
+        Assert-BnqqGpuCaptureQuality $run
         if($run.PSObject.Properties.Name -contains 'CaptureIntegrity' -and -not $run.CaptureIntegrity.Passed){throw 'Captura com guard reprovado; excluir da comparacao'}
         if($run.Variant -notin @('baseline','candidate') -or $run.Schema -ne 2 -or $run.Stats.Schema -ne 2 -or -not (Test-BnqqSameValue $run.Context $ref.Context) -or $run.PresentMonHash -cne $ref.PresentMonHash -or $run.Stats.Metric -ne $ref.Stats.Metric -or $run.Stats.Runtime -ne $ref.Stats.Runtime -or $run.Stats.SkipSeconds -ne $ref.Stats.SkipSeconds){throw 'Rodadas de contextos/ferramentas/metricas diferentes'}
         foreach($metric in @('AvgFps','Low1Fps','Low01Fps','P99Ms','P999Ms','JitterMs','StuttersPerMinute')){

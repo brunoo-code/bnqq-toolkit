@@ -26,6 +26,8 @@ function Get-BnqqFullTopologyMask {
 }
 function Compare-BnqqFramePair {
     param($Baseline,$Candidate)
+    Assert-BnqqGpuCaptureQuality $Baseline
+    Assert-BnqqGpuCaptureQuality $Candidate
     if($Baseline.Schema -ne 2 -or $Candidate.Schema -ne 2 -or $Baseline.Variant -ne 'baseline' -or $Candidate.Variant -ne 'candidate'){throw 'Par baseline/candidate schema 2 exigido'}
     if($Candidate.PSObject.Properties.Name -contains 'CaptureIntegrity' -and -not $Candidate.CaptureIntegrity.Passed){throw 'Candidata invalidada pelo guard'}
     if(-not (Test-BnqqSameValue $Baseline.Context $Candidate.Context) -or $Baseline.PresentMonHash -cne $Candidate.PresentMonHash -or $Baseline.Stats.Metric -cne $Candidate.Stats.Metric -or $Baseline.Stats.Runtime -cne $Candidate.Stats.Runtime -or $Baseline.Stats.SkipSeconds -ne $Candidate.Stats.SkipSeconds){throw 'Par com contexto, ferramenta, metrica, runtime ou warmup diferente'}

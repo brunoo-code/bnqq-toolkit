@@ -1,6 +1,6 @@
 ﻿function Get-BnqqRecoveryCatalog {
     $root=Get-BnqqDataRoot
-    foreach($folder in @('journals','sessions','gameprofiles','framepacing','legacy-migrations','network-sessions')){
+    foreach($folder in @('journals','sessions','gameprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals')){
         foreach($file in @(Get-ChildItem -LiteralPath (Join-Path $root $folder) -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)){
             try {
                 $j=Get-Content $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
@@ -14,6 +14,7 @@ function Invoke-BnqqRecovery {
     $j=Get-Content -LiteralPath $File -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
     if($j.Owner -ne (Get-BnqqOwner)){throw 'Backup de outro usuario; nenhuma restauracao iniciada'}
     switch([string]$j.Schema){
+        'BNQQ.Nvidia.1' {return (Invoke-BnqqGpuProfile -Action restore -File $File)}
         '2' {
             if(@($j.Entries|Where-Object {$_.Kind -notin @('Process','CpuSets')}).Count -and -not (Test-BnqqAdmin)){throw 'Backup Windows exige administrador'}
             $lock=Enter-BnqqStateLock

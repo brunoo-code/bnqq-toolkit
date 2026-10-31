@@ -26,6 +26,12 @@ jobs:
       - name: Legacy IFEO migration fixtures
         shell: powershell
         run: ./tests/LegacyMigration.ps1
+      - name: NVIDIA profile and GPU capture fixtures (no driver writes)
+        shell: powershell
+        run: |
+          ./tests/GpuDriver.ps1
+          ./tests/GpuTelemetry.ps1
+          ./tests/GpuCaptureLifecycle.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild
