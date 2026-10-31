@@ -20,7 +20,10 @@ function Get-BnqqBootUtc {
 }
 function Assert-BnqqWorkloadWheaBaseline {
     # Resource-only operations do not change clocks, power policy, drivers or BIOS.
-    # Old boots remain in the log; this path also requires a fresh schema 3 load test.
+    # A reboot and a short load test cannot clear a recent fatal processor error.
+    $historic=Get-BnqqWheaEvents
+    if($historic.Error){throw ('Historico fatal WHEA indeterminado: '+$historic.Error)}
+    if(@($historic.Events|Where-Object Id -eq 18).Count){throw 'WHEA 18 recente (72h): recursos bloqueados mesmo apos reiniciar. Investigue estabilidade; nao limpe o log.'}
     $probe=Get-BnqqWheaEvents -Since (Get-BnqqBootUtc)
     if($probe.Error){throw ('WHEA deste boot indeterminado: '+$probe.Error)}
     if(@($probe.Events).Count){throw 'WHEA neste boot: controle de recursos bloqueado; investigue estabilidade'}

@@ -1,4 +1,4 @@
-﻿# Estado dos 20 vetores — 2.0.7
+﻿# Estado dos 20 vetores — 2.0.8
 
 Implementar uma funcao nao demonstra ganho de desempenho. Nenhum vetor abaixo
 autoriza aplicar ajustes em hardware com WHEA ativo. O inventario deve separar
@@ -53,3 +53,10 @@ Vetores 9/11/18: inventario de drivers e infraestrutura offline de analise de
 eventos DPC/ISR normalizados. A coleta ETW real e a conversao automatica de
 WPA/ETL continuam pendentes; IRQs e dispositivos nao sao modificados.
 Veja [contrato, procedencia e limites](DRIVERS-DPC.md). Sem ganho medido.
+
+## Etapa 2.0.8 (fase 9)
+
+Vetores 9/12/15/19: plataforma somente leitura (timers, ancestrais USB e VBS),
+sem alteracoes de seguranca, firmware ou IRQ. WHEA 18 bloqueia recursos em
+72h mesmo se pertencer a boot anterior. Revisao de fornecedores em
+[ENGINEERING-REVIEW](ENGINEERING-REVIEW.md). Nenhuma superioridade medida.

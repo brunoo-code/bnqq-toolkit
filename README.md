@@ -1,4 +1,4 @@
-﻿# BNQQ Toolkit Public 2.0.7
+﻿$12.0.8
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -108,3 +108,7 @@ Novo modo focus Priority: reduz a prioridade de navegadores e OneDrive escolhido
 ## Etapa 2.0.7 - drivers e DPC/ISR
 
 Novo inventario drivers somente leitura e analisador dpc de eventos individuais normalizados ja exportados. Sem gravacao ETW nesta etapa, instalacao de drivers, IRQ/MSI ou desativacao de dispositivos. Fontes CIM falhas continuam explicitas; o analisador recusa perdas declaradas, unidades desconhecidas, duplicatas e dados agregados. Consulte o [contrato e limites](docs/DRIVERS-DPC.md). Nenhum ganho de FPS foi demonstrado por esta entrega.
+
+## Etapa 2.0.8 - plataforma e falhas fatais
+
+Consultas timers, usb-topology e security, sem alteracoes de BCD/IRQ/seguranca. WHEA 18 recente bloqueia recursos entre boots; reiniciar nao neutraliza o historico. Revisao publica de ferramentas comerciais e decisoes em [engenharia](docs/ENGINEERING-REVIEW.md).

@@ -16,7 +16,8 @@ function Save($c){Write-BnqqAtomicJson $c (Join-Path $temp 'heavyqa.json')}
 try{
  $c=Certificate;Save $c;Assert-BnqqHeavyQa -WorkloadOnly;Assert-BnqqHeavyQa
  $script:events=@([pscustomobject]@{Id=18;TimeCreated=$script:boot.AddHours(-10)})
- Assert-BnqqHeavyQa -WorkloadOnly;MustThrow {Assert-BnqqHeavyQa}
+ MustThrow {Assert-BnqqHeavyQa -WorkloadOnly};MustThrow {Assert-BnqqHeavyQa}
+ $script:events=@([pscustomobject]@{Id=19;TimeCreated=$script:boot.AddHours(-10)})
  $script:full='new-unrelated-module';Assert-BnqqHeavyQa -WorkloadOnly;Check (-not (Get-BnqqLatestHeavyQa).Passed) 'Full-source binding lost'
  $script:resource='changed-driver-hardware-or-test';MustThrow {Assert-BnqqHeavyQa -WorkloadOnly}
  $script:resource=$c.ResourceFingerprint;$script:events=@([pscustomobject]@{Id=18;TimeCreated=$script:boot.AddMinutes(5)})

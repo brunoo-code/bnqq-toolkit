@@ -34,13 +34,13 @@ param(
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
-foreach($file in @('Core','Governance','Readiness','Diagnostics','DriverAudit','DpcAnalysis','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','BackgroundBudget','StorageMemory','Maintenance','FocusSession','NicPolicy','GpuDriver','NetworkSession','LegacyMigration','RecoveryHub')){
+foreach($file in @('Core','Governance','Readiness','Diagnostics','DriverAudit','DpcAnalysis','PlatformAudit','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','BackgroundBudget','StorageMemory','Maintenance','FocusSession','NicPolicy','GpuDriver','NetworkSession','LegacyMigration','RecoveryHub')){
     . (Join-Path $script:BnqqRoot ('lib\'+$file+'.ps1'))
 }
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
     if($Command -eq 'menu'){
-        Write-Host 'BNQQ 2.0.7 fase 8 | diagnostico e experimentos reversiveis | sem ganho presumido'
+        Write-Host 'BNQQ 2.0.8 fase 9 | diagnostico e experimentos reversiveis | sem ganho presumido'
         if([Environment]::UserInteractive){
             Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [7] Sessao de jogo [8] Recuperacao [9] Migracao legada [10] Sessao de upload [11] CPU Sets [12] Driver GPU [13] Memoria/NVMe [14] Checksums de rede [15] Sessao focus [16] Drivers [0] Sair'
             switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}default{return}}
@@ -75,6 +75,9 @@ try {
             try{Restore-BnqqJournal $BackupFile | ConvertTo-Json -Depth 8}finally{$lock.Dispose()}
         }
         'legacy' {if($DryRun){$LegacyAction='plan'};Invoke-BnqqLegacyMigration -Action $LegacyAction -Files $LegacyFiles -BackupFile $BackupFile | ConvertTo-Json -Depth 9}
+        'timers' {Get-BnqqTimerAudit|ConvertTo-Json -Depth 7}
+        'usb-topology' {Get-BnqqUsbTopologyAudit|ConvertTo-Json -Depth 9}
+        'security' {Get-BnqqSecurityAudit|ConvertTo-Json -Depth 5}
         'drivers' {
             if($DryRun){[pscustomobject]@{Status='Preview';Action='Read-only CIM inventory; no driver/IRQ changes'}|ConvertTo-Json}
             else{Get-BnqqDriverAudit|ConvertTo-Json -Depth 9}
@@ -114,7 +117,7 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 2.0.7 — Windows PowerShell 5.1 x64
+BNQQ 2.0.8 — Windows PowerShell 5.1 x64
 audit | network | display | topology | apps | status | verdict | framepacing | session | memory | nvme | nic | readiness | focus | gpu | gpu-cache | cpu-session | phase-health | net-session | recover | legacy | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware
@@ -132,6 +135,7 @@ net-session -NetworkAction plan|run|restore -NetworkApps OneDrive.exe [-UploadKb
 cpu-session -CpuAction plan|run|restore -SessionApps msedge [-BackgroundCores 2] [-UnparkCpu] [-BackupFile JOURNAL]
 gpu -GpuAction status|plan|apply|restore [-FrameProcess cs2.exe] [-GameExecutable CAMINHO] [-BackupFile JOURNAL]
 gpu-cache | framebench ... -GpuTelemetry
+timers | usb-topology | security (read-only)
 drivers [-DryRun] | dpc [-DpcCsv EVENTOS.csv -DpcMetadata METADATA.json] [-DryRun]
 memory | nvme -NvmeAction plan|apply|restore [-BackupFile JOURNAL]
 focus -FocusAction plan|run|stop|status [-FocusPolicy Priority|CpuSets] [-SessionApps msedge,chrome,OneDrive] [-PauseSearch] [-DeferMaintenance]
