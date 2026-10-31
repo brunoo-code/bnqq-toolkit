@@ -28,17 +28,18 @@ param(
     [ValidateSet('plan','apply','restore')][string]$NvmeAction='plan',
     [ValidateSet('plan','stage','restore','activate','restore-active')][string]$NicAction='plan',[string]$AdapterName,
     [ValidateSet('plan','run','stop','status')][string]$FocusAction='plan',
+    [ValidateSet('CpuSets','Priority')][string]$FocusPolicy='CpuSets',
     [switch]$PauseSearch,[switch]$DeferMaintenance,[ValidateRange(1,240)][int]$SessionMinutes=120
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
-foreach($file in @('Core','Governance','Readiness','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','StorageMemory','Maintenance','FocusSession','NicPolicy','GpuDriver','NetworkSession','LegacyMigration','RecoveryHub')){
+foreach($file in @('Core','Governance','Readiness','Diagnostics','Topology','Optimize','NetworkAudit','Apps','RuntimeLatency','Watcher','HeavyQA','FrameBench','EffectiveBench','GameProfile','FramePacing','GameSession','CpuSession','BackgroundBudget','StorageMemory','Maintenance','FocusSession','NicPolicy','GpuDriver','NetworkSession','LegacyMigration','RecoveryHub')){
     . (Join-Path $script:BnqqRoot ('lib\'+$file+'.ps1'))
 }
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
     if($Command -eq 'menu'){
-        Write-Host 'BNQQ 2.0.5 fase 6 | diagnostico e experimentos reversiveis | sem ganho presumido'
+        Write-Host 'BNQQ 2.0.6 fase 7 | diagnostico e experimentos reversiveis | sem ganho presumido'
         if([Environment]::UserInteractive){
             Write-Host '[1] Diagnostico [2] Rede [3] Display [4] Atalhos Chromium [5] Perfil competitivo CS2 [6] Limitar FPS do menu [7] Sessao de jogo [8] Recuperacao [9] Migracao legada [10] Sessao de upload [11] CPU Sets [12] Driver GPU [13] Memoria/NVMe [14] Checksums de rede [15] Sessao focus [0] Sair'
             switch(Read-Host 'Opcao'){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}default{return}}
@@ -76,7 +77,7 @@ try {
         'memory' {Get-BnqqMemoryReport | ConvertTo-Json -Depth 5}
         'nvme' {if($DryRun){$NvmeAction='plan'};Invoke-BnqqNvmePolicy -Action $NvmeAction -File $BackupFile | ConvertTo-Json -Depth 9}
         'readiness' {Get-BnqqReadiness | ConvertTo-Json -Depth 8}
-        'focus' {if($DryRun){$FocusAction='plan'};Invoke-BnqqFocusSession -Action $FocusAction -Apps $SessionApps -BackgroundCores $BackgroundCores -Game $FrameProcess -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance -MaxMinutes $SessionMinutes | ConvertTo-Json -Depth 10}
+        'focus' {if($DryRun){$FocusAction='plan'};Invoke-BnqqFocusSession -Action $FocusAction -Apps $SessionApps -BackgroundCores $BackgroundCores -Game $FrameProcess -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance -MaxMinutes $SessionMinutes -Policy $FocusPolicy | ConvertTo-Json -Depth 10}
         'nic' {if($DryRun){$NicAction='plan'};Invoke-BnqqNicPolicy -Action $NicAction -Name $AdapterName -File $BackupFile | ConvertTo-Json -Depth 9}
         'gpu' {if($DryRun){$GpuAction='plan'};Invoke-BnqqGpuProfile -Action $GpuAction -Game $FrameProcess -GameExecutable $GameExecutable -File $BackupFile | ConvertTo-Json -Depth 10}
         'gpu-cache' {Get-BnqqShaderCacheAudit | ConvertTo-Json -Depth 5}
@@ -103,7 +104,7 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 2.0.5 — Windows PowerShell 5.1 x64
+BNQQ 2.0.6 — Windows PowerShell 5.1 x64
 audit | network | display | topology | apps | status | verdict | framepacing | session | memory | nvme | nic | readiness | focus | gpu | gpu-cache | cpu-session | phase-health | net-session | recover | legacy | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware
@@ -122,7 +123,7 @@ cpu-session -CpuAction plan|run|restore -SessionApps msedge [-BackgroundCores 2]
 gpu -GpuAction status|plan|apply|restore [-FrameProcess cs2.exe] [-GameExecutable CAMINHO] [-BackupFile JOURNAL]
 gpu-cache | framebench ... -GpuTelemetry
 memory | nvme -NvmeAction plan|apply|restore [-BackupFile JOURNAL]
-focus -FocusAction plan|run|stop|status [-SessionApps msedge,chrome,OneDrive] [-PauseSearch] [-DeferMaintenance]
+focus -FocusAction plan|run|stop|status [-FocusPolicy Priority|CpuSets] [-SessionApps msedge,chrome,OneDrive] [-PauseSearch] [-DeferMaintenance]
 nic -NicAction plan|stage|restore|activate|restore-active [-AdapterName NOME] [-BackupFile JOURNAL]
 Pacotes legados (pro/god/ultimate/etc.) foram retirados. Veja docs/MIGRATION.md.
 '@

@@ -1,4 +1,4 @@
-# Estado dos 20 vetores — 2.0.5
+﻿# Estado dos 20 vetores — 2.0.6
 
 Implementar uma funcao nao demonstra ganho de desempenho. Nenhum vetor abaixo
 autoriza aplicar ajustes em hardware com WHEA ativo. O inventario deve separar
@@ -37,3 +37,12 @@ demonstrado. Uma captura anterior nao se torna prova causal de melhoria.
 WHEA fatal deve suspender a campanha de benchmarks ate investigar estabilidade.
 Aguardar 72 horas ou apagar eventos nao corrige a causa. Nao alterar PBO/CO/RAM
 automaticamente nem prometer que um teste curto de carga certifique todo o PC.
+
+## Etapa 2.0.6 (fase 7)
+
+Vetores 7/14/19: modo Priority dinamico para navegadores/OneDrive escolhidos,
+com amostragem, verificacao de usuario/sessao e journal de recuperacao.
+O modo nao altera CPU Sets/afinidades nem configura o jogo. Veja
+[comportamento e limites](BACKGROUND-BUDGET.md). CLI privada corrigida para
+declarar os parametros focus que ja eram referenciados pelo dispatcher.
+Somente validacao de software nesta etapa; sem aplicacao real nem ganho medido.

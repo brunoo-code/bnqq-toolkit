@@ -44,6 +44,8 @@ jobs:
           ./tests/NicActivation.ps1
           ./tests/Maintenance.ps1
           ./tests/FocusSession.ps1
+          ./tests/BackgroundBudget.ps1
+          ./tests/FocusCli.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

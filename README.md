@@ -1,4 +1,4 @@
-﻿# BNQQ Toolkit Public 2.0.5
+﻿# BNQQ Toolkit Public 2.0.6
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -97,6 +97,10 @@ Modo `focus`: CPU Sets de background apos atividade medida, restauracao no Alt+T
 
 `readiness` separa historico WHEA de falhas neste boot. Recursos reversiveis exigem novo HeavyQA schema 3; energia/clocks mantem a regra de 72h. O atestado de recursos acompanha hardware e implementacao do teste, sem vencer a cada novo modulo. `nic -NicAction activate` aplica a configuracao salva com reset explicito do adaptador e leitura do driver; `restore-active` restaura tambem o estado carregado. [Detalhes e limites](docs/V2-PHASE5.md).
 
-## Etapa 2.0.5
+## Base 2.0.5
 
 O controlador focus evita reconstruir o plano CPU para participantes ja tratados no mesmo periodo de foco. FrameBench recusa WHEA recente antes de iniciar coleta e rejeita resultados associados a incidentes novos. Nenhum ganho de FPS e presumido. Veja o estado de cada vetor em [V2-STATUS](docs/V2-STATUS.md).
+
+## Etapa 2.0.6 - prioridade dinamica
+
+Novo modo focus Priority: reduz a prioridade de navegadores e OneDrive escolhidos somente apos medir atividade de CPU, com restauracao no Alt+Tab/saida. Nao restringe afinidades nem altera configuracoes do jogo. Veja comportamento, limites de heranca de processos e recuperacao em [controle de background](docs/BACKGROUND-BUDGET.md). O modo CpuSets continua sendo o padrao da CLI. Nenhum ganho de FPS foi demonstrado nesta entrega.

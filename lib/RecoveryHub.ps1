@@ -17,7 +17,7 @@ function Invoke-BnqqRecovery {
         'BNQQ.Nic.1' {return (Invoke-BnqqNicPolicy -Action restore -File $File)}
         'BNQQ.Nvidia.1' {return (Invoke-BnqqGpuProfile -Action restore -File $File)}
         '2' {
-            if(@($j.Entries|Where-Object {$_.Kind -notin @('Process','CpuSets')}).Count -and -not (Test-BnqqAdmin)){throw 'Backup Windows exige administrador'}
+            if(@($j.Entries|Where-Object {$_.Kind -notin @('Process','CpuSets','BackgroundPriority')}).Count -and -not (Test-BnqqAdmin)){throw 'Backup Windows exige administrador'}
             $lock=Enter-BnqqStateLock
             try{return (Restore-BnqqJournal $File)}finally{$lock.Dispose()}
         }

@@ -88,6 +88,10 @@ function New-BnqqJournal {
 function Assert-BnqqOperation {
     param($Op)
     switch($Op.Kind){
+        'BackgroundPriority' {
+            if($Op.Before.Name -notin (Get-BnqqBudgetAllowedApps) -or $Op.Before.ProcessId -le 0 -or -not $Op.Before.StartTime -or $Op.After.ProcessId -ne $Op.Before.ProcessId -or $Op.After.StartTime -cne $Op.Before.StartTime -or $Op.After.Name -cne $Op.Before.Name){throw 'Identidade de prioridade background invalida'}
+            if($Op.Before.Priority -notin @('Normal','AboveNormal','High') -or $Op.After.Priority -cne 'BelowNormal'){throw 'Transicao de prioridade background invalida'}
+        }
         'ScheduledTask' {Assert-BnqqMaintenanceOperation $Op}
         'Service' {Assert-BnqqMaintenanceOperation $Op}
         'Registry' {
@@ -154,6 +158,7 @@ function Get-BnqqProcessSnapshot {
 function Get-BnqqOperationState {
     param($Op)
     switch($Op.Kind){
+        'BackgroundPriority' {Get-BnqqBudgetState $Op.Before.ProcessId $Op.Before}
         'ScheduledTask' {Get-BnqqTaskState $Op.Before}
         'Service' {Get-BnqqSearchState}
         'Registry' {Get-RegSnapshot $Op.Before.Path $Op.Before.Name}
@@ -174,6 +179,7 @@ function Set-BnqqOperationState {
     param($Op,$State)
     Assert-BnqqOperation $Op
     switch($Op.Kind){
+        'BackgroundPriority' {Set-BnqqBudgetState $State (Get-BnqqOperationState $Op)}
         'ScheduledTask' {Set-BnqqMaintenanceState $Op $State}
         'Service' {Set-BnqqMaintenanceState $Op $State}
         'Registry' {Set-BnqqRegistrySnapshot $State}
@@ -241,7 +247,7 @@ function Restore-BnqqJournal {
         if($op.Status -in @('Restored','Exited')){continue}
         try {
             $actual=Get-BnqqOperationState $op
-            if($op.Kind -in @('Process','CpuSets') -and -not $actual){$op.Status='Exited'}
+            if($op.Kind -in @('Process','CpuSets','BackgroundPriority') -and -not $actual){$op.Status='Exited'}
             elseif(Test-BnqqSameValue $actual $op.Before){$op.Status='Restored'}
             else {
                 # Failed/prepared operations can be partial; applied operations must still match.

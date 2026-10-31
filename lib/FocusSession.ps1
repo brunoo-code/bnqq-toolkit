@@ -62,27 +62,32 @@ function Select-BnqqFocusBusy {
         if(-not $before.ContainsKey($key) -or $s.Name -cne $before[$key].Name){continue}
         $delta=[double]$s.CpuMs-[double]$before[$key].CpuMs
         if($delta -ge ($MinCpuMsPerSecond*$ElapsedSeconds)){
-            [pscustomobject]@{Key=$key;ProcessId=$s.ProcessId;StartTime=$s.StartTime;RateMsPerSecond=($delta/$ElapsedSeconds)}
+            [pscustomobject]@{Key=$key;ProcessId=$s.ProcessId;Name=$s.Name;StartTime=$s.StartTime;RateMsPerSecond=($delta/$ElapsedSeconds)}
         }
     })
     return @($ranked|Sort-Object RateMsPerSecond -Descending)
 }
 function Get-BnqqFocusPlan {
-    param([string[]]$Apps,[int]$BackgroundCores=2,[switch]$PauseSearch,[switch]$DeferMaintenance)
+    param([string[]]$Apps,[int]$BackgroundCores=2,[switch]$PauseSearch,[switch]$DeferMaintenance,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets')
     foreach($app in @($Apps)){if($app -notin (Get-BnqqCpuAllowedApps)){throw 'Aplicativo focus nao admitido'}}
-    $cpu=if(@($Apps).Count){Get-BnqqCpuSessionPlan $Apps $BackgroundCores}else{[pscustomobject]@{CpuSetIds=@();Operations=@();Errors=@()}}
+    if($Policy -eq 'Priority'){foreach($app in @($Apps)){if($app -notin (Get-BnqqBudgetAllowedApps)){throw 'Modo Priority aceita somente navegadores e OneDrive escolhidos'}}}
+    $cpu=if(@($Apps).Count -and $Policy -eq 'CpuSets'){Get-BnqqCpuSessionPlan $Apps $BackgroundCores}else{[pscustomobject]@{CpuSetIds=@();Operations=@();Errors=@()}}
     $maintenance=Get-BnqqMaintenancePlan -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance
-    [pscustomobject]@{Status='Preview';Cpu=$cpu;Maintenance=$maintenance;Limits=@{LiveProcesses=128;EntriesPerEpoch=512;Epochs=64;ChangesPerPoll=2;SampleSeconds=5;MinimumCpuMsPerSecond=25};Note='CPU Sets somente apos atividade medida e com o jogo em foco. Sem ganho de FPS presumido.'}
+    [pscustomobject]@{Status='Preview';Policy=$Policy;Apps=@($Apps);Cpu=$cpu;Maintenance=$maintenance;Limits=@{LiveProcesses=128;EntriesPerEpoch=512;Epochs=64;ChangesPerPoll=2;SampleSeconds=5;MinimumCpuMsPerSecond=25};Note='Politica somente apos atividade medida e com o jogo em foco. Priority preserva CPU Sets/afinidades. Sem ganho de FPS presumido.';PriorityInheritanceNote=$(if($Policy -eq 'Priority'){'Filhos novos podem herdar BelowNormal. Sem estado anterior, nao sao promovidos na restauracao; reabra o app se necessario.'})}
 }
 function Update-BnqqFocusEpoch {
-    param($State,[string[]]$Apps,[int]$BackgroundCores,$Previous,$Current,[double]$ElapsedSeconds)
+    param($State,[string[]]$Apps,[int]$BackgroundCores,$Previous,$Current,[double]$ElapsedSeconds,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets')
     # An epoch already owns these PID/start identities. Do not rebuild the CPU
     # topology and query every process handle again for participants we touched.
     # A reused PID has a different key and must still go through normal admission.
     $busy=@(Select-BnqqFocusBusy $Previous $Current $ElapsedSeconds|Where-Object {-not $State.Touched.ContainsKey($_.Key)})
     if(-not $busy.Count){return}
-    $plan=Get-BnqqCpuSessionPlan $Apps $BackgroundCores
-    if(($plan.CpuSetIds -join ',') -cne ($State.CpuSetIds -join ',')){throw 'Topologia CPU mudou; restaurar sessao'}
+    if($Policy -eq 'Priority'){$plan=Get-BnqqBudgetPlan $busy $Apps}
+    else{
+        $plan=Get-BnqqCpuSessionPlan $Apps $BackgroundCores
+        if(($plan.CpuSetIds -join ',') -cne ($State.CpuSetIds -join ',')){throw 'Topologia CPU mudou; restaurar sessao'}
+    }
+    foreach($errorText in @($plan.Errors)){Write-BnqqNightLog 'FOCUS-PLAN-SKIP' $errorText}
     $eligible=@{};foreach($p in $busy){$eligible[$p.Key]=$p}
     $ranked=@(foreach($op in $plan.Operations){
         $key=[string]$op.Before.ProcessId+'|'+$op.Before.StartTime
@@ -94,7 +99,7 @@ function Update-BnqqFocusEpoch {
     foreach($candidate in $candidates){
         if(-not $State.Journal){
             if(++$State.Epochs -gt 64){throw 'Limite de 64 periodos de foco; restaurar e encerrar'}
-            $State.Journal=New-BnqqJournal 'focus-cpu-epoch-v2-phase4'
+            $State.Journal=New-BnqqJournal ('focus-'+$Policy.ToLowerInvariant()+'-epoch-v2')
             $State.Journals+=@($State.Journal.File)
         }
         if($State.Journal.Data.Entries.Count -ge 512){throw 'Limite de 512 participantes por periodo; restaurar e encerrar'}
@@ -113,10 +118,10 @@ function Invoke-BnqqFocusSession {
     param([ValidateSet('plan','run','stop','status')][string]$Action='plan',[string[]]$Apps,
         [ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$PauseSearch,[switch]$DeferMaintenance,
         [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',
-        [ValidateRange(1,240)][int]$MaxMinutes=120)
+        [ValidateRange(1,240)][int]$MaxMinutes=120,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets')
     if($Action -eq 'stop'){return (Stop-BnqqFocusSession)}
     if($Action -eq 'status'){return (Get-BnqqFocusStatus)}
-    $plan=Get-BnqqFocusPlan $Apps $BackgroundCores -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance
+    $plan=Get-BnqqFocusPlan $Apps $BackgroundCores -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance -Policy $Policy
     if($Action -eq 'plan'){return $plan}
     if(-not @($Apps).Count -and -not $PauseSearch -and -not $DeferMaintenance){throw 'Selecione apps ou manutencao; nenhum alvo implicito'}
     Assert-BnqqHeavyQa -WorkloadOnly
@@ -133,7 +138,7 @@ function Invoke-BnqqFocusSession {
     $id=[guid]::NewGuid().ToString('N');$since=Get-Date;$clock=New-BnqqFocusClock;$written=$false
     try{
         $lock=Enter-BnqqStateLock;Assert-BnqqNoPendingJournal
-        $lease=[pscustomobject]@{Schema='BNQQ.Focus.1';Owner=(Get-BnqqOwner);Id=$id;Controller=(Get-BnqqFocusIdentity $PID);Game=$identity;Started=[datetime]::UtcNow.ToString('o');MaxMinutes=$MaxMinutes}
+        $lease=[pscustomobject]@{Schema='BNQQ.Focus.1';Owner=(Get-BnqqOwner);Id=$id;Controller=(Get-BnqqFocusIdentity $PID);Game=$identity;Started=[datetime]::UtcNow.ToString('o');MaxMinutes=$MaxMinutes;Policy=$Policy}
         Write-BnqqAtomicJson $lease $controllerFile;$written=$true
         if(@($plan.Maintenance.Operations).Count){
             $maintenance=New-BnqqJournal 'focus-maintenance-v2-phase4'
@@ -148,7 +153,7 @@ function Invoke-BnqqFocusSession {
                 Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0
             }elseif(@($Apps).Count -and $clock.Elapsed.TotalSeconds -ge $nextSample){
                 $current=@(Get-BnqqFocusSamples $Apps);$now=$clock.Elapsed.TotalSeconds
-                Update-BnqqFocusEpoch $state $Apps $BackgroundCores $previous $current ($now-$sampleTime)
+                Update-BnqqFocusEpoch $state $Apps $BackgroundCores $previous $current ($now-$sampleTime) -Policy $Policy
                 $previous=$current;$sampleTime=$now;$nextSample=$now+5
             }
             Start-Sleep -Seconds 1
@@ -163,16 +168,19 @@ function Invoke-BnqqFocusSession {
             }
         }
     }
-    [pscustomobject]@{Status='Restored';Changes=$state.Changes;Epochs=$state.Epochs;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});PerformanceMeasured=$false;RebootRequired=$false}
+    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});PerformanceMeasured=$false;RebootRequired=$false}
 }
 function Show-BnqqFocusMenu {
     Write-Host 'Focus: amostragem de CPU de apps escolhidos; restaura no Alt+Tab/saida. Manutencao opcional so durante o jogo.'
     $text=Read-Host ('Apps separados por virgula ('+((Get-BnqqCpuAllowedApps)-join ', ')+'); vazio=nenhum')
     $apps=@($text.Split(',')|ForEach-Object {$_.Trim()}|Where-Object {$_})
+    $mode=Read-Host 'Politica: 1=prioridade dinamica (navegadores/OneDrive), 2=CPU Sets; outro cancela'
+    if($mode -notin @('1','2')){return}
+    $policy=if($mode -eq '1'){'Priority'}else{'CpuSets'}
     $pause=(Read-Host 'Parar indexador temporariamente? Digite SIM') -ceq 'SIM'
     $defer=(Read-Host 'Adiar manutencao nao ociosa temporariamente? Digite SIM') -ceq 'SIM'
-    Invoke-BnqqFocusSession -Apps $apps -PauseSearch:$pause -DeferMaintenance:$defer|Format-List
+    Invoke-BnqqFocusSession -Apps $apps -PauseSearch:$pause -DeferMaintenance:$defer -Policy $policy|Format-List
     $game=Read-Host 'Jogo aberto: 1=CS2, 2=Valorant; outro cancela'
     if($game -notin @('1','2')){return}
-    Invoke-BnqqFocusSession -Action run -Apps $apps -PauseSearch:$pause -DeferMaintenance:$defer -Game $(if($game -eq '1'){'cs2.exe'}else{'VALORANT-Win64-Shipping.exe'})|Format-List
+    Invoke-BnqqFocusSession -Action run -Apps $apps -PauseSearch:$pause -DeferMaintenance:$defer -Policy $policy -Game $(if($game -eq '1'){'cs2.exe'}else{'VALORANT-Win64-Shipping.exe'})|Format-List
 }

@@ -29,6 +29,9 @@ try {
  function Test-BnqqAdmin {return $false}
  $script:routed='';Invoke-BnqqRecovery $processBackup
  Check ($script:routed -eq 'Windows') 'User CPU Sets recovery must not require admin preemptively'
+ Write-BnqqAtomicJson @{Schema=2;Owner=(Get-BnqqOwner);Entries=@(@{Kind='BackgroundPriority'})} $processBackup
+ $script:routed='';Invoke-BnqqRecovery $processBackup
+ Check ($script:routed -eq 'Windows') 'User background-priority recovery must not require admin preemptively'
  Write-BnqqAtomicJson @{Schema=2;Owner=(Get-BnqqOwner);Entries=@(@{Kind='Power'})} $processBackup
  $script:routed='';MustThrow {Invoke-BnqqRecovery $processBackup};Check (-not $script:routed) 'Power recovery lost admin guard'
  function Test-BnqqAdmin {return $true}

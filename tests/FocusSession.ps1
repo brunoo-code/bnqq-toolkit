@@ -2,7 +2,7 @@
 # Full controller lifecycle with fake clock/processes/CPU Sets/SCM. No host tuning.
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
-foreach($n in @('Core','Governance','CpuSession','Maintenance','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
+foreach($n in @('Core','Governance','CpuSession','BackgroundBudget','Maintenance','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('bnqq-focus-'+[guid]::NewGuid().ToString('N'))
 $script:BnqqDataRoot=$temp;$script:checks=0
 function Check($ok,$text){if(-not $ok){throw $text};$script:checks++}
@@ -12,6 +12,7 @@ function Reset {
  $script:tick=0;$script:qa=$true;$script:failHealth=$false;$script:failCpu=$false;$script:stop=$false;$script:service=4;$script:serviceWrites=0;$script:cpuWrites=0;$script:frameGuardChecked=$false;$script:planReads=0
  $script:clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalMinutes=0;TotalSeconds=0}}
  $script:processes=@{};foreach($n in 40..43){$script:processes[$n]=[pscustomobject]@{ProcessId=$n;Name='msedge';StartTime=('p'+$n);Sets=@()}}
+ $script:priorities=@{};foreach($n in 40..43){$script:priorities[$n]='Normal'};$script:priorityWrites=0;$script:failPriority=$false
 }
 function Assert-BnqqHeavyQa {if(-not $script:qa){throw 'WHEA fixture refusal'}}
 function Assert-BnqqPhaseHealth {param($Since);if($script:failHealth -and $script:tick -ge 10){throw 'New WHEA fixture'}}
@@ -40,6 +41,18 @@ function Get-BnqqCpuSetProcessState {
  if(-not $s -or $s.StartTime -cne $Expected.StartTime){return $null}
  return ($s|Select-Object *)
 }
+function Get-BnqqBudgetState {
+ param($ProcessId,$Expected)
+ $p=$script:processes[[int]$ProcessId]
+ if(-not $p -or ($Expected -and $p.StartTime -cne $Expected.StartTime)){return $null}
+ [pscustomobject]@{ProcessId=$p.ProcessId;Name=$p.Name;StartTime=$p.StartTime;Priority=$script:priorities[[int]$ProcessId]}
+}
+function Set-BnqqBudgetState {
+ param($State,$Expected)
+ Check ($State.ProcessId -ne 10 -and (Test-BnqqSameValue (Get-BnqqBudgetState $State.ProcessId) $Expected)) 'Priority identity lost/game changed'
+ $script:priorities[[int]$State.ProcessId]=$State.Priority;$script:priorityWrites++
+ if($script:failPriority -and $State.Priority -eq 'BelowNormal'){$script:failPriority=$false;throw 'Partial priority write fixture'}
+}
 function Set-BnqqCpuSetProcessState {
  param($State,$Expected)
  Check ($State.ProcessId -ne 10) 'Game scheduling changed'
@@ -58,6 +71,7 @@ function Start-Sleep {
  param($Seconds)
  if($script:tick -eq 0){MustThrow {Assert-BnqqNoDynamicFocus};$script:frameGuardChecked=$true}
  if($script:tick -eq 7){Check (-not @($script:processes.Values|Where-Object {$_.Sets.Count}).Count) 'Alt+Tab did not restore CPU Sets'}
+ if($script:tick -eq 7){Check (-not @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count) 'Alt+Tab did not restore priorities'}
  $script:tick++;$script:clock.Elapsed.TotalSeconds=$script:tick;$script:clock.Elapsed.TotalMinutes=$script:tick/60.0
  if($script:tick -eq 9){$script:processes[40]=[pscustomobject]@{ProcessId=40;Name='msedge';StartTime='reused';Sets=@()}}
  if($script:stop -and $script:tick -eq 6){Stop-BnqqFocusSession|Out-Null}
@@ -65,6 +79,7 @@ function Start-Sleep {
 function AssertRestored {
  Check ($script:service -eq 4) 'Service not restored after CPU failure/exit'
  Check (-not @($script:processes.Values|Where-Object {$_.Sets.Count}).Count) 'CPU Sets not restored'
+ Check (-not @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count) 'Background priority not restored'
  Check (-not (Test-Path (Join-Path $temp 'focus-session.json'))) 'Controller marker leaked'
  $lock=Enter-BnqqStateLock;$lock.Dispose()
 }
@@ -98,6 +113,12 @@ try{
  Reset;$script:failCpu=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -PauseSearch};AssertRestored
  Reset;$script:failHealth=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -PauseSearch};AssertRestored
  Reset;$script:stop=$true;$r=Invoke-BnqqFocusSession -Action run -Apps msedge;Check ($script:tick -eq 6) 'Cooperative stop failed';AssertRestored
+ Reset;$r=Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority
+ Check ($r.Changes -eq 6 -and $script:priorityWrites -eq 12 -and $script:cpuWrites -eq 0 -and $script:planReads -eq 0) 'Priority mode changed placement or failed discovery/restore'
+ AssertRestored
+ Reset;$script:failPriority=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority};AssertRestored
+ Reset;$script:failHealth=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority};AssertRestored
+ Reset;MustThrow {Invoke-BnqqFocusSession -Apps Discord -Policy Priority};Check ($script:priorityWrites -eq 0) 'Voice process priority changed'
  Reset;Check ($null -eq (Get-BnqqFocusStatus)) 'Absent controller considered live'
  Write-BnqqAtomicJson @{Schema='BNQQ.Focus.1';Owner=(Get-BnqqOwner);Id='old';Controller=@{ProcessId=10;Name='cs2';StartTime='other'}} (Join-Path $temp 'focus-session.json')
  Check ($null -eq (Get-BnqqFocusStatus)) 'PID reuse accepted for controller';Assert-BnqqNoDynamicFocus
