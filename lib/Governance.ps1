@@ -38,8 +38,8 @@ function Get-BnqqConfigurationFingerprint {
     if(-not $cpu -or -not $gpu.Count -or -not $mem.Count){throw 'Fingerprint incompleto'}
     $files=@(Get-ChildItem (Join-Path $script:BnqqRoot 'lib') -File | Sort-Object Name)
     if($WorkloadOnly){
-        $files=@($files|Where-Object {$_.Name -in @('Core.ps1','Governance.ps1','HeavyQA.ps1','StabilityLoad.cs')})
-        if($files.Count -ne 4){throw 'Implementacao do teste incompleta'}
+        $files=@($files|Where-Object {$_.Name -in @('Core.ps1','Governance.ps1','HeavyQA.ps1','StabilityLoad.cs','BackgroundBudget.ps1','ProcessSampling.ps1','ProcessTelemetry.cs')})
+        if($files.Count -ne 7){throw 'Implementacao do teste/backend incompleta'}
     }
     $source=@($files|ForEach-Object {(Get-FileHash $_.FullName -Algorithm SHA256 -ErrorAction Stop).Hash})
     $registry=if($WorkloadOnly){@()}else{@(Get-BnqqRegistryTargets | ForEach-Object {Get-RegSnapshot $_.Path $_.Name})}

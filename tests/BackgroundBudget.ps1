@@ -19,6 +19,12 @@ function Get-BnqqPriorityProbe {
 }
 function Get-Process {param($Id,$ErrorAction);$script:resolverCalls++;if($Id -eq $script:fake.Id){return $script:fake}}
 function Assert-BnqqCpuProcessScope {param($Process,$Handle);$script:scopeReads++;Check ($Handle -eq [IntPtr]123) 'Handle was not cached';if(-not $script:scopeAllowed){throw 'Foreign session/SID fixture'}}
+function Set-BnqqPriorityNative {
+ param($State,$Expected)
+ $live=Get-BnqqPriorityProbe $State.ProcessId $Expected
+ if(-not (Test-BnqqSameValue $live $Expected)){throw 'Concurrent priority fixture'}
+ $script:fake.PriorityClass=$State.Priority
+}
 try {
  $s=Get-BnqqBudgetState 40
  Check ($s.Priority -eq 'Normal' -and $script:scopeReads -eq 1 -and $script:fake.Disposals -eq 0) 'Native priority probe was bypassed'
@@ -59,6 +65,7 @@ try {
  $op=$p.Operations[0];$op.Before.Name='cs2';MustThrow {Assert-BnqqOperation $op}
  $op.Before.Name='msedge';$op.After.Priority='High';MustThrow {Assert-BnqqOperation $op}
  $script:fake.ProcessName='cs2';MustThrow {Get-BnqqBudgetState 40}
+ Check ($script:resolverCalls -eq 0) 'Priority read/write path invoked Get-Process'
  $script:fake.ProcessName='msedge';$script:fake.PriorityClass='BelowNormal';$sample.StartTime=$script:fake.StartTime.ToUniversalTime().ToString('o')
  Check (@((Get-BnqqBudgetPlan @($sample) @('msedge')).Operations).Count -eq 0) 'Already-low process was promoted/demoted'
  $script:fake.PriorityClass='Idle'

@@ -12,15 +12,9 @@ function Get-BnqqBudgetState {
 function Set-BnqqBudgetState {
     param($State,$Expected)
     if(-not $Expected){throw 'Processo encerrou antes da escrita de prioridade'}
-    $p=Get-Process -Id $State.ProcessId -ErrorAction Stop
-    try {
-        $handle=$p.Handle
-        Assert-BnqqCpuProcessScope $p $handle
-        $live=[pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Priority=$p.PriorityClass.ToString()}
-        if($live.Name -notin (Get-BnqqBudgetAllowedApps) -or $live.StartTime -cne $State.StartTime -or $live.Name -ine $State.Name -or -not (Test-BnqqSameValue $live $Expected)){throw 'Identidade/prioridade mudou antes da escrita'}
-        if($State.Priority -notin @('Normal','AboveNormal','High','BelowNormal')){throw 'Prioridade de destino nao admitida'}
-        $p.PriorityClass=$State.Priority
-    }finally{$p.Dispose()}
+    if($State.ProcessId -le 0 -or $State.ProcessId -ne $Expected.ProcessId -or $State.Name -notin (Get-BnqqBudgetAllowedApps) -or $State.Name -ine $Expected.Name -or -not $State.StartTime -or $State.StartTime -cne $Expected.StartTime){throw 'Identidade de prioridade invalida'}
+    if($State.Priority -notin @('Normal','AboveNormal','High','BelowNormal') -or $Expected.Priority -notin @('Normal','AboveNormal','High','BelowNormal')){throw 'Prioridade fora da politica'}
+    Set-BnqqPriorityNative -State $State -Expected $Expected
 }
 function Get-BnqqBudgetPlan {
     param($Busy,[string[]]$Apps,[ValidateRange(1,128)][int]$MaxOperations=128)

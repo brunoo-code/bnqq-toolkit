@@ -7,7 +7,7 @@ using System.Text;
 using System.Diagnostics;
 using Microsoft.Win32.SafeHandles;
 // Version the CLR contract: an older CLI invocation may still have V1 types loaded.
-namespace Bnqq.TelemetryV2 {
+namespace Bnqq.TelemetryV3 {
  public sealed class ProcessCpuSample {
   public int ProcessId; public string Name,StartTime; public double CpuMs;
  }
@@ -19,6 +19,7 @@ namespace Bnqq.TelemetryV2 {
   [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(IntPtr handle,out long created,out long exited,out long kernel,out long user);
   [DllImport("kernel32.dll",SetLastError=true)] static extern uint GetPriorityClass(IntPtr handle);
+  [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetPriorityClass(IntPtr handle,uint priority);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr handle,out uint code);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool QueryFullProcessImageName(IntPtr handle,uint flags,StringBuilder name,ref uint size);
   [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
@@ -82,6 +83,29 @@ namespace Bnqq.TelemetryV2 {
     uint exitCode;
     if(GetExitCodeProcess(process,out exitCode) && exitCode!=259)return null;
     throw;
+   }finally{CloseHandle(process);}
+  }
+  static uint BudgetPriorityCode(string priority){
+   switch(priority){case "Normal":return 0x20;case "BelowNormal":return 0x4000;case "AboveNormal":return 0x8000;case "High":return 0x80;default:throw new ArgumentException("Priority outside background policy");}
+  }
+  public static void SetBackgroundPriority(int pid,string expectedName,string expectedStart,string expectedPriority,string targetPriority,string expectedOwner,uint expectedSession){
+   if(pid<=0 || String.IsNullOrEmpty(expectedStart) || String.IsNullOrEmpty(expectedOwner))throw new ArgumentException("Missing expected identity/scope");
+   if(!String.Equals(expectedName,"msedge",StringComparison.OrdinalIgnoreCase) && !String.Equals(expectedName,"chrome",StringComparison.OrdinalIgnoreCase) && !String.Equals(expectedName,"firefox",StringComparison.OrdinalIgnoreCase) && !String.Equals(expectedName,"OneDrive",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("Process outside background policy");
+   uint expected=BudgetPriorityCode(expectedPriority),target=BudgetPriorityCode(targetPriority);
+   // QUERY_LIMITED_INFORMATION | SET_INFORMATION. No ALL_ACCESS, VM or terminate rights.
+   IntPtr process=OpenProcess(0x1200,false,pid);
+   if(process==IntPtr.Zero)throw new Win32Exception();
+   try{
+    ProcessCpuSample sample=ReadHandle(process,pid,expectedName,expectedOwner,expectedSession);
+    if(sample==null || !String.Equals(sample.StartTime,expectedStart,StringComparison.Ordinal))throw new InvalidOperationException("Process identity differs before priority write");
+    uint current=GetPriorityClass(process);
+    if(current==0)throw new Win32Exception();
+    if(current!=expected)throw new InvalidOperationException("Process priority differs from expected state");
+    if(current==target)return;
+    if(!SetPriorityClass(process,target))throw new Win32Exception();
+    uint actual=GetPriorityClass(process);
+    if(actual==0)throw new Win32Exception();
+    if(actual!=target)throw new InvalidOperationException("Priority readback differs");
    }finally{CloseHandle(process);}
   }
   static ProcessCpuSample ReadHandle(IntPtr process,int pid,string expectedName,string expectedOwner,uint expectedSession){

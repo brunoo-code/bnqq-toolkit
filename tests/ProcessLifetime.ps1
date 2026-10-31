@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# Read-only self queries and an owned stdin-waiting helper; no game or stress workload.
+# Self queries plus priority/rollback on an owned stdin-waiting helper only. No game/stress.
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
 foreach($n in @('Core','ProcessSampling','BackgroundBudget')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
@@ -13,10 +13,10 @@ try{
  $watch=New-BnqqFocusGameWatch $identity
  Check ($watch -and (Test-BnqqFocusGameWatchAlive $watch)) 'Live self not observed'
  Check (Test-BnqqFocusGameWatchAlive $watch) 'Repeated wait lost process'
- Check ($null -eq [Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,$identity.Name,'wrong-start',(Get-BnqqOwner),[uint32]$self.SessionId)) 'Reused PID identity admitted'
- Check ($null -eq [Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,'wrong-name',$identity.StartTime,(Get-BnqqOwner),[uint32]$self.SessionId)) 'Different image admitted'
- MustThrow {[Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,'S-1-0-0',[uint32]$self.SessionId)}
- MustThrow {[Bnqq.TelemetryV2.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,(Get-BnqqOwner),[uint32]($self.SessionId+1))}
+ Check ($null -eq [Bnqq.TelemetryV3.ProcessTelemetry]::Watch($PID,$identity.Name,'wrong-start',(Get-BnqqOwner),[uint32]$self.SessionId)) 'Reused PID identity admitted'
+ Check ($null -eq [Bnqq.TelemetryV3.ProcessTelemetry]::Watch($PID,'wrong-name',$identity.StartTime,(Get-BnqqOwner),[uint32]$self.SessionId)) 'Different image admitted'
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,'S-1-0-0',[uint32]$self.SessionId)}
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::Watch($PID,$identity.Name,$identity.StartTime,(Get-BnqqOwner),[uint32]($self.SessionId+1))}
  $watch.Dispose();$watch.Dispose()
  MustThrow {Test-BnqqFocusGameWatchAlive $watch}
  MustThrow {Get-BnqqBudgetState $PID}
@@ -25,6 +25,7 @@ $tempBase=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $temp=[IO.Path]::GetFullPath((Join-Path $tempBase ('bnqq-lifetime-'+[guid]::NewGuid().ToString('N'))))
 if(-not $temp.StartsWith($tempBase,[StringComparison]::OrdinalIgnoreCase)){throw 'Fixture path outside temp'}
 [void][IO.Directory]::CreateDirectory($temp)
+$script:BnqqDataRoot=Join-Path $temp 'data'
 $child=$null;$watch=$null
 try{
  $exe=Join-Path $temp 'msedge.exe'
@@ -39,6 +40,20 @@ try{
  Check ($priority.Name -ceq 'msedge' -and $priority.StartTime -ceq $identity.StartTime -and $priority.Priority -ceq $child.PriorityClass.ToString()) 'Production budget getter differs from owned helper'
  $wrong=$priority|Select-Object *;$wrong.StartTime='replacement'
  Check ($null -eq (Get-BnqqBudgetState $child.Id $wrong)) 'Budget getter accepted another creation time'
+ $after=$priority|Select-Object *;$after.Priority='BelowNormal'
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::SetBackgroundPriority($child.Id,'cs2',$priority.StartTime,$priority.Priority,'BelowNormal',(Get-BnqqOwner),$script:BnqqSamplerScope.Session)}
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::SetBackgroundPriority($child.Id,$priority.Name,'wrong-start',$priority.Priority,'BelowNormal',(Get-BnqqOwner),$script:BnqqSamplerScope.Session)}
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::SetBackgroundPriority($child.Id,$priority.Name,$priority.StartTime,$priority.Priority,'BelowNormal','S-1-0-0',$script:BnqqSamplerScope.Session)}
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::SetBackgroundPriority($child.Id,$priority.Name,$priority.StartTime,$priority.Priority,'BelowNormal',(Get-BnqqOwner),($script:BnqqSamplerScope.Session+1))}
+ MustThrow {[Bnqq.TelemetryV3.ProcessTelemetry]::SetBackgroundPriority($child.Id,$priority.Name,$priority.StartTime,$priority.Priority,'RealTime',(Get-BnqqOwner),$script:BnqqSamplerScope.Session)}
+ $stale=$priority|Select-Object *;$stale.Priority=if($priority.Priority -ceq 'High'){'Normal'}else{'High'}
+ MustThrow {Set-BnqqBudgetState $after $stale}
+ Check ((Get-BnqqBudgetState $child.Id).Priority -ceq $priority.Priority) 'Rejected native write changed helper priority'
+ $journal=New-BnqqJournal 'owned-helper-native-priority'
+ Invoke-BnqqJournalOperation $journal ([pscustomobject]@{Kind='BackgroundPriority';Before=$priority;After=$after})
+ Check ((Get-BnqqBudgetState $child.Id).Priority -ceq 'BelowNormal') 'Native priority application failed'
+ Restore-BnqqJournal $journal.File|Out-Null
+ Check ((Get-BnqqBudgetState $child.Id).Priority -ceq $priority.Priority) 'Native priority rollback lost original value'
  $child.StandardInput.Close()
  Check ($child.WaitForExit(5000)) 'Owned helper did not exit cooperatively'
  Check (-not (Test-BnqqFocusGameWatchAlive $watch)) 'Exited process reported alive'
