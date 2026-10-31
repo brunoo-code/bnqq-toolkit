@@ -9,7 +9,7 @@ function Check($ok,$text){if(-not $ok){throw $text};$script:checks++}
 function MustThrow([scriptblock]$Code){$hit=$false;try{& $Code|Out-Null}catch{$hit=$true};Check $hit 'Expected refusal'}
 function Reset {
  if([IO.Directory]::Exists($temp)){[IO.Directory]::Delete($temp,$true)}
- $script:tick=0;$script:qa=$true;$script:failHealth=$false;$script:failCpu=$false;$script:stop=$false;$script:service=4;$script:serviceWrites=0;$script:cpuWrites=0;$script:frameGuardChecked=$false
+ $script:tick=0;$script:qa=$true;$script:failHealth=$false;$script:failCpu=$false;$script:stop=$false;$script:service=4;$script:serviceWrites=0;$script:cpuWrites=0;$script:frameGuardChecked=$false;$script:planReads=0
  $script:clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalMinutes=0;TotalSeconds=0}}
  $script:processes=@{};foreach($n in 40..43){$script:processes[$n]=[pscustomobject]@{ProcessId=$n;Name='msedge';StartTime=('p'+$n);Sets=@()}}
 }
@@ -30,6 +30,7 @@ function Get-BnqqFocusSamples {
 }
 function Get-BnqqCpuSessionPlan {
  param($Apps,$BackgroundCores)
+ $script:planReads++
  $ops=@(foreach($n in 40..43){if($n -eq 43 -and $script:tick -lt 9){continue};$b=$script:processes[$n]|Select-Object *;if($b.Sets.Count){continue};$a=$b|Select-Object *;$a.Sets=@(103);[pscustomobject]@{Kind='CpuSets';Before=$b;After=$a}})
  [pscustomobject]@{CpuSetIds=@(103);Operations=$ops;Errors=@()}
 }
@@ -82,6 +83,14 @@ try{
  $c.CpuMs=1000;Check (@(Select-BnqqFocusBusy @($b) @($c) 5).Count -eq 1) 'Busy CPU not selected'
  $c.StartTime='reused';Check (@(Select-BnqqFocusBusy @($b) @($c) 5).Count -eq 0) 'PID reuse retained previous CPU sample'
  Check (@(Select-BnqqFocusBusy @($b) @($c) 0).Count -eq 0) 'Zero elapsed admitted'
+ Reset;$b.StartTime='p40';$c.StartTime='p40'
+ $state=[pscustomobject]@{Journal=$null;Journals=@();Touched=@{'40|p40'=$true};CpuSetIds=@(103);Epochs=0;Changes=0}
+ Update-BnqqFocusEpoch $state @('msedge') 2 @($b) @($c) 5
+ Check ($script:planReads -eq 0 -and $script:cpuWrites -eq 0) 'Already placed participant rebuilt plan or wrote scheduling'
+ $b.StartTime='reused';$c.StartTime='reused';$script:processes[40].StartTime='reused'
+ Update-BnqqFocusEpoch $state @('msedge') 2 @($b) @($c) 5
+ Check ($script:planReads -eq 1 -and $state.Changes -eq 1) 'New PID lifetime was skipped as already placed'
+ Restore-BnqqFocusEpoch $state
  Reset;$script:qa=$false;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge};Check ($script:cpuWrites -eq 0 -and $script:serviceWrites -eq 0) 'QA gate wrote state'
  Reset;$r=Invoke-BnqqFocusSession -Action run -Apps msedge -PauseSearch
  Check ($r.Status -eq 'Restored' -and $r.Epochs -eq 2 -and $r.Changes -eq 6) 'Dynamic discovery, rate cap or focus epochs failed'

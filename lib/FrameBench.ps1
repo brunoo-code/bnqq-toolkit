@@ -71,6 +71,10 @@ function Invoke-BnqqFrameBench {
         [Parameter(Mandatory)][ValidateSet('baseline','candidate')][string]$Variant,[string]$SwapChain='',[string]$PresentMonPath,[switch]$GpuTelemetry)
     if($Seconds-$SkipSeconds -lt 10){throw 'Exigir pelo menos 10s uteis apos warmup'}
     if($GpuTelemetry -and $Hotkey){throw 'Telemetria GPU exige captura temporizada sem hotkey para preservar a janela de coleta'}
+    # Refuse before resolving PresentMon, opening the game or loading NVAPI.
+    # A capture is not a stability test and must not bypass a recent hardware error.
+    Assert-BnqqWheaBaseline
+    $healthSince=Get-Date
     if(-not $PresentMonPath){$PresentMonPath=Get-BnqqPresentMonPath}
     if(-not (Test-Path -LiteralPath $PresentMonPath -PathType Leaf)){throw 'PresentMon ausente'}
     if(Get-Command Assert-BnqqNoDynamicFocus -ErrorAction SilentlyContinue){Assert-BnqqNoDynamicFocus}
@@ -97,6 +101,9 @@ function Invoke-BnqqFrameBench {
         & $PresentMonPath @arguments | ForEach-Object {Write-Host ([string]$_)}
         if($LASTEXITCODE -ne 0){throw ('PresentMon falhou: '+$LASTEXITCODE)}
     }finally{if($recorder){$gpuData=Stop-BnqqGpuRecorder $recorder}}
+    # Keep the raw CSV for diagnosis, but never publish a successful result from
+    # a capture that coincided with a newly reported hardware/power incident.
+    Assert-BnqqPhaseHealth $healthSince
     $files=@(Get-ChildItem -LiteralPath $session -Filter 'frames*.csv' -File)
     if($files.Count -ne 1){throw 'Esperada uma captura; use uma sessao/hotkey por rodada e inspecione os CSVs produzidos'}
     $stats=Get-BnqqFrameStats $files[0].FullName -SkipSeconds $SkipSeconds -ProcessId $game.Id -SwapChain $SwapChain

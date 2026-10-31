@@ -76,7 +76,10 @@ function Get-BnqqFocusPlan {
 }
 function Update-BnqqFocusEpoch {
     param($State,[string[]]$Apps,[int]$BackgroundCores,$Previous,$Current,[double]$ElapsedSeconds)
-    $busy=@(Select-BnqqFocusBusy $Previous $Current $ElapsedSeconds)
+    # An epoch already owns these PID/start identities. Do not rebuild the CPU
+    # topology and query every process handle again for participants we touched.
+    # A reused PID has a different key and must still go through normal admission.
+    $busy=@(Select-BnqqFocusBusy $Previous $Current $ElapsedSeconds|Where-Object {-not $State.Touched.ContainsKey($_.Key)})
     if(-not $busy.Count){return}
     $plan=Get-BnqqCpuSessionPlan $Apps $BackgroundCores
     if(($plan.CpuSetIds -join ',') -cne ($State.CpuSetIds -join ',')){throw 'Topologia CPU mudou; restaurar sessao'}
