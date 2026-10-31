@@ -54,6 +54,9 @@ jobs:
           ./tests/SyntheticBench.ps1
           ./tests/SyntheticCli.ps1
           ./tests/SyntheticNativeCI.ps1
+          ./tests/CompetitionSession.ps1
+          ./tests/CompetitionCli.ps1
+          ./tests/IncidentIntegration.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

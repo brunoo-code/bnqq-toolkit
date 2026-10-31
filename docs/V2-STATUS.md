@@ -1,4 +1,4 @@
-﻿# Estado dos 20 vetores — 2.1.0
+﻿# Estado dos 20 vetores — 2.1.1
 
 Implementar uma funcao nao demonstra ganho de desempenho. Nenhum vetor abaixo
 autoriza aplicar ajustes em hardware com WHEA ativo. O inventario deve separar
@@ -72,3 +72,10 @@ Sem aplicacao no host com WHEA, sem ganho de desempenho declarado.
 Vetores 3/18/19: gerador sintetico C# CPU/memoria com limites, contador verificado
 e medidor do processo hospedeiro. Referencia FrameBench anexavel, sem equivalencia
 de carga com o prefire. Nao executado neste host com WHEA recente.
+
+## Etapa 2.1.1 (fase 12)
+
+Vetores 2/6/7/10/14/17/19/20: perfil integrado de recursos com inventario
+CPU/GPU por usuario, leases de upload opcionais sob o mesmo lock e cleanup
+independente. Script Incident-Rollback cobre novo tipo de prioridade; NIC Activated
+roteia restore-active. Sem alteracao do host, sem ganho de FPS demonstrado.

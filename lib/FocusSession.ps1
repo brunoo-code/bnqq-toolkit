@@ -3,7 +3,7 @@ function Get-BnqqFocusIdentity {
     param([int]$ProcessId)
     $p=Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if(-not $p){return $null}
-    try{[pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o')}}finally{$p.Dispose()}
+    try{$handle=$p.Handle;Assert-BnqqCpuProcessScope $p $handle;[pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o')}}finally{$p.Dispose()}
 }
 function Get-BnqqFocusStatus {
     $file=Join-Path (Get-BnqqDataRoot) 'focus-session.json'
@@ -131,15 +131,18 @@ function Invoke-BnqqFocusSession {
     param([ValidateSet('plan','run','stop','status')][string]$Action='plan',[string[]]$Apps,
         [ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$PauseSearch,[switch]$DeferMaintenance,
         [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',
-        [ValidateRange(1,240)][int]$MaxMinutes=120,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets')
+        [ValidateRange(1,240)][int]$MaxMinutes=120,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets',
+        [string[]]$UploadApps,[ValidateRange(64,1000000)][int]$UploadKbps=512)
     if($Action -eq 'stop'){return (Stop-BnqqFocusSession)}
     if($Action -eq 'status'){return (Get-BnqqFocusStatus)}
     $plan=Get-BnqqFocusPlan $Apps $BackgroundCores -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance -Policy $Policy
+    $networkPlan=if(@($UploadApps).Count){Get-BnqqNetworkSessionPlan $UploadApps $UploadKbps}else{[pscustomobject]@{Apps=@();RateBitsPerSecond=0}}
+    $plan|Add-Member -NotePropertyName Network -NotePropertyValue $networkPlan
     if($Action -eq 'plan'){return $plan}
-    if(-not @($Apps).Count -and -not $PauseSearch -and -not $DeferMaintenance){throw 'Selecione apps ou manutencao; nenhum alvo implicito'}
+    if(-not @($Apps).Count -and -not $PauseSearch -and -not $DeferMaintenance -and -not @($UploadApps).Count){throw 'Selecione apps, upload ou manutencao; nenhum alvo implicito'}
     Assert-BnqqHeavyQa -WorkloadOnly
     $script:BnqqFocusSampleErrors=@{}
-    if($plan.Maintenance.RequiresAdmin -and -not (Test-BnqqAdmin)){throw 'Manutencao temporaria exige administrador'}
+    if(($plan.Maintenance.RequiresAdmin -or @($UploadApps).Count) -and -not (Test-BnqqAdmin)){throw 'Manutencao/upload temporarios exigem administrador'}
     $gameProcesses=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($Game)) -ErrorAction Stop)
     try{
         if($gameProcesses.Count -ne 1){throw 'Uma instancia de jogo aberta exigida'}
@@ -147,12 +150,17 @@ function Invoke-BnqqFocusSession {
     }finally{foreach($p in $gameProcesses){if($p -is [IDisposable]){$p.Dispose()}}}
     if(-not $identity){throw 'Jogo encerrou na preparacao'}
     $state=[pscustomobject]@{Journal=$null;Journals=@();Touched=@{};CpuSetIds=$plan.Cpu.CpuSetIds;Epochs=0;Changes=0}
-    $maintenance=$null;$lock=$null;$controllerFile=Join-Path (Get-BnqqDataRoot) 'focus-session.json'
+    $maintenance=$null;$networkLease=$null;$lock=$null;$controllerFile=Join-Path (Get-BnqqDataRoot) 'focus-session.json'
     $id=[guid]::NewGuid().ToString('N');$since=Get-Date;$clock=New-BnqqFocusClock;$written=$false
     try{
         $lock=Enter-BnqqStateLock;Assert-BnqqNoPendingJournal
         $lease=[pscustomobject]@{Schema='BNQQ.Focus.1';Owner=(Get-BnqqOwner);Id=$id;Controller=(Get-BnqqFocusIdentity $PID);Game=$identity;Started=[datetime]::UtcNow.ToString('o');MaxMinutes=$MaxMinutes;Policy=$Policy}
         Write-BnqqAtomicJson $lease $controllerFile;$written=$true
+        if(@($UploadApps).Count){
+            $networkLease=Start-BnqqNetworkLease -Apps $UploadApps -UploadKbps $UploadKbps -Game $identity -StateLock $lock
+            $lease|Add-Member NoteProperty NetworkJournal $networkLease.File
+            Write-BnqqAtomicJson $lease $controllerFile
+        }
         if(@($plan.Maintenance.Operations).Count){
             $maintenance=New-BnqqJournal 'focus-maintenance-v2-phase4'
             foreach($op in $plan.Maintenance.Operations){Invoke-BnqqJournalOperation $maintenance $op;Assert-BnqqPhaseHealth $since}
@@ -180,12 +188,15 @@ function Invoke-BnqqFocusSession {
         finally{
             try{if($maintenance){Restore-BnqqJournal $maintenance.File|Out-Null}}
             finally{
-                try{if($written){Remove-Item -LiteralPath $controllerFile -ErrorAction Stop}}
-                finally{if($lock){$lock.Dispose()}}
+                try{if($networkLease){Restore-BnqqNetworkSession $networkLease.File|Out-Null}}
+                finally{
+                    try{if($written){Remove-Item -LiteralPath $controllerFile -ErrorAction Stop}}
+                    finally{if($lock){$lock.Dispose()}}
+                }
             }
         }
     }
-    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;IdleRestores=$idleRestores;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});PerformanceMeasured=$false;RebootRequired=$false}
+    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;IdleRestores=$idleRestores;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});NetworkJournal=$(if($networkLease){$networkLease.File});PerformanceMeasured=$false;RebootRequired=$false}
 }
 function Show-BnqqFocusMenu {
     Write-Host 'Focus: amostragem de CPU de apps escolhidos; restaura no Alt+Tab/saida. Manutencao opcional so durante o jogo.'

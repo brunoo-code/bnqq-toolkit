@@ -2,7 +2,7 @@
 # Full controller lifecycle with fake clock/processes/CPU Sets/SCM. No host tuning.
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
-foreach($n in @('Core','Governance','CpuSession','BackgroundBudget','Maintenance','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
+foreach($n in @('Core','Governance','CpuSession','BackgroundBudget','Maintenance','NetworkSession','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
 $temp=Join-Path ([IO.Path]::GetTempPath()) ('bnqq-focus-'+[guid]::NewGuid().ToString('N'))
 $script:BnqqDataRoot=$temp;$script:checks=0
 function Check($ok,$text){if(-not $ok){throw $text};$script:checks++}
@@ -14,6 +14,7 @@ function Reset {
  $script:processes=@{};foreach($n in 40..43){$script:processes[$n]=[pscustomobject]@{ProcessId=$n;Name='msedge';StartTime=('p'+$n);Sets=@()}}
  $script:priorities=@{};foreach($n in 40..43){$script:priorities[$n]='Normal'};$script:priorityWrites=0;$script:failPriority=$false
  $script:endTick=22;$script:quietAfter=100000
+ $script:policies=@();$script:networkWrites=0;$script:failNetwork=$false;$script:failMaintenance=$false
 }
 function Assert-BnqqHeavyQa {if(-not $script:qa){throw 'WHEA fixture refusal'}}
 function Assert-BnqqPhaseHealth {param($Since);if($script:failHealth -and $script:tick -ge 10){throw 'New WHEA fixture'}}
@@ -66,8 +67,15 @@ function Get-BnqqMaintenancePlan {
  $b=[pscustomobject]@{Name='WSearch';State=4;ConfigurationHash=('A'*64)};$a=$b|Select-Object *;$a.State=1
  [pscustomobject]@{Operations=@([pscustomobject]@{Kind='Service';Before=$b;After=$a});RequiresAdmin=$true;Notes=@()}
 }
+function Get-BnqqNetPolicies {return $script:policies}
+function Add-BnqqNetPolicy {
+ param($Expected)
+ $script:policies+=@($Expected|Select-Object *);$script:networkWrites++
+ if($script:failNetwork){$script:failNetwork=$false;throw 'Partial QoS fixture'}
+}
+function Remove-BnqqNetPolicy {param($Name);$script:policies=@($script:policies|Where-Object Name -ine $Name);$script:networkWrites++}
 function Get-BnqqSearchState {[pscustomobject]@{Name='WSearch';State=$script:service;ConfigurationHash=('A'*64)}}
-function Invoke-BnqqSearchControl {param($Running);$script:service=if($Running){4}else{1};$script:serviceWrites++}
+function Invoke-BnqqSearchControl {param($Running);$script:service=if($Running){4}else{1};$script:serviceWrites++;if($script:failMaintenance -and -not $Running){$script:failMaintenance=$false;throw 'Partial service fixture'}}
 function Start-Sleep {
  param($Seconds)
  if($script:tick -eq 0){MustThrow {Assert-BnqqNoDynamicFocus};$script:frameGuardChecked=$true}
@@ -81,6 +89,7 @@ function AssertRestored {
  Check ($script:service -eq 4) 'Service not restored after CPU failure/exit'
  Check (-not @($script:processes.Values|Where-Object {$_.Sets.Count}).Count) 'CPU Sets not restored'
  Check (-not @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count) 'Background priority not restored'
+ Check (-not $script:policies.Count) 'Upload lease not restored'
  Check (-not (Test-Path (Join-Path $temp 'focus-session.json'))) 'Controller marker leaked'
  $lock=Enter-BnqqStateLock;$lock.Dispose()
 }
@@ -120,6 +129,11 @@ try{
  Reset;$script:failPriority=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority};AssertRestored
  Reset;$script:failHealth=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority};AssertRestored
  Reset;MustThrow {Invoke-BnqqFocusSession -Apps Discord -Policy Priority};Check ($script:priorityWrites -eq 0) 'Voice process priority changed'
+ Reset;$r=Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -UploadApps OneDrive.exe
+ Check ($r.NetworkJournal -and $script:networkWrites -eq 2) 'Combined upload lease failed';AssertRestored
+ Reset;$script:failNetwork=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -UploadApps OneDrive.exe};AssertRestored
+ Reset;$script:failMaintenance=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -UploadApps OneDrive.exe};AssertRestored
+ Reset;$script:failPriority=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -UploadApps OneDrive.exe};AssertRestored
  Reset;$script:endTick=50;$script:quietAfter=15;$r=Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority
  Check ($r.IdleRestores -eq 1 -and $script:cpuWrites -eq 0 -and $script:priorityWrites -eq 2*$r.Changes) 'Quiet release/cooldown failed'
  AssertRestored

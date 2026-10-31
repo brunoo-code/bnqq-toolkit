@@ -120,3 +120,7 @@ Priority libera o periodo apos tres amostras de atividade baixa e respeita coold
 ## Etapa 2.1.0 - carga sintetica C#
 
 Gerador de rajadas CPU/memoria verificada, com deadline nativo e coordenador monitorado. Nao reproduz o prefire nem emite certificado de estabilidade. Captura FrameBench pode ser anexada como referencia, sem calibracao ficticia. Veja [limites e testes](docs/SYNTHETIC-BENCH.md). WHEA recente impede iniciar carga.
+
+## Etapa 2.1.1 - sessao competitiva integrada
+
+compete reune prioridade dinamica, manutencao opcional e upload de apps explicitamente selecionados, em um unico controlador com restauracao. Inventario diferencia NVIDIA/AMD/Intel/Unknown sem copiar ajustes entre drivers. Sem alteracoes do jogo, clocks ou GPU. Veja [comportamento e limites](docs/COMPETITION-SESSION.md). Recuperacao de incidentes cobre as prioridades novas e journal NIC ativo solicita restauracao ativa.

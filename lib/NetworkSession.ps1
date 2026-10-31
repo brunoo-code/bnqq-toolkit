@@ -37,7 +37,7 @@ function Remove-BnqqNetPolicy {
 function Get-BnqqNetworkSessionPlan {
     param([string[]]$Apps,[ValidateRange(64,1000000)][int]$UploadKbps=512)
     foreach($app in @($Apps)){if($app -notin (Get-BnqqNetworkApps)){throw ('App de rede nao admitido: '+$app)}}
-    return [pscustomobject]@{Apps=@($Apps|ForEach-Object {$_.ToLowerInvariant()}|Select-Object -Unique);RateBitsPerSecond=([uint64]$UploadKbps*1000);Store='ActiveStore';Direction='Outbound';Note='Limite solicitado para apps escolhidos; nao e limite global da conexao, nao limita downloads nem garante ping/FPS. Conexoes existentes podem exigir renovacao.'}
+    return [pscustomobject]@{Apps=@($Apps|Where-Object {$_}|ForEach-Object {$_.ToLowerInvariant()}|Select-Object -Unique);RateBitsPerSecond=([uint64]$UploadKbps*1000);Store='ActiveStore';Direction='Outbound';Note='Limite solicitado para apps escolhidos; nao e limite global da conexao, nao limita downloads nem garante ping/FPS. Conexoes existentes podem exigir renovacao.'}
 }
 function Assert-BnqqNetNoOverlap {
     param([string[]]$Apps,$Policies)
@@ -81,33 +81,19 @@ function Restore-BnqqNetworkSession {
     if($errors.Count){throw ('Recuperacao de rede pendente: '+($errors -join '; '))}
     return $j
 }
-function Invoke-BnqqNetworkSession {
-    param([ValidateSet('plan','run','restore')][string]$Action='plan',[string[]]$Apps,
-        [ValidateRange(64,1000000)][int]$UploadKbps=512,
-        [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',[string]$File)
-    if($Action -eq 'plan'){return (Get-BnqqNetworkSessionPlan $Apps $UploadKbps)}
-    if(-not (Test-BnqqAdmin)){throw 'Sessao de rede exige administrador'}
-    $plan=$null
-    if($Action -eq 'run'){
-        $plan=Get-BnqqNetworkSessionPlan $Apps $UploadKbps
-        if(-not $plan.Apps.Count){throw 'Escolha apps; lista vazia nunca limita a conexao inteira'}
-        Assert-BnqqHeavyQa -WorkloadOnly
-    }
-    $lock=Enter-BnqqStateLock
-    try {
-        if($Action -eq 'restore'){return (Restore-BnqqNetworkSession $File)}
-        Assert-BnqqNoPendingJournal
+# Internal lease: caller retains the single BNQQ state lock for its lifetime.
+function Start-BnqqNetworkLease {
+    param([string[]]$Apps,[int]$UploadKbps,$Game,[IO.FileStream]$StateLock)
+    if(-not $StateLock -or -not $StateLock.CanWrite -or $StateLock.Name -ine [IO.Path]::GetFullPath((Join-Path (Get-BnqqDataRoot) 'state.lock'))){throw 'Lease de rede exige lock de estado vivo do BNQQ'}
+    if(-not (Test-BnqqAdmin)){throw 'Lease de upload exige administrador'}
+    Assert-BnqqHeavyQa -WorkloadOnly
+    $plan=Get-BnqqNetworkSessionPlan $Apps $UploadKbps
+    if(-not $plan.Apps.Count){throw 'Lease de upload sem aplicativos'}
         $dir=Join-Path (Get-BnqqDataRoot) 'network-sessions'
         foreach($f in @(Get-ChildItem -LiteralPath $dir -Filter '*.json' -File -ErrorAction SilentlyContinue)){
             $old=Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8|ConvertFrom-Json
             if($old.Status -ne 'Restored'){throw ('Recupere sessao de rede anterior: '+$f.FullName)}
         }
-        $games=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($Game)) -ErrorAction Stop)
-        try {
-            if($games.Count -ne 1){throw 'Uma unica instancia do jogo exigida'}
-            $identity=Get-BnqqSessionProcess $games[0].Id
-            if(-not $identity){throw 'Jogo encerrou antes da sessao'}
-        }finally{foreach($p in $games){if($p -is [Diagnostics.Process]){$p.Dispose()}}}
         Assert-BnqqNetNoOverlap $plan.Apps @(Get-BnqqNetPolicies)
         $id=[guid]::NewGuid().ToString('N');$file=Join-Path $dir ($id+'.json')
         $j=[pscustomobject]@{Schema='BNQQ.NetworkSession.1';Owner=(Get-BnqqOwner);Id=$id;Started=[datetime]::UtcNow.ToString('o');Game=$identity;Status='Prepared';Entries=@()}
@@ -126,10 +112,38 @@ function Invoke-BnqqNetworkSession {
                 $entry.Status='Applied';Write-BnqqAtomicJson $j $file
             }
             $j.Status='Active';Write-BnqqAtomicJson $j $file
-            Write-Host ('Sessao de upload ativa; recuperacao: '+$file)
-            Wait-BnqqSessionGame $identity
-        }finally{Restore-BnqqNetworkSession $file|Out-Null}
-        return [pscustomobject]@{Status='Restored';Journal=$file;Apps=$plan.Apps;RequestedRateBitsPerSecond=$plan.RateBitsPerSecond;TrafficMeasured=$false}
+            return [pscustomobject]@{File=$file;Data=$j}
+        }catch{
+            $original=$_
+            try{Restore-BnqqNetworkSession $file|Out-Null}
+            catch{$_.Exception.Data['BnqqNetworkJournal']=$file;throw}
+            throw $original
+        }
+}
+function Invoke-BnqqNetworkSession {
+    param([ValidateSet('plan','run','restore')][string]$Action='plan',[string[]]$Apps,
+        [ValidateRange(64,1000000)][int]$UploadKbps=512,
+        [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',[string]$File)
+    if($Action -eq 'plan'){return (Get-BnqqNetworkSessionPlan $Apps $UploadKbps)}
+    if(-not (Test-BnqqAdmin)){throw 'Sessao de rede exige administrador'}
+    if($Action -eq 'run'){
+        if(-not $Apps.Count){throw 'Escolha apps; lista vazia nunca limita a conexao inteira'}
+        Assert-BnqqHeavyQa -WorkloadOnly
+    }
+    $lock=Enter-BnqqStateLock
+    try{
+        if($Action -eq 'restore'){return (Restore-BnqqNetworkSession $File)}
+        Assert-BnqqNoPendingJournal
+        $games=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($Game)) -ErrorAction Stop)
+        try{
+            if($games.Count -ne 1){throw 'Uma unica instancia do jogo exigida'}
+            $identity=Get-BnqqSessionProcess $games[0].Id
+            if(-not $identity){throw 'Jogo encerrou antes da sessao'}
+        }finally{foreach($p in $games){if($p -is [Diagnostics.Process]){$p.Dispose()}}}
+        $lease=Start-BnqqNetworkLease -Apps $Apps -UploadKbps $UploadKbps -Game $identity -StateLock $lock
+        try{Wait-BnqqSessionGame $identity}
+        finally{Restore-BnqqNetworkSession $lease.File|Out-Null}
+        [pscustomobject]@{Status='Restored';Journal=$lease.File;Apps=$lease.Data.Entries.Expected.AppPathNameMatchCondition;RequestedRateBitsPerSecond=([uint64]$UploadKbps*1000);TrafficMeasured=$false}
     }finally{$lock.Dispose()}
 }
 function Show-BnqqNetworkSessionMenu {

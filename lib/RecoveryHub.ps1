@@ -14,7 +14,10 @@ function Invoke-BnqqRecovery {
     $j=Get-Content -LiteralPath $File -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
     if($j.Owner -ne (Get-BnqqOwner)){throw 'Backup de outro usuario; nenhuma restauracao iniciada'}
     switch([string]$j.Schema){
-        'BNQQ.Nic.1' {return (Invoke-BnqqNicPolicy -Action restore -File $File)}
+        'BNQQ.Nic.1' {
+            $action=if($j.Status -eq 'Activated'){'restore-active'}else{'restore'}
+            return (Invoke-BnqqNicPolicy -Action $action -File $File)
+        }
         'BNQQ.Nvidia.1' {return (Invoke-BnqqGpuProfile -Action restore -File $File)}
         '2' {
             if(@($j.Entries|Where-Object {$_.Kind -notin @('Process','CpuSets','BackgroundPriority')}).Count -and -not (Test-BnqqAdmin)){throw 'Backup Windows exige administrador'}

@@ -8,7 +8,7 @@ function Check($ok,$message){if(-not $ok){throw $message}}
 function MustThrow([scriptblock]$Code){$hit=$false;try{& $Code|Out-Null}catch{$hit=$true};Check $hit 'Expected refusal'}
 function Test-BnqqAdmin {return $true}
 function Restore-BnqqJournal {param($File);$script:routed='Windows'}
-function Invoke-BnqqNicPolicy {param($Action,$File);Check ($Action -eq 'restore') 'Wrong NIC action';$script:routed='NIC'}
+function Invoke-BnqqNicPolicy {param($Action,$File);Check ($Action -in @('restore','restore-active')) 'Wrong NIC action';$script:routed='NIC';$script:nicAction=$Action}
 function Invoke-BnqqGpuProfile {param($Action,$File);Check ($Action -eq 'restore') 'Wrong GPU action';$script:routed='GPU'}
 function Invoke-BnqqNetworkSession {param($Action,$File);Check ($Action -eq 'restore') 'Wrong network action';$script:routed='Network'}
 function Invoke-BnqqGameSession {param($Action,$File);Check ($Action -eq 'restore') 'Wrong session action';$script:routed='Session'}
@@ -24,6 +24,10 @@ try {
   Check ($script:routed -eq $case[1]) 'Wrong recovery adapter'
  }
  Check (@(Get-BnqqRecoveryCatalog).Count -eq 8) 'Catalog missing backup type'
+ $activeNic=Join-Path $temp 'nic-journals\active.json'
+ Write-BnqqAtomicJson @{Schema='BNQQ.Nic.1';Owner=(Get-BnqqOwner);Status='Activated'} $activeNic
+ Invoke-BnqqRecovery $activeNic
+ Check ($script:nicAction -eq 'restore-active') 'Activated NIC was restored only in registry'
  $processBackup=Join-Path $temp 'journals\cpu-only.json'
  Write-BnqqAtomicJson @{Schema=2;Owner=(Get-BnqqOwner);Entries=@(@{Kind='CpuSets'})} $processBackup
  function Test-BnqqAdmin {return $false}
