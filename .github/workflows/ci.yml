@@ -20,6 +20,7 @@ jobs:
         shell: powershell
         run: |
           ./tests/GameSession.ps1
+          ./tests/NetworkSession.ps1
           ./tests/RecoveryHub.ps1
       - name: Legacy IFEO migration fixtures
         shell: powershell

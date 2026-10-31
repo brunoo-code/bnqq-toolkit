@@ -1,4 +1,4 @@
-﻿# BNQQ Toolkit Public 1.8.6
+﻿# BNQQ Toolkit Public 1.8.7
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -80,3 +80,5 @@ Atualizacao do motor 1.8.4: [modulos FPS](docs/FPS-1.8.4.md), caps reversiveis d
 Motor 1.8.5: sessao de prioridade opt-in e recuperacao unificada. Veja [docs/SESSION-1.8.5.md](docs/SESSION-1.8.5.md). Sem ganho de FPS demonstrado.
 
 1.8.6: migracao seletiva de IFEO legado baseada em snapshots escolhidos, sem reset presumido. Veja [docs/LEGACY-1.8.6.md](docs/LEGACY-1.8.6.md).
+
+1.8.7: sessao temporaria de upload para apps de sincronizacao, com criacao/verificacao/remocao de politicas QoS, recuperacao e regras de estabilidade. Menu 10; veja [docs/NETWORK-SESSION.md](docs/NETWORK-SESSION.md). Nenhum ganho de FPS ou ping presumido.

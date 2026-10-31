@@ -1,6 +1,6 @@
-function Get-BnqqRecoveryCatalog {
+﻿function Get-BnqqRecoveryCatalog {
     $root=Get-BnqqDataRoot
-    foreach($folder in @('journals','sessions','gameprofiles','framepacing','legacy-migrations')){
+    foreach($folder in @('journals','sessions','gameprofiles','framepacing','legacy-migrations','network-sessions')){
         foreach($file in @(Get-ChildItem -LiteralPath (Join-Path $root $folder) -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)){
             try {
                 $j=Get-Content $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
@@ -19,6 +19,7 @@ function Invoke-BnqqRecovery {
             $lock=Enter-BnqqStateLock
             try{return (Restore-BnqqJournal $File)}finally{$lock.Dispose()}
         }
+        'BNQQ.NetworkSession.1' {return (Invoke-BnqqNetworkSession -Action restore -File $File)}
         'BNQQ.Session.1' {return (Invoke-BnqqGameSession -Action restore -File $File)}
         'BNQQ.LegacyIFEO.1' {return (Invoke-BnqqLegacyMigration -Action restore -BackupFile $File)}
         'BNQQ.GameProfile.1' {
