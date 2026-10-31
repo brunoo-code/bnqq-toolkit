@@ -1,4 +1,4 @@
-﻿# Estado dos 20 vetores — 2.0.8
+﻿# Estado dos 20 vetores — 2.0.9
 
 Implementar uma funcao nao demonstra ganho de desempenho. Nenhum vetor abaixo
 autoriza aplicar ajustes em hardware com WHEA ativo. O inventario deve separar
@@ -60,3 +60,9 @@ Vetores 9/12/15/19: plataforma somente leitura (timers, ancestrais USB e VBS),
 sem alteracoes de seguranca, firmware ou IRQ. WHEA 18 bloqueia recursos em
 72h mesmo se pertencer a boot anterior. Revisao de fornecedores em
 [ENGINEERING-REVIEW](ENGINEERING-REVIEW.md). Nenhuma superioridade medida.
+
+## Etapa 2.0.9 (fase 10)
+
+Vetores 7/14/19: prioridade adaptativa com liberacao apos atividade baixa,
+histerese e cooldown; sessao legada verifica escopo e corrida de prioridade.
+Sem aplicacao no host com WHEA, sem ganho de desempenho declarado.

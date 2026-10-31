@@ -15,6 +15,15 @@ informa a politica e os apps escolhidos, sem abrir handles dos participantes.
 Discord, utilitarios de perifericos, sistema, jogo e anti-cheat nao sao alvos.
 Somente processos do usuario e da sessao do controlador sao admitidos.
 
+Desde 2.0.9, tres amostras consecutivas com menos de 5 ms de CPU/segundo em
+todos os participantes observados liberam o periodo de prioridade. Ha 15 segundos
+de intervalo antes de novas admissoes, evitando alternancia continua. Processo
+novo ou contador regressivo nao e prova de ociosidade. A admissao continua em
+25 ms/segundo; sao limiares distintos de histerese, nao limites percentuais de CPU.
+O cooldown e monotonicamente cronometrado. CPU Sets mantem o comportamento anterior.
+Restauracao pode envolver todos os participantes; limite de duas mudancas por
+ciclo se refere a admissoes, nao a atrasar a recuperacao.
+
 ## Estado anterior e recuperacao
 
 Cada participante tem prioridade anterior salva em journal antes da escrita,

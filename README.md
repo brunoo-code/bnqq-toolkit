@@ -112,3 +112,7 @@ Novo inventario drivers somente leitura e analisador dpc de eventos individuais 
 ## Etapa 2.0.8 - plataforma e falhas fatais
 
 Consultas timers, usb-topology e security, sem alteracoes de BCD/IRQ/seguranca. WHEA 18 recente bloqueia recursos entre boots; reiniciar nao neutraliza o historico. Revisao publica de ferramentas comerciais e decisoes em [engenharia](docs/ENGINEERING-REVIEW.md).
+
+## Etapa 2.0.9 - controle adaptativo
+
+Priority libera o periodo apos tres amostras de atividade baixa e respeita cooldown de 15 segundos. A sessao antiga tambem verifica usuario/sessao e prioridade no handle antes da escrita. Nenhum ganho de FPS foi demonstrado. Veja [controle de background](docs/BACKGROUND-BUDGET.md).

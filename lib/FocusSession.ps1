@@ -73,7 +73,20 @@ function Get-BnqqFocusPlan {
     if($Policy -eq 'Priority'){foreach($app in @($Apps)){if($app -notin (Get-BnqqBudgetAllowedApps)){throw 'Modo Priority aceita somente navegadores e OneDrive escolhidos'}}}
     $cpu=if(@($Apps).Count -and $Policy -eq 'CpuSets'){Get-BnqqCpuSessionPlan $Apps $BackgroundCores}else{[pscustomobject]@{CpuSetIds=@();Operations=@();Errors=@()}}
     $maintenance=Get-BnqqMaintenancePlan -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance
-    [pscustomobject]@{Status='Preview';Policy=$Policy;Apps=@($Apps);Cpu=$cpu;Maintenance=$maintenance;Limits=@{LiveProcesses=128;EntriesPerEpoch=512;Epochs=64;ChangesPerPoll=2;SampleSeconds=5;MinimumCpuMsPerSecond=25};Note='Politica somente apos atividade medida e com o jogo em foco. Priority preserva CPU Sets/afinidades. Sem ganho de FPS presumido.';PriorityInheritanceNote=$(if($Policy -eq 'Priority'){'Filhos novos podem herdar BelowNormal. Sem estado anterior, nao sao promovidos na restauracao; reabra o app se necessario.'})}
+    [pscustomobject]@{Status='Preview';Policy=$Policy;Apps=@($Apps);Cpu=$cpu;Maintenance=$maintenance;Limits=@{LiveProcesses=128;EntriesPerEpoch=512;Epochs=64;ChangesPerPoll=2;SampleSeconds=5;MinimumCpuMsPerSecond=25;PriorityQuietCpuMsPerSecond=5;PriorityQuietSamples=3;PriorityAdmissionCooldownSeconds=15};Note='Politica somente apos atividade medida e com o jogo em foco. Priority preserva CPU Sets/afinidades e libera o periodo apos tres amostras de baixa atividade. Sem ganho de FPS presumido.';PriorityInheritanceNote=$(if($Policy -eq 'Priority'){'Filhos novos podem herdar BelowNormal. Sem estado anterior, nao sao promovidos na restauracao; reabra o app se necessario.'})}
+}
+function Test-BnqqFocusQuiet {
+    param($Previous,$Current,[double]$ElapsedSeconds)
+    if($ElapsedSeconds -le 0 -or $ElapsedSeconds -gt 30){return $false}
+    $before=@{};foreach($s in @($Previous)){$before[([string]$s.ProcessId+'|'+$s.StartTime)]=$s}
+    foreach($s in @($Current)){
+        $key=[string]$s.ProcessId+'|'+$s.StartTime
+        # A newly observed process or counter reset is unknown, never idle proof.
+        if(-not $before.ContainsKey($key) -or $s.Name -cne $before[$key].Name){return $false}
+        $delta=[double]$s.CpuMs-[double]$before[$key].CpuMs
+        if($delta -lt 0 -or $delta -ge 5*$ElapsedSeconds){return $false}
+    }
+    return $true
 }
 function Update-BnqqFocusEpoch {
     param($State,[string[]]$Apps,[int]$BackgroundCores,$Previous,$Current,[double]$ElapsedSeconds,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets')
@@ -144,16 +157,20 @@ function Invoke-BnqqFocusSession {
             $maintenance=New-BnqqJournal 'focus-maintenance-v2-phase4'
             foreach($op in $plan.Maintenance.Operations){Invoke-BnqqJournalOperation $maintenance $op;Assert-BnqqPhaseHealth $since}
         }
-        $previous=@();$sampleTime=0.0;$nextHealth=0.0;$nextSample=0.0
+        $previous=@();$sampleTime=0.0;$nextHealth=0.0;$nextSample=0.0;$quietSamples=0;$admitAfter=0.0;$idleRestores=0
         while($clock.Elapsed.TotalMinutes -lt $MaxMinutes){
             $live=Get-BnqqFocusIdentity $identity.ProcessId
             if(-not $live -or -not (Test-BnqqSameValue $identity $live) -or (Test-BnqqFocusStop $id)){break}
             if($clock.Elapsed.TotalSeconds -ge $nextHealth){Assert-BnqqPhaseHealth $since;$nextHealth=$clock.Elapsed.TotalSeconds+10}
             if((Get-BnqqForegroundPid) -ne $identity.ProcessId){
-                Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0
+                Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0;$quietSamples=0;$admitAfter=0.0
             }elseif(@($Apps).Count -and $clock.Elapsed.TotalSeconds -ge $nextSample){
                 $current=@(Get-BnqqFocusSamples $Apps);$now=$clock.Elapsed.TotalSeconds
-                Update-BnqqFocusEpoch $state $Apps $BackgroundCores $previous $current ($now-$sampleTime) -Policy $Policy
+                if($Policy -eq 'Priority' -and $state.Journal -and (Test-BnqqFocusQuiet $previous $current ($now-$sampleTime))){$quietSamples++}else{$quietSamples=0}
+                if($quietSamples -ge 3){
+                    Restore-BnqqFocusEpoch $state;$quietSamples=0;$admitAfter=$now+15;$idleRestores++
+                    Write-BnqqNightLog 'FOCUS-IDLE-RESTORED' ('Quiet background; admission cooldown until '+$admitAfter)
+                }elseif($now -ge $admitAfter){Update-BnqqFocusEpoch $state $Apps $BackgroundCores $previous $current ($now-$sampleTime) -Policy $Policy}
                 $previous=$current;$sampleTime=$now;$nextSample=$now+5
             }
             Start-Sleep -Seconds 1
@@ -168,7 +185,7 @@ function Invoke-BnqqFocusSession {
             }
         }
     }
-    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});PerformanceMeasured=$false;RebootRequired=$false}
+    [pscustomobject]@{Status='Restored';Policy=$Policy;Changes=$state.Changes;Epochs=$state.Epochs;IdleRestores=$idleRestores;CpuJournals=$state.Journals;MaintenanceJournal=$(if($maintenance){$maintenance.File});PerformanceMeasured=$false;RebootRequired=$false}
 }
 function Show-BnqqFocusMenu {
     Write-Host 'Focus: amostragem de CPU de apps escolhidos; restaura no Alt+Tab/saida. Manutencao opcional so durante o jogo.'

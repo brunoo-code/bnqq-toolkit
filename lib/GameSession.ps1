@@ -6,7 +6,7 @@ function Get-BnqqSessionProcess {
     param([int]$ProcessId)
     $p=Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if(-not $p){return $null}
-    try{return [pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Priority=$p.PriorityClass.ToString()}}
+    try{$handle=$p.Handle;Assert-BnqqCpuProcessScope $p $handle;return [pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o');Priority=$p.PriorityClass.ToString()}}
     finally{$p.Dispose()}
 }
 function Set-BnqqSessionPriority {
@@ -15,7 +15,9 @@ function Set-BnqqSessionPriority {
     try {
         # Open/cache the process handle before checking identity and mutating that object.
         $handle=$p.Handle
+        Assert-BnqqCpuProcessScope $p $handle
         if(-not $Expected -or $p.StartTime.ToUniversalTime().ToString('o') -cne $Expected.StartTime -or $p.ProcessName -ine $Expected.Name){throw 'Identidade do processo mudou; escrita cancelada'}
+        if($p.PriorityClass.ToString() -cne $Expected.Priority){throw 'Prioridade mudou antes da escrita; nao sobrescrever'}
         $p.PriorityClass=$Priority
     }finally{$p.Dispose()}
 }
@@ -50,7 +52,7 @@ function Restore-BnqqGameSession {
             elseif($live.Priority -ceq $e.BeforePriority){$e.Status='Restored'}
             elseif($live.Priority -cne $e.AfterPriority){throw 'Prioridade alterada externamente; nao sobrescrever'}
             else {
-                Set-BnqqSessionPriority $e.ProcessId $e.BeforePriority $e
+                Set-BnqqSessionPriority $e.ProcessId $e.BeforePriority $live
                 $after=Get-BnqqSessionProcess $e.ProcessId
                 if($after -and ($after.StartTime -cne $e.StartTime -or $after.Priority -cne $e.BeforePriority)){throw 'Restauracao nao verificada'}
                 $e.Status=if($after){'Restored'}else{'Exited'}

@@ -50,6 +50,7 @@ jobs:
           ./tests/DpcAnalysis.ps1
           ./tests/DriverCli.ps1
           ./tests/PlatformAudit.ps1
+          ./tests/SessionProcessScope.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

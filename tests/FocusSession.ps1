@@ -13,6 +13,7 @@ function Reset {
  $script:clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalMinutes=0;TotalSeconds=0}}
  $script:processes=@{};foreach($n in 40..43){$script:processes[$n]=[pscustomobject]@{ProcessId=$n;Name='msedge';StartTime=('p'+$n);Sets=@()}}
  $script:priorities=@{};foreach($n in 40..43){$script:priorities[$n]='Normal'};$script:priorityWrites=0;$script:failPriority=$false
+ $script:endTick=22;$script:quietAfter=100000
 }
 function Assert-BnqqHeavyQa {if(-not $script:qa){throw 'WHEA fixture refusal'}}
 function Assert-BnqqPhaseHealth {param($Since);if($script:failHealth -and $script:tick -ge 10){throw 'New WHEA fixture'}}
@@ -21,13 +22,13 @@ function New-BnqqFocusClock {return $script:clock}
 function Get-Process {param($Name,$ErrorAction);[pscustomobject]@{Id=10}}
 function Get-BnqqFocusIdentity {
  param($ProcessId)
- if($ProcessId -eq 10 -and $script:tick -ge 22){return $null}
+ if($ProcessId -eq 10 -and $script:tick -ge $script:endTick){return $null}
  [pscustomobject]@{ProcessId=$ProcessId;Name=$(if($ProcessId -eq 10){'cs2'}else{'powershell'});StartTime='fixed'}
 }
 function Get-BnqqForegroundPid {if($script:tick -in @(7,8)){return 0};return 10}
 function Get-BnqqFocusSamples {
  param($Apps)
- foreach($n in 40..43){if($n -eq 43 -and $script:tick -lt 9){continue};$s=$script:processes[$n];[pscustomobject]@{ProcessId=$n;Name='msedge';StartTime=$s.StartTime;CpuMs=($script:tick*(100+($n-40)*10))}}
+ foreach($n in 40..43){if($n -eq 43 -and $script:tick -lt 9){continue};$s=$script:processes[$n];[pscustomobject]@{ProcessId=$n;Name='msedge';StartTime=$s.StartTime;CpuMs=([math]::Min($script:tick,$script:quietAfter)*(100+($n-40)*10))}}
 }
 function Get-BnqqCpuSessionPlan {
  param($Apps,$BackgroundCores)
@@ -119,6 +120,16 @@ try{
  Reset;$script:failPriority=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority};AssertRestored
  Reset;$script:failHealth=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority};AssertRestored
  Reset;MustThrow {Invoke-BnqqFocusSession -Apps Discord -Policy Priority};Check ($script:priorityWrites -eq 0) 'Voice process priority changed'
+ Reset;$script:endTick=50;$script:quietAfter=15;$r=Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority
+ Check ($r.IdleRestores -eq 1 -and $script:cpuWrites -eq 0 -and $script:priorityWrites -eq 2*$r.Changes) 'Quiet release/cooldown failed'
+ AssertRestored
+ $before=[pscustomobject]@{ProcessId=40;Name='msedge';StartTime='fixed';CpuMs=100}
+ $after=$before|Select-Object *;$after.CpuMs=110
+ Check (Test-BnqqFocusQuiet @($before) @($after) 5) 'Quiet evidence rejected'
+ $after.CpuMs=125;Check (-not (Test-BnqqFocusQuiet @($before) @($after) 5)) 'Hysteresis threshold lost'
+ $after.CpuMs=90;Check (-not (Test-BnqqFocusQuiet @($before) @($after) 5)) 'Counter reset treated as quiet'
+ $after.StartTime='new';Check (-not (Test-BnqqFocusQuiet @($before) @($after) 5)) 'New process treated as quiet'
+ Check (-not (Test-BnqqFocusQuiet @() @() 31)) 'Stale sample admitted'
  Reset;Check ($null -eq (Get-BnqqFocusStatus)) 'Absent controller considered live'
  Write-BnqqAtomicJson @{Schema='BNQQ.Focus.1';Owner=(Get-BnqqOwner);Id='old';Controller=@{ProcessId=10;Name='cs2';StartTime='other'}} (Join-Path $temp 'focus-session.json')
  Check ($null -eq (Get-BnqqFocusStatus)) 'PID reuse accepted for controller';Assert-BnqqNoDynamicFocus
