@@ -46,6 +46,9 @@ jobs:
           ./tests/FocusSession.ps1
           ./tests/BackgroundBudget.ps1
           ./tests/FocusCli.ps1
+          ./tests/DriverAudit.ps1
+          ./tests/DpcAnalysis.ps1
+          ./tests/DriverCli.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

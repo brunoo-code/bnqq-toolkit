@@ -1,4 +1,4 @@
-﻿# Estado dos 20 vetores — 2.0.6
+﻿# Estado dos 20 vetores — 2.0.7
 
 Implementar uma funcao nao demonstra ganho de desempenho. Nenhum vetor abaixo
 autoriza aplicar ajustes em hardware com WHEA ativo. O inventario deve separar
@@ -46,3 +46,10 @@ O modo nao altera CPU Sets/afinidades nem configura o jogo. Veja
 [comportamento e limites](BACKGROUND-BUDGET.md). CLI privada corrigida para
 declarar os parametros focus que ja eram referenciados pelo dispatcher.
 Somente validacao de software nesta etapa; sem aplicacao real nem ganho medido.
+
+## Etapa 2.0.7 (fase 8)
+
+Vetores 9/11/18: inventario de drivers e infraestrutura offline de analise de
+eventos DPC/ISR normalizados. A coleta ETW real e a conversao automatica de
+WPA/ETL continuam pendentes; IRQs e dispositivos nao sao modificados.
+Veja [contrato, procedencia e limites](DRIVERS-DPC.md). Sem ganho medido.

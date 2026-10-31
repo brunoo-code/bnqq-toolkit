@@ -1,4 +1,4 @@
-﻿# BNQQ Toolkit Public 2.0.6
+﻿# BNQQ Toolkit Public 2.0.7
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -104,3 +104,7 @@ O controlador focus evita reconstruir o plano CPU para participantes ja tratados
 ## Etapa 2.0.6 - prioridade dinamica
 
 Novo modo focus Priority: reduz a prioridade de navegadores e OneDrive escolhidos somente apos medir atividade de CPU, com restauracao no Alt+Tab/saida. Nao restringe afinidades nem altera configuracoes do jogo. Veja comportamento, limites de heranca de processos e recuperacao em [controle de background](docs/BACKGROUND-BUDGET.md). O modo CpuSets continua sendo o padrao da CLI. Nenhum ganho de FPS foi demonstrado nesta entrega.
+
+## Etapa 2.0.7 - drivers e DPC/ISR
+
+Novo inventario drivers somente leitura e analisador dpc de eventos individuais normalizados ja exportados. Sem gravacao ETW nesta etapa, instalacao de drivers, IRQ/MSI ou desativacao de dispositivos. Fontes CIM falhas continuam explicitas; o analisador recusa perdas declaradas, unidades desconhecidas, duplicatas e dados agregados. Consulte o [contrato e limites](docs/DRIVERS-DPC.md). Nenhum ganho de FPS foi demonstrado por esta entrega.
