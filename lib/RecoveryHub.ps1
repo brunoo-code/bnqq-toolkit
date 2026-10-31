@@ -1,6 +1,6 @@
 ﻿function Get-BnqqRecoveryCatalog {
     $root=Get-BnqqDataRoot
-    foreach($folder in @('journals','sessions','gameprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals','nic-journals')){
+    foreach($folder in @('journals','startup-journals','sessions','gameprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals','nic-journals')){
         foreach($file in @(Get-ChildItem -LiteralPath (Join-Path $root $folder) -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)){
             try {
                 $j=Get-Content $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json

@@ -45,6 +45,8 @@ try{
  Check ($script:writes -eq 0) 'Protected startup target reached registry writes'
  $result=Invoke-BnqqStartup -Action apply -Apps Spotify,RobloxPlayerBeta
  Check ($result.Changed -eq 2 -and $script:commands.Count -eq 1 -and $script:commands.Discord -ceq 'keep voice startup') 'Startup scope exceeded selected apps'
+ Check ((Split-Path (Split-Path $result.Journal -Parent) -Leaf) -ceq 'startup-journals') 'Persistent backup not archived'
+ Assert-BnqqNoPendingJournal
  $hash=(Get-FileHash $result.Journal -Algorithm SHA256).Hash
  $again=Invoke-BnqqStartup -Action apply -Apps Spotify,RobloxPlayerBeta
  Check ($again.Status -ceq 'AlreadyConfigured' -and (Get-FileHash $result.Journal -Algorithm SHA256).Hash -ceq $hash) 'Idempotent apply overwrote original backup'
@@ -52,6 +54,14 @@ try{
  Check ($script:commands.Spotify -ceq $script:original.Spotify -and $script:commands.RobloxPlayerBeta -ceq $script:original.RobloxPlayerBeta) 'Original commands not restored exactly'
  $before=$script:writes;Invoke-BnqqStartup -Action restore -File $result.Journal|Out-Null
  Check ($script:writes -eq $before) 'Restore not idempotent'
+ Reset-Fixture
+ $first=Invoke-BnqqStartup -Action apply -Apps RobloxPlayerBeta
+ $second=Invoke-BnqqStartup -Action apply -Apps Spotify
+ Check ($first.Journal -cne $second.Journal -and (Test-Path -LiteralPath $first.Journal) -and (Test-Path -LiteralPath $second.Journal)) 'Independent persistent preference blocked or overwrote backup'
+ Assert-BnqqNoPendingJournal
+ Invoke-BnqqStartup -Action restore -File $second.Journal|Out-Null
+ Invoke-BnqqStartup -Action restore -File $first.Journal|Out-Null
+ Check ($script:commands.Spotify -ceq $script:original.Spotify -and $script:commands.RobloxPlayerBeta -ceq $script:original.RobloxPlayerBeta) 'Independent preference originals not recovered'
  Reset-Fixture;$script:signed=$false
  MustThrow {Invoke-BnqqStartup -Action apply -Apps Spotify}
  Check ($script:writes -eq 0) 'Unverified publisher reached registry writes'

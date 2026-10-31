@@ -78,6 +78,14 @@ function Invoke-BnqqStartup {
         try{
             foreach($op in $plan.Operations){Invoke-BnqqJournalOperation $journal $op}
             $journal.Data.Status='Applied';Write-BnqqAtomicJson $journal.Data $journal.File
+            # A completed persistent preference is not an unfinished game-session
+            # journal. Keep failures in journals for recovery; archive only success.
+            $root=[IO.Path]::GetFullPath((Get-BnqqDataRoot)).TrimEnd('\')+'\'
+            $archive=[IO.Path]::GetFullPath((Join-Path $root ('startup-journals\'+[IO.Path]::GetFileName($journal.File))))
+            if(-not [IO.Path]::GetFullPath($journal.File).StartsWith($root,[StringComparison]::OrdinalIgnoreCase) -or -not $archive.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)){throw 'Caminho de backup fora dos dados BNQQ'}
+            [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($archive))
+            [IO.File]::Move($journal.File,$archive)
+            $journal.File=$archive
             [pscustomobject]@{Status='Applied';Changed=$plan.Operations.Count;Journal=$journal.File;Effect=$plan.Effect;FpsGainProven=$false;RebootRequired=$false}
         }catch{
             $failure=$_

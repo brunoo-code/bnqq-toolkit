@@ -193,3 +193,6 @@ Riot Client, Vanguard (vgk/vgc e bandeja), FACEIT, Discord e componentes de segu
 No PC privado, somente RobloxPlayerBeta foi desativado e sua ausencia no Run foi verificada. Riot Client, FACEIT e Start de vgk/vgc permaneceram iguais; a transmissao no navegador foi preservada. O backup pessoal fica apenas no AppData, nunca no payload publico.
 
 Referencia: [Run e RunOnce da Microsoft](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys). A Riot tambem documenta o [Vanguard Pre-Check e a configuracao de vgc](https://support.riotgames.com/en-us/riot/security/set-vgc-as-automatic/); o otimizador nao presume que Manual signifique defeito nem muda o modo de carregamento do anti-cheat.
+
+### Integracao 2.2.1
+Preferencias aplicadas com sucesso guardam o backup em startup-journals, exibido na recuperacao geral. Nao bloqueiam sessoes futuras como se fossem transacoes pendentes. Falhas continuam em journals ate a recuperacao. O arquivo original e movido sem sobrescrita e com verificacao do caminho; preferencias independentes e reversao foram testadas.
