@@ -11,6 +11,11 @@ jobs:
       - name: Reversible game preference fixtures
         shell: powershell
         run: ./tests/GameProfile.ps1
+      - name: Frame caps and performance regression gates
+        shell: powershell
+        run: |
+          ./tests/FramePacing.ps1
+          ./tests/PerformanceGates.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild

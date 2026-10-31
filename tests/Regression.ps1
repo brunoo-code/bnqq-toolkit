@@ -156,7 +156,7 @@ try {
     for($i=0;$i -lt 6;$i++){
         $variant=if($i%2 -eq 0){'baseline'}else{'candidate'}
         $p99=if($variant -eq 'baseline'){10+$i*.01}else{8+$i*.01}
-        $run=[pscustomobject]@{Schema=2;Started=$start.AddMinutes($i).ToString('o');Context=[pscustomobject]@{ExperimentId='fixture';Scenario='same';SettingsHash='same'};Variant=$variant;PresentMonHash='same';Stats=[pscustomobject]@{Schema=2;Metric='MsBetweenPresents';Runtime='DXGI';SkipSeconds=5;DurationSeconds=60;Frames=10000;AvgFps=200;P99Ms=$p99;P999Ms=20;JitterMs=1;StuttersPerMinute=1}}
+        $run=[pscustomobject]@{Schema=2;Started=$start.AddMinutes($i).ToString('o');Context=[pscustomobject]@{ExperimentId='fixture';Scenario='same';SettingsHash='same'};Variant=$variant;PresentMonHash='same';Stats=[pscustomobject]@{Schema=2;Metric='MsBetweenPresents';Runtime='DXGI';SkipSeconds=5;DurationSeconds=60;Frames=10000;AvgFps=200;Low1Fps=100;Low01Fps=80;P99Ms=$p99;P999Ms=20;JitterMs=1;StuttersPerMinute=1}}
         $path=Join-Path $script:BnqqDataRoot ('run'+$i+'.json');Write-BnqqAtomicJson $run $path;$files+=$path
     }
     Check ((Compare-BnqqFrameBench $files).Effective -eq $true) 'Controlled separated p99 accepted with limited claim'

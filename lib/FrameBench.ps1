@@ -105,9 +105,9 @@ function Compare-BnqqFrameBench {
     foreach($run in $runs){
         if($run.PSObject.Properties.Name -contains 'CaptureIntegrity' -and -not $run.CaptureIntegrity.Passed){throw 'Captura com guard reprovado; excluir da comparacao'}
         if($run.Variant -notin @('baseline','candidate') -or $run.Schema -ne 2 -or $run.Stats.Schema -ne 2 -or -not (Test-BnqqSameValue $run.Context $ref.Context) -or $run.PresentMonHash -cne $ref.PresentMonHash -or $run.Stats.Metric -ne $ref.Stats.Metric -or $run.Stats.Runtime -ne $ref.Stats.Runtime -or $run.Stats.SkipSeconds -ne $ref.Stats.SkipSeconds){throw 'Rodadas de contextos/ferramentas/metricas diferentes'}
-        foreach($metric in @('AvgFps','P99Ms','P999Ms','JitterMs','StuttersPerMinute')){
+        foreach($metric in @('AvgFps','Low1Fps','Low01Fps','P99Ms','P999Ms','JitterMs','StuttersPerMinute')){
             $v=Convert-BnqqFiniteNumber $run.Stats.$metric
-            if($v -lt 0 -or ($metric -in @('AvgFps','P99Ms','P999Ms') -and $v -eq 0)){throw 'Metrica invalida'}
+            if($v -lt 0 -or ($metric -in @('AvgFps','Low1Fps','Low01Fps','P99Ms','P999Ms') -and $v -eq 0)){throw 'Metrica invalida'}
         }
         if($run.Stats.DurationSeconds -lt 10 -or $run.Stats.Frames -lt 1000){throw 'Amostra insuficiente'}
     }
@@ -119,5 +119,12 @@ function Compare-BnqqFrameBench {
     $faster=($candidate|Measure-Object -Maximum).Maximum -lt ($base|Measure-Object -Minimum).Minimum
     $fpsOk=($b|ForEach-Object {$_.Stats.AvgFps}|Measure-Object -Average).Average -ge .99*($a|ForEach-Object {$_.Stats.AvgFps}|Measure-Object -Average).Average
     $tailOk=($b|ForEach-Object {$_.Stats.P999Ms}|Measure-Object -Average).Average -le ($a|ForEach-Object {$_.Stats.P999Ms}|Measure-Object -Average).Average
-    return [pscustomobject]@{BaselineRuns=$a.Count;CandidateRuns=$b.Count;P99BaselineMs=$baseAvg;P99CandidateMs=$candidateAvg;P99DeltaPercent=100*($candidateAvg/$baseAvg-1);Effective=$(if($faster -and $fpsOk -and $tailOk){$true}else{$null});Verdict=$(if($faster -and $fpsOk -and $tailOk){'Vantagem de p99 nesta amostra controlada; repetir em outras sessoes'}else{'INCONCLUSIVE_OR_REGRESSION'});Limit='Sem teste de significancia formal; intervalo entre rodadas e contexto informado nao provam causalidade. Sem garantia universal ou de input lag.'}
+    $gates=[ordered]@{P99Separated=$faster;AverageFps=$fpsOk;P999=$tailOk}
+    foreach($metric in @('Low1Fps','Low01Fps','JitterMs','StuttersPerMinute')){
+        $av=($a|ForEach-Object {$_.Stats.$metric}|Measure-Object -Average).Average
+        $bv=($b|ForEach-Object {$_.Stats.$metric}|Measure-Object -Average).Average
+        $gates[$metric]=if($metric -in @('Low1Fps','Low01Fps')){$bv -ge .99*$av}else{$bv -le 1.01*$av}
+    }
+    $accepted=@($gates.Values|Where-Object {-not $_}).Count -eq 0
+    return [pscustomobject]@{BaselineRuns=$a.Count;CandidateRuns=$b.Count;Gates=[pscustomobject]$gates;P99BaselineMs=$baseAvg;P99CandidateMs=$candidateAvg;P99DeltaPercent=100*($candidateAvg/$baseAvg-1);Effective=$(if($accepted){$true}else{$null});Verdict=$(if($accepted){'Vantagem de p99 nesta amostra controlada; repetir em outras sessoes'}else{'INCONCLUSIVE_OR_REGRESSION'});Limit='Sem teste de significancia formal; intervalo entre rodadas e contexto informado nao provam causalidade. Sem garantia universal ou de input lag.'}
 }
