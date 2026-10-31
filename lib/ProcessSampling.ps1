@@ -17,6 +17,15 @@ function Get-BnqqNativeFocusSample {
     if(-not $script:BnqqSamplerScope){Initialize-BnqqProcessSampler}
     return [Bnqq.ProcessTelemetry]::Read($ProcessId,$Name,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
 }
+function New-BnqqFocusGameWatch {
+    param($Identity)
+    Initialize-BnqqProcessSampler
+    return [Bnqq.ProcessTelemetry]::Watch($Identity.ProcessId,$Identity.Name,$Identity.StartTime,$script:BnqqSamplerScope.Owner,$script:BnqqSamplerScope.Session)
+}
+function Test-BnqqFocusGameWatchAlive {
+    param($Watch)
+    return $Watch.IsAlive()
+}
 function Get-BnqqFocusSamples {
     param([string[]]$Apps)
     $names=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)

@@ -15,6 +15,7 @@ function Reset {
  $script:priorities=@{};foreach($n in 40..43){$script:priorities[$n]='Normal'};$script:priorityWrites=0;$script:failPriority=$false
  $script:endTick=22;$script:quietAfter=100000
  $script:policies=@();$script:networkWrites=0;$script:failNetwork=$false;$script:failMaintenance=$false
+ $script:watchCreated=0;$script:watchDisposed=0;$script:gameIdentityReads=0;$script:watchFail=$false;$script:watchGone=$false;$script:watchPollFail=$false;$script:replacement=$false;$script:failServiceRestore=$false
 }
 function Assert-BnqqHeavyQa {if(-not $script:qa){throw 'WHEA fixture refusal'}}
 function Assert-BnqqPhaseHealth {param($Since);if($script:failHealth -and $script:tick -ge 10){throw 'New WHEA fixture'}}
@@ -23,8 +24,20 @@ function New-BnqqFocusClock {return $script:clock}
 function Get-Process {param($Name,$ErrorAction);[pscustomobject]@{Id=10}}
 function Get-BnqqFocusIdentity {
  param($ProcessId)
- if($ProcessId -eq 10 -and $script:tick -ge $script:endTick){return $null}
+ if($ProcessId -eq 10){$script:gameIdentityReads++}
+ if($ProcessId -eq 10 -and $script:tick -ge $script:endTick){if($script:replacement){return [pscustomobject]@{ProcessId=10;Name='cs2';StartTime='replacement'}};return $null}
  [pscustomobject]@{ProcessId=$ProcessId;Name=$(if($ProcessId -eq 10){'cs2'}else{'powershell'});StartTime='fixed'}
+}
+function New-BnqqFocusGameWatch {
+ param($Identity)
+ if($script:watchFail){throw 'Watch denied fixture'}
+ if($script:watchGone){return $null}
+ Check ($Identity.ProcessId -eq 10 -and $Identity.StartTime -ceq 'fixed') 'Watch identity differs'
+ $script:watchCreated++
+ $watch=[pscustomobject]@{}
+ $watch|Add-Member ScriptMethod IsAlive {if($script:watchPollFail){throw 'Wait failure fixture'};return ($script:tick -lt $script:endTick)}
+ $watch|Add-Member ScriptMethod Dispose {$script:watchDisposed++}
+ return $watch
 }
 function Get-BnqqForegroundPid {if($script:tick -in @(7,8)){return 0};return 10}
 function Get-BnqqFocusSamples {
@@ -75,7 +88,7 @@ function Add-BnqqNetPolicy {
 }
 function Remove-BnqqNetPolicy {param($Name);$script:policies=@($script:policies|Where-Object Name -ine $Name);$script:networkWrites++}
 function Get-BnqqSearchState {[pscustomobject]@{Name='WSearch';State=$script:service;ConfigurationHash=('A'*64)}}
-function Invoke-BnqqSearchControl {param($Running);$script:service=if($Running){4}else{1};$script:serviceWrites++;if($script:failMaintenance -and -not $Running){$script:failMaintenance=$false;throw 'Partial service fixture'}}
+function Invoke-BnqqSearchControl {param($Running);if($Running -and $script:failServiceRestore){throw 'Restore service fixture'};$script:service=if($Running){4}else{1};$script:serviceWrites++;if($script:failMaintenance -and -not $Running){$script:failMaintenance=$false;throw 'Partial service fixture'}}
 function Start-Sleep {
  param($Seconds)
  if($script:tick -eq 0){MustThrow {Assert-BnqqNoDynamicFocus};$script:frameGuardChecked=$true}
@@ -86,6 +99,8 @@ function Start-Sleep {
  if($script:stop -and $script:tick -eq 6){Stop-BnqqFocusSession|Out-Null}
 }
 function AssertRestored {
+ Check ($script:watchCreated -eq 1 -and $script:watchDisposed -eq 1) 'Watch handle not released exactly once'
+ Check ($script:gameIdentityReads -eq 1) 'Game identity reopened in controller loop'
  Check ($script:service -eq 4) 'Service not restored after CPU failure/exit'
  Check (-not @($script:processes.Values|Where-Object {$_.Sets.Count}).Count) 'CPU Sets not restored'
  Check (-not @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count) 'Background priority not restored'
@@ -103,6 +118,16 @@ try{
   $script:BnqqCpuScope=[pscustomobject]@{SessionId=$scope.SessionId;Owner='foreign'};MustThrow {Assert-BnqqCpuProcessScope $self $self.Handle}
  }finally{$script:BnqqCpuScope=$scope;$self.Dispose()}
  Reset;MustThrow {Get-BnqqFocusPlan @('cs2')};MustThrow {Get-BnqqFocusPlan @('LAMZU Aurora')}
+ Reset;$script:watchFail=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge}
+ Check ($script:cpuWrites -eq 0 -and $script:serviceWrites -eq 0 -and $script:watchCreated -eq 0) 'Denied watch wrote state'
+ Reset;$script:watchGone=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge}
+ Check ($script:cpuWrites -eq 0 -and $script:serviceWrites -eq 0 -and $script:watchCreated -eq 0) 'Lost game wrote state'
+ Reset;$script:watchPollFail=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge};AssertRestored
+ Reset;$script:endTick=3;$script:replacement=$true;$r=Invoke-BnqqFocusSession -Action run -Apps msedge
+ AssertRestored;Check ($script:tick -eq 3 -and (Get-BnqqFocusIdentity 10).StartTime -ceq 'replacement') 'Watch followed replacement process'
+ Reset;$script:failServiceRestore=$true;MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -PauseSearch -UploadApps OneDrive.exe}
+ Check ($script:watchDisposed -eq 1 -and -not $script:policies.Count -and -not (Test-Path (Join-Path $temp 'focus-session.json'))) 'Restore failure leaked watch/network/marker'
+ $lock=Enter-BnqqStateLock;$lock.Dispose()
  $b=[pscustomobject]@{ProcessId=40;Name='msedge';StartTime='one';CpuMs=100}
  $c=$b|Select-Object *;$c.CpuMs=110;Check (@(Select-BnqqFocusBusy @($b) @($c) 5).Count -eq 0) 'Idle CPU selected'
  $c.CpuMs=1000;Check (@(Select-BnqqFocusBusy @($b) @($c) 5).Count -eq 1) 'Busy CPU not selected'

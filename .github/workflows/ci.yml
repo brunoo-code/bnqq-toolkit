@@ -44,6 +44,7 @@ jobs:
           ./tests/NicActivation.ps1
           ./tests/Maintenance.ps1
           ./tests/ProcessSampling.ps1
+          ./tests/ProcessLifetime.ps1
           ./tests/FocusSession.ps1
           ./tests/BackgroundBudget.ps1
           ./tests/FocusCli.ps1

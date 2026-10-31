@@ -46,7 +46,7 @@ $menuPause=$false;$menuError=$false
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
     if($Command -eq 'menu'){
-        Show-BnqqConsoleMenu -Version '2.1.5' -Edition 'PUBLIC'
+        Show-BnqqConsoleMenu -Version '2.1.6' -Edition 'PUBLIC'
         if([Environment]::UserInteractive){
             $choice=Read-Host 'Escolha'
             $menuPause=$choice -match '^(?:[1-9]|1[0-9]|2[0-4])$'
@@ -58,7 +58,7 @@ try {
         return
     }
     switch($Command){
-        'menu-preview' {Show-BnqqConsoleMenu -Version '2.1.5' -Edition 'PUBLIC'}
+        'menu-preview' {Show-BnqqConsoleMenu -Version '2.1.6' -Edition 'PUBLIC'}
         'audit' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
         'scan' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
         'report' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
@@ -133,7 +133,7 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 2.1.5 — Windows PowerShell 5.1 x64
+BNQQ 2.1.6 — Windows PowerShell 5.1 x64
 audit | network | display | topology | apps | status | verdict | framepacing | session | memory | nvme | nic | readiness | focus | gpu | gpu-cache | cpu-session | phase-health | net-session | recover | legacy | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 heavyqa -HeavyMinutes 10                        carga explicita; nao certifica hardware

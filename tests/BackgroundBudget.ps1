@@ -52,7 +52,28 @@ try {
  Check (@((Get-BnqqBudgetPlan @($sample) @('msedge')).Operations).Count -eq 0) 'Already-low process was promoted/demoted'
  $script:fake.PriorityClass='Idle'
  Check (@((Get-BnqqBudgetPlan @($sample) @('msedge')).Operations).Count -eq 0) 'Idle process was promoted'
- ('PASS: background priority '+$script:checks+' checks; scope, identity, policy, conflicts, recovery and no-op')
+ $script:planReads=0;$script:skipFirst=$false
+ function Get-BnqqBudgetState {
+  param($ProcessId,$Expected)
+  $script:planReads++
+  if($script:skipFirst -and $ProcessId -eq 1){return $null}
+  if($script:skipFirst -and $ProcessId -eq 2){throw 'Denied fixture'}
+  [pscustomobject]@{ProcessId=$ProcessId;Name='msedge';StartTime=$Expected.StartTime;Priority=$(if($script:skipFirst -and $ProcessId -eq 3){'BelowNormal'}else{'Normal'})}
+ }
+ $many=@(1..128|ForEach-Object {[pscustomobject]@{ProcessId=$_;Name='msedge';StartTime=('p'+$_)}})
+ $p=Get-BnqqBudgetPlan $many @('msedge') -MaxOperations 2
+ Check ($script:planReads -eq 2 -and $p.Operations.Count -eq 2 -and $p.Operations[1].Before.ProcessId -eq 2) 'Planner queried candidates beyond admission budget'
+ $script:planReads=0;$script:skipFirst=$true
+ $p=Get-BnqqBudgetPlan $many @('msedge') -MaxOperations 2
+ Check ($script:planReads -eq 5 -and $p.Operations.Count -eq 2 -and $p.Errors.Count -eq 1 -and $p.Operations[0].Before.ProcessId -eq 4) 'No-op/exit/denial starved eligible candidates'
+ $script:planReads=0;$many[127].Name='cs2'
+ MustThrow {Get-BnqqBudgetPlan $many @('msedge') -MaxOperations 2}
+ Check ($script:planReads -eq 0) 'Planner did not validate all sample targets before early exit'
+ $many[127].Name='msedge';$script:skipFirst=$false
+ $p=Get-BnqqBudgetPlan $many @('msedge')
+ Check ($script:planReads -eq 128 -and $p.Operations.Count -eq 128) 'Default planning contract changed'
+ MustThrow {Get-BnqqBudgetPlan $many @('msedge') -MaxOperations 0}
+ ('PASS: background priority '+$script:checks+' checks; scope, identity, admission budget, conflicts, recovery and no-op')
 }finally{
  if([IO.Directory]::Exists($temp)){[IO.Directory]::Delete($temp,$true)}
 }

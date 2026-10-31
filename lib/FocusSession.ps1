@@ -72,7 +72,7 @@ function Update-BnqqFocusEpoch {
     # A reused PID has a different key and must still go through normal admission.
     $busy=@(Select-BnqqFocusBusy $Previous $Current $ElapsedSeconds|Where-Object {-not $State.Touched.ContainsKey($_.Key)})
     if(-not $busy.Count){return}
-    if($Policy -eq 'Priority'){$plan=Get-BnqqBudgetPlan $busy $Apps}
+    if($Policy -eq 'Priority'){$plan=Get-BnqqBudgetPlan $busy $Apps -MaxOperations 2}
     else{
         $plan=Get-BnqqCpuSessionPlan $Apps $BackgroundCores
         if(($plan.CpuSetIds -join ',') -cne ($State.CpuSetIds -join ',')){throw 'Topologia CPU mudou; restaurar sessao'}
@@ -128,9 +128,11 @@ function Invoke-BnqqFocusSession {
     }finally{foreach($p in $gameProcesses){if($p -is [IDisposable]){$p.Dispose()}}}
     if(-not $identity){throw 'Jogo encerrou na preparacao'}
     $state=[pscustomobject]@{Journal=$null;Journals=@();Touched=@{};CpuSetIds=$plan.Cpu.CpuSetIds;Epochs=0;Changes=0}
-    $maintenance=$null;$networkLease=$null;$lock=$null;$controllerFile=Join-Path (Get-BnqqDataRoot) 'focus-session.json'
+    $maintenance=$null;$networkLease=$null;$lock=$null;$gameWatch=$null;$controllerFile=Join-Path (Get-BnqqDataRoot) 'focus-session.json'
     $id=[guid]::NewGuid().ToString('N');$since=Get-Date;$clock=New-BnqqFocusClock;$written=$false
     try{
+        $gameWatch=New-BnqqFocusGameWatch $identity
+        if(-not $gameWatch){throw 'Jogo encerrou ou mudou de identidade na preparacao'}
         $lock=Enter-BnqqStateLock;Assert-BnqqNoPendingJournal
         $lease=[pscustomobject]@{Schema='BNQQ.Focus.1';Owner=(Get-BnqqOwner);Id=$id;Controller=(Get-BnqqFocusIdentity $PID);Game=$identity;Started=[datetime]::UtcNow.ToString('o');MaxMinutes=$MaxMinutes;Policy=$Policy}
         Write-BnqqAtomicJson $lease $controllerFile;$written=$true
@@ -146,8 +148,7 @@ function Invoke-BnqqFocusSession {
         $previous=@();$sampleTime=0.0;$nextHealth=0.0;$nextSample=0.0;$quietSamples=0;$admitAfter=0.0;$idleRestores=0
         $sampleCalls=0L;$sampleTotalMs=0.0;$sampleMaxMs=0.0
         while($clock.Elapsed.TotalMinutes -lt $MaxMinutes){
-            $live=Get-BnqqFocusIdentity $identity.ProcessId
-            if(-not $live -or -not (Test-BnqqSameValue $identity $live) -or (Test-BnqqFocusStop $id)){break}
+            if(-not (Test-BnqqFocusGameWatchAlive $gameWatch) -or (Test-BnqqFocusStop $id)){break}
             if($clock.Elapsed.TotalSeconds -ge $nextHealth){Assert-BnqqPhaseHealth $since;$nextHealth=$clock.Elapsed.TotalSeconds+10}
             if((Get-BnqqForegroundPid) -ne $identity.ProcessId){
                 Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0;$quietSamples=0;$admitAfter=0.0
@@ -173,7 +174,7 @@ function Invoke-BnqqFocusSession {
                 try{if($networkLease){Restore-BnqqNetworkSession $networkLease.File|Out-Null}}
                 finally{
                     try{if($written){Remove-Item -LiteralPath $controllerFile -ErrorAction Stop}}
-                    finally{if($lock){$lock.Dispose()}}
+                    finally{try{if($lock){$lock.Dispose()}}finally{if($gameWatch){$gameWatch.Dispose()}}}
                 }
             }
         }

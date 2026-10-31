@@ -26,17 +26,20 @@ function Set-BnqqBudgetState {
     }finally{$p.Dispose()}
 }
 function Get-BnqqBudgetPlan {
-    param($Busy,[string[]]$Apps)
+    param($Busy,[string[]]$Apps,[ValidateRange(1,128)][int]$MaxOperations=128)
     foreach($app in @($Apps)){if($app -notin (Get-BnqqBudgetAllowedApps)){throw 'Modo Priority aceita somente navegadores e OneDrive escolhidos'}}
     $ops=@();$errors=@()
     if(@($Busy).Count -gt 128){throw 'Limite de 128 participantes de prioridade'}
     foreach($sample in @($Busy)){
         if($sample.Name -notin $Apps -or $sample.Name -notin (Get-BnqqBudgetAllowedApps)){throw 'Amostra de prioridade fora da selecao'}
+    }
+    foreach($sample in @($Busy)){
         try {
             $before=Get-BnqqBudgetState $sample.ProcessId $sample
             if(-not $before -or $before.Priority -notin @('Normal','AboveNormal','High')){continue}
             $after=$before|Select-Object *;$after.Priority='BelowNormal'
             $ops+=@([pscustomobject]@{Kind='BackgroundPriority';Before=$before;After=$after})
+            if($ops.Count -ge $MaxOperations){break}
         }catch{$errors+=('PID '+$sample.ProcessId+': '+$_.Exception.Message)}
     }
     [pscustomobject]@{Operations=$ops;Errors=$errors}
