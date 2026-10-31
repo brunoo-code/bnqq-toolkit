@@ -91,10 +91,13 @@ function Assert-BnqqOperation {
             if($Op.After.Kind -ne 'DWord' -or $Op.After.Value -ne 0 -or -not $Op.After.Existed){throw 'Destino de registro invalido'}
         }
         'Power' {
-            if($Op.Before.Scheme -notmatch '^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$' -or $Op.Before.Setting -notin @('IDLEDISABLE','CPMINCORES') -or $Op.Before.Sub -ne 'SUB_PROCESSOR' -or $Op.After.Scheme -ne $Op.Before.Scheme -or $Op.After.Setting -ne $Op.Before.Setting -or $Op.After.Sub -ne $Op.Before.Sub){throw 'Operacao de energia invalida'}
-            $max=if($Op.Before.Setting -eq 'CPMINCORES'){100}else{1}
-            foreach($v in @($Op.Before.AC,$Op.Before.DC,$Op.After.AC,$Op.After.DC)){if($v -is [bool] -or [string]$v -notmatch '^\d{1,3}$' -or [int]$v -gt $max){throw 'Indice de energia invalido'}}
+            $nvme=$Op.Before.Setting -in @('fc95af4d-40e7-4b6d-835a-56d131dbc80e','dbc9e238-6de9-49e3-92cd-8c2b4946b472')
+            $sub=if($nvme){'SUB_DISK'}else{'SUB_PROCESSOR'}
+            if($Op.Before.Scheme -notmatch '^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$' -or ($Op.Before.Setting -notin @('IDLEDISABLE','CPMINCORES') -and -not $nvme) -or $Op.Before.Sub -ne $sub -or $Op.After.Scheme -ne $Op.Before.Scheme -or $Op.After.Setting -ne $Op.Before.Setting -or $Op.After.Sub -ne $Op.Before.Sub){throw 'Operacao de energia invalida'}
+            $max=if($nvme){60000}elseif($Op.Before.Setting -eq 'CPMINCORES'){100}else{1}
+            foreach($v in @($Op.Before.AC,$Op.Before.DC,$Op.After.AC,$Op.After.DC)){if($v -is [bool] -or [string]$v -notmatch '^\d{1,5}$' -or [int]$v -gt $max){throw 'Indice de energia invalido'}}
             if($Op.Before.Setting -eq 'CPMINCORES' -and ($Op.After.AC -ne 100 -or $Op.After.DC -ne $Op.Before.DC)){throw 'Core parking permite somente AC=100, preservando DC'}
+            if($nvme -and ($Op.After.AC -ne 0 -or $Op.After.DC -ne $Op.Before.DC)){throw 'NVMe permite somente tolerancia AC=0 preservando DC'}
         }
         'Process' {
             if($Op.Before.Name -notin @('cs2','VALORANT-Win64-Shipping') -or $Op.Before.ProcessId -le 0 -or $Op.After.ProcessId -ne $Op.Before.ProcessId -or $Op.After.StartTime -ne $Op.Before.StartTime -or $Op.After.Name -ne $Op.Before.Name){throw 'Identidade de processo invalida'}
@@ -121,18 +124,19 @@ function Assert-BnqqOperation {
     }
 }
 function Get-BnqqPowerSnapshot {
-    param([string]$Scheme,[ValidateSet('IDLEDISABLE','CPMINCORES')][string]$Setting='IDLEDISABLE')
+    param([string]$Scheme,[ValidateSet('IDLEDISABLE','CPMINCORES','fc95af4d-40e7-4b6d-835a-56d131dbc80e','dbc9e238-6de9-49e3-92cd-8c2b4946b472')][string]$Setting='IDLEDISABLE')
     if(-not $Scheme){
         $raw=(& powercfg.exe /getactivescheme) -join ' '
         if($LASTEXITCODE -ne 0){throw 'Falha ao consultar plano'}
         $Scheme=[regex]::Match($raw,'[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}').Value
     }
     if(-not $Scheme){throw 'Plano desconhecido'}
-    $raw=(& powercfg.exe /qh $Scheme SUB_PROCESSOR $Setting) -join ' '
+    $sub=if($Setting -in @('IDLEDISABLE','CPMINCORES')){'SUB_PROCESSOR'}else{'SUB_DISK'}
+    $raw=(& powercfg.exe /qh $Scheme $sub $Setting) -join ' '
     if($LASTEXITCODE -ne 0){throw ($Setting+' nao exposto')}
     $hex=[regex]::Matches($raw,'0x([0-9a-fA-F]+)')
     if($hex.Count -lt 2){throw 'Indices de energia desconhecidos'}
-    return [pscustomobject]@{Scheme=$Scheme;Sub='SUB_PROCESSOR';Setting=$Setting;AC=[Convert]::ToInt32($hex[$hex.Count-2].Groups[1].Value,16);DC=[Convert]::ToInt32($hex[$hex.Count-1].Groups[1].Value,16)}
+    return [pscustomobject]@{Scheme=$Scheme;Sub=$sub;Setting=$Setting;AC=[Convert]::ToInt32($hex[$hex.Count-2].Groups[1].Value,16);DC=[Convert]::ToInt32($hex[$hex.Count-1].Groups[1].Value,16)}
 }
 function Get-BnqqCpuAllowedApps {return @('msedge','chrome','firefox','Discord','OneDrive')}
 function Get-BnqqProcessSnapshot {

@@ -32,6 +32,11 @@ jobs:
           ./tests/GpuDriver.ps1
           ./tests/GpuTelemetry.ps1
           ./tests/GpuCaptureLifecycle.ps1
+      - name: Memory, NVMe and NIC fixtures (no hardware tuning)
+        shell: powershell
+        run: |
+          ./tests/StorageMemory.ps1
+          ./tests/NicPolicy.ps1
       - name: Compile launcher and payload
         shell: powershell
         run: ./build.ps1 -KeepBuild
