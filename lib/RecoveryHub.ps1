@@ -1,6 +1,6 @@
 ﻿function Get-BnqqRecoveryCatalog {
     $root=Get-BnqqDataRoot
-    foreach($folder in @('journals','startup-journals','sessions','gameprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals','nic-journals')){
+    foreach($folder in @('journals','startup-journals','sessions','gameprofiles','engineprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals','nic-journals')){
         foreach($file in @(Get-ChildItem -LiteralPath (Join-Path $root $folder) -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)){
             try {
                 $j=Get-Content $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
@@ -27,6 +27,7 @@ function Invoke-BnqqRecovery {
         'BNQQ.NetworkSession.1' {return (Invoke-BnqqNetworkSession -Action restore -File $File)}
         'BNQQ.Session.1' {return (Invoke-BnqqGameSession -Action restore -File $File)}
         'BNQQ.LegacyIFEO.1' {return (Invoke-BnqqLegacyMigration -Action restore -BackupFile $File)}
+        'BNQQ.Cs2Engine.1' {return (Invoke-BnqqCs2Engine -Action restore -BackupFile $File)}
         'BNQQ.GameProfile.1' {
             if(-not $j.File -or (Split-Path $j.File -Leaf) -ine 'cs2_video.txt'){throw 'Alvo grafico invalido'}
             return (Invoke-BnqqGameProfile -Directory (Split-Path $j.File -Parent) -Action restore -BackupFile $File)

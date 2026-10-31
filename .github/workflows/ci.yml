@@ -1,4 +1,4 @@
-﻿name: Windows regression
+name: Windows regression
 on: [push, pull_request]
 jobs:
   windows:
@@ -10,7 +10,9 @@ jobs:
         run: ./tests/Regression.ps1
       - name: Reversible game preference fixtures
         shell: powershell
-        run: ./tests/GameProfile.ps1
+        run: |
+          ./tests/GameProfile.ps1
+          ./tests/Cs2Engine.ps1
       - name: Frame caps and performance regression gates
         shell: powershell
         run: |

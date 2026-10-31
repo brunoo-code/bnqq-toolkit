@@ -196,3 +196,6 @@ Referencia: [Run e RunOnce da Microsoft](https://learn.microsoft.com/en-us/windo
 
 ### Integracao 2.2.1
 Preferencias aplicadas com sucesso guardam o backup em startup-journals, exibido na recuperacao geral. Nao bloqueiam sessoes futuras como se fossem transacoes pendentes. Falhas continuam em journals ate a recuperacao. O arquivo original e movido sem sobrescrita e com verificacao do caminho; preferencias independentes e reversao foram testadas.
+
+## v2.3.0 - Perfil CS2 nativo
+Novo menu 26 e comando `cs2-engine`: perfis CompetitiveLow/Minimum, autoexec preservado, atalho Steam e backup recuperavel de todos os arquivos. Consulte [funcionamento e limites](docs/CS2-ENGINE.md). Minimum reduz nitidez e pistas de sombras; nao ha ganho de FPS presumido.
