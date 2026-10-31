@@ -1,4 +1,4 @@
-# CS2: configurações nativas e reversíveis (v2.3.0)
+﻿# CS2: configurações nativas e reversíveis (v2.3.0)
 
 `cs2-engine` gera `bnqq_competitive.cfg`, acrescenta somente um bloco identificado ao `autoexec.cfg`, ajusta valores presentes em `cs2_video.txt` e cria o atalho de área de trabalho `BNQQ/CS2 - BNQQ.lnk`. Não altera binários, VPKs, serviços, prioridade/afinidade, drivers ou configurações de anti-cheat. Não abre o jogo.
 
@@ -32,7 +32,7 @@ Detecção automática exige uma única pasta de usuário e uma única instalaç
 
 O atalho usa `steam.exe -applaunch 730 +exec bnqq_competitive.cfg`. As opções já salvas no Steam não são apagadas nem editadas: configurações conflitantes existentes ainda devem ser consideradas. O bloco em autoexec também carrega o arquivo em inicializações normais que executem autoexec.
 
-O cfg gerado contém somente `fps_max 0`, `fps_max_ui 120`, `cl_joystick_enabled false`, `cl_net_buffer_ticks` e uma mensagem de confirmação. O limite de FPS da partida fica ilimitado por escolha deste perfil; não é um limitador adaptativo. Não acrescentamos `-high`, `-threads`, `-novid`, `-nojoy`, comandos legados de mouse/interpolação ou remoção de céu, água e sangue. Não há macro, simulação de subtick, redução de recoil ou alteração da visibilidade de smoke.
+Desde v2.3.2, o cfg gerado contém somente `cl_joystick_enabled false`, `cl_net_buffer_ticks` e uma mensagem de confirmação. Preserva os limites nativos de FPS; o template antigo que forçava ilimitado é reconhecido para migração/rollback. Veja [consistência e limite nativo](FRAME-CONSISTENCY.md). Não acrescentamos `-high`, `-threads`, `-novid`, `-nojoy`, comandos legados de mouse/interpolação ou remoção de céu, água e sangue. Não há macro, simulação de subtick, redução de recoil ou alteração da visibilidade de smoke.
 
 `-EngineBufferTicks 0|1|2` é explícito e usa somente o ajuste nativo de buffer. O padrão 0 evita buffer adicional, não corrige perda/jitter da internet. Aumentar o buffer troca latência por tolerância a entregas irregulares. `rate` e configurações do Windows/mouse permanecem intactos; um cfg não configura aceleração do firmware do periférico.
 

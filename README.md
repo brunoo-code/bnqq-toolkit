@@ -202,3 +202,6 @@ Novo menu 26 e comando `cs2-engine`: perfis CompetitiveLow/Minimum, autoexec pre
 
 ## v2.3.1 - Preferencias locais do VALORANT
 Novo menu 27 e comando `valorant`: sete grupos existentes em Low, selecao explicita de contas, backup e rollback. Sem somente leitura, alteracao de Vanguard, afinidade de servicos ou camuflagem. Efeito em runtime/FPS ainda nao verificado; [funcionamento e limites](docs/VALORANT-PROFILE.md).
+
+## v2.3.2 - Consistencia de quadros
+O autoexec gerenciado deixa de forcar FPS ilimitado e preserva caps nativos. Menu 6 oferece teste de 240 FPS, com backup. Journals antigos continuam restauraveis. Limitar FPS nao garante melhora de 1% low; [metodo e limites](docs/FRAME-CONSISTENCY.md).

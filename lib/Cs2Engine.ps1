@@ -15,9 +15,18 @@ function Convert-BnqqCs2EngineVideo {
  return ,$enc.GetBytes($text)
 }
 function Get-BnqqCs2EngineCfg {
- param([ValidateSet(0,1,2)][int]$BufferTicks=0)
+ param([ValidateSet(0,1,2)][int]$BufferTicks=0,[ValidateSet(1,2)][int]$Version=2)
  # These archived client settings are observed in the installed machine config.
- return ,([Text.Encoding]::ASCII.GetBytes((@('// BNQQ-CS2-ENGINE-1','// Standard client settings; not a subtick/input-latency or FPS guarantee.','fps_max 0','fps_max_ui 120','cl_joystick_enabled false',('cl_net_buffer_ticks '+$BufferTicks),'echo "BNQQ CS2 profile loaded"','') -join "`r`n")))
+ $lines=@(('// BNQQ-CS2-ENGINE-'+$Version),'// Standard client settings; not a subtick/input-latency or FPS guarantee.')
+ if($Version -eq 1){$lines+=@('fps_max 0','fps_max_ui 120')}
+ $lines+=@('cl_joystick_enabled false',('cl_net_buffer_ticks '+$BufferTicks),'echo "BNQQ CS2 profile loaded"','')
+ return ,([Text.Encoding]::ASCII.GetBytes(($lines -join "`r`n")))
+}
+function Test-BnqqCs2OwnedCfg {
+ param([byte[]]$Bytes)
+ $hash=Get-BnqqByteHash $Bytes
+ foreach($version in 1..2){foreach($n in 0..2){if($hash -ceq (Get-BnqqByteHash (Get-BnqqCs2EngineCfg -BufferTicks $n -Version $version))){return $true}}}
+ return $false
 }
 function Convert-BnqqCs2Autoexec {
  param([byte[]]$Bytes)
@@ -90,7 +99,7 @@ function Get-BnqqCs2EnginePlan {
   switch($kind){
    'Video' {$after=Convert-BnqqCs2EngineVideo $before.Bytes $Mode}
    'Config' {
-    if($before.Exists){$known=$false;foreach($n in 0..2){if($before.Hash -ceq (Get-BnqqByteHash (Get-BnqqCs2EngineCfg $n))){$known=$true}};if(-not $known){throw 'bnqq_competitive.cfg existente nao e uma versao gerenciada reconhecida'}}
+    if($before.Exists -and -not (Test-BnqqCs2OwnedCfg $before.Bytes)){throw 'bnqq_competitive.cfg existente nao e uma versao gerenciada reconhecida'}
     $after=Get-BnqqCs2EngineCfg $BufferTicks
    }
    'Autoexec' {$after=Convert-BnqqCs2Autoexec $before.Bytes}
@@ -108,12 +117,14 @@ function Restore-BnqqCs2Engine {
  $item=Get-Item -LiteralPath $File -ErrorAction Stop;if($item.Length -gt 16777216){throw 'Backup grande demais'}
  $j=Get-Content -LiteralPath $File -Raw -Encoding UTF8 -ErrorAction Stop|ConvertFrom-Json
  if($j.Schema -cne 'BNQQ.Cs2Engine.1' -or $j.Owner -cne (Get-BnqqOwner) -or $j.Mode -notin @('Minimum','CompetitiveLow') -or $j.BufferTicks -notin @(0,1,2) -or @($j.Entries).Count -ne 4){throw 'Backup/schema de engine invalido'}
+ $cfgVersion=if($j.PSObject.Properties.Name -contains 'ConfigVersion'){$j.ConfigVersion}else{1}
+ if($cfgVersion -notin @(1,2)){throw 'Versao de cfg desconhecida'}
  $paths=Resolve-BnqqCs2EnginePaths $j.Paths.Directory $j.Paths.GameCfgDirectory $j.Paths.SteamExe;$expectedPaths=Get-BnqqCs2EngineAssetPaths $paths;$seen=@{}
  foreach($e in $j.Entries){
   if($e.Kind -notin @('Video','Config','Autoexec','Shortcut') -or $seen.ContainsKey($e.Kind) -or $e.Path -cne $expectedPaths[$e.Kind] -or $e.BeforeExisted -isnot [bool]){throw 'Alvo de backup invalido'};$seen[$e.Kind]=$true
   $before=[Convert]::FromBase64String($e.Before);$after=[Convert]::FromBase64String($e.After)
   if($before.Length -gt 1048576 -or $after.Length -gt 1048576 -or ($e.BeforeExisted -and (Get-BnqqByteHash $before) -cne $e.BeforeHash) -or (-not $e.BeforeExisted -and ($before.Length -or $e.BeforeHash))){throw 'Original corrompido'}
-  $derived=switch($e.Kind){'Video'{if(-not $e.BeforeExisted){throw 'Video original ausente'};Convert-BnqqCs2EngineVideo $before $j.Mode}'Config'{if($e.BeforeExisted){$known=$false;foreach($n in 0..2){if($e.BeforeHash -ceq (Get-BnqqByteHash (Get-BnqqCs2EngineCfg $n))){$known=$true}};if(-not $known){throw 'Original do cfg gerenciado nao reconhecido'}};Get-BnqqCs2EngineCfg $j.BufferTicks}'Autoexec'{Convert-BnqqCs2Autoexec $before}'Shortcut'{$after}}
+  $derived=switch($e.Kind){'Video'{if(-not $e.BeforeExisted){throw 'Video original ausente'};Convert-BnqqCs2EngineVideo $before $j.Mode}'Config'{if($e.BeforeExisted -and -not (Test-BnqqCs2OwnedCfg $before)){throw 'Original do cfg gerenciado nao reconhecido'};Get-BnqqCs2EngineCfg -BufferTicks $j.BufferTicks -Version $cfgVersion}'Autoexec'{Convert-BnqqCs2Autoexec $before}'Shortcut'{$after}}
   if((Get-BnqqByteHash $derived) -cne $e.AfterHash -or (Get-BnqqByteHash $after) -cne $e.AfterHash){throw 'Transicao de backup nao reconhecida'}
  }
  $errors=@()
@@ -157,7 +168,7 @@ function Invoke-BnqqCs2Engine {
   if(-not $changed.Count){return [pscustomobject]@{Status='AlreadyConfigured';Mode=$Mode;Changed=0}}
   foreach($e in $entries){$e|Add-Member NoteProperty After ([Convert]::ToBase64String($e.AfterBytes));$e.PSObject.Properties.Remove('AfterBytes')}
   $file=Join-Path (Get-BnqqDataRoot) ('engineprofiles\'+[guid]::NewGuid().ToString('N')+'.json')
-  $j=[pscustomobject]@{Schema='BNQQ.Cs2Engine.1';Owner=(Get-BnqqOwner);Generated=[datetime]::UtcNow.ToString('o');Status='Prepared';Mode=$Mode;BufferTicks=$BufferTicks;Paths=$paths;Entries=$entries}
+  $j=[pscustomobject]@{Schema='BNQQ.Cs2Engine.1';Owner=(Get-BnqqOwner);Generated=[datetime]::UtcNow.ToString('o');Status='Prepared';Mode=$Mode;BufferTicks=$BufferTicks;ConfigVersion=2;Paths=$paths;Entries=$entries}
   Write-BnqqAtomicJson $j $file
   foreach($e in $entries){
    if(Get-Process -Name cs2 -ErrorAction SilentlyContinue){throw 'CS2 abriu durante a aplicacao; interrompido'}

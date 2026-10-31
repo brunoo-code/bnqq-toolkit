@@ -45,6 +45,10 @@ try{
  MustThrow {Convert-BnqqFrameCaps ([Text.Encoding]::ASCII.GetBytes('unknown'))}
  MustThrow {Convert-BnqqFrameCaps ([Text.Encoding]::ASCII.GetBytes('"fps_max" "0" "fps_max" "0"'))}
  [IO.File]::WriteAllBytes($path,$original)
+ function Get-BnqqManagedCapInspection {param($Directory);[pscustomobject]@{Status='LegacyUnlimited';LegacyOverride=$true}}
+ MustThrow {Invoke-BnqqFramePacing $temp apply -GameCap 240}
+ Check ((Get-BnqqByteHash ([IO.File]::ReadAllBytes($path))) -ceq $hash) 'Known autoexec conflict was silently accepted'
+ function Get-BnqqManagedCapInspection {param($Directory);[pscustomobject]@{Status='PreservesNativeCaps';LegacyOverride=$false}}
  function Get-Process {param($Name,$ErrorAction);return [pscustomobject]@{Name='cs2'}}
  MustThrow {Invoke-BnqqFramePacing $temp apply}
  Check ((Get-BnqqByteHash ([IO.File]::ReadAllBytes($path))) -ceq $hash) 'Open-game refusal wrote file'

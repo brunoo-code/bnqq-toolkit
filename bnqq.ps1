@@ -51,11 +51,11 @@ $menuPause=$false;$menuError=$false
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
     if($Command -eq 'menu'){
-        Show-BnqqConsoleMenu -Version '2.3.1' -Edition 'PUBLIC'
+        Show-BnqqConsoleMenu -Version '2.3.2' -Edition 'PUBLIC'
         if([Environment]::UserInteractive){
             $choice=Read-Host 'Escolha'
             $menuPause=$choice -match '^(?:[1-9]|1[0-9]|2[0-7])$'
-            switch($choice){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Invoke-BnqqFramePacing -Action plan | Format-List;if((Read-Host 'Limitar menu a 120 FPS e preservar partida? Digite SIM') -ceq 'SIM'){Invoke-BnqqFramePacing -Action apply | Format-List};return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}'25'{Show-BnqqStartupMenu;return}'26'{Show-BnqqCs2EngineMenu;return}'27'{Show-BnqqValorantProfileMenu;return}default{return}}
+            switch($choice){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Show-BnqqFramePacingMenu;return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}'25'{Show-BnqqStartupMenu;return}'26'{Show-BnqqCs2EngineMenu;return}'27'{Show-BnqqValorantProfileMenu;return}default{return}}
         }else{$Command='audit'}
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
@@ -66,7 +66,7 @@ try {
         'valorant' {if($DryRun){$ValorantAction='plan'};Invoke-BnqqValorantProfile -Action $ValorantAction -ProfilePath $ValorantProfilePath -AllProfiles:$AllValorantProfiles -BackupFile $BackupFile | ConvertTo-Json -Depth 8}
         'cs2-engine' {if($DryRun){$EngineAction='plan'};Invoke-BnqqCs2Engine -Action $EngineAction -Mode $EngineMode -BufferTicks $EngineBufferTicks -Directory $GameConfigDirectory -GameCfgDirectory $GameCfgDirectory -SteamExe $SteamExe -BackupFile $BackupFile | ConvertTo-Json -Depth 8}
         'startup' {if($DryRun){$StartupAction='plan'};Invoke-BnqqStartup -Action $StartupAction -Apps $StartupApps -File $BackupFile | ConvertTo-Json -Depth 8}
-        'menu-preview' {Show-BnqqConsoleMenu -Version '2.3.1' -Edition 'PUBLIC'}
+        'menu-preview' {Show-BnqqConsoleMenu -Version '2.3.2' -Edition 'PUBLIC'}
         'audit' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
         'scan' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
         'report' {Get-BnqqHardware | ConvertTo-Json -Depth 5}
@@ -141,7 +141,7 @@ try {
         'compare' {if(-not $CaptureFiles){throw 'Informe -CaptureFiles com 3+3 rodadas'};Compare-BnqqFrameBench -Files $CaptureFiles | ConvertTo-Json -Depth 5}
         'help' {
             Write-Host @'
-BNQQ 2.3.1 — Windows PowerShell 5.1 x64
+BNQQ 2.3.2 — Windows PowerShell 5.1 x64
 audit | network | display | topology | apps | status | verdict | framepacing | session | memory | nvme | nic | readiness | focus | gpu | gpu-cache | cpu-session | phase-health | net-session | recover | legacy | competitive
 apply -Profile recording-off -DryRun             revisao, sem alteracoes
 valorant -ValorantAction plan|apply|restore [-AllValorantProfiles] [-ValorantProfilePath ARQUIVO] [-BackupFile JOURNAL]

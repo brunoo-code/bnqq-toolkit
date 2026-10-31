@@ -20,7 +20,7 @@ function Show-BnqqConsoleMenu {
         'Monitor e apresentacao de quadros',
         'Apps e atalhos Chromium',
         'Preferencias graficas do CS2',
-        'Limite de FPS do menu do CS2',
+        'Limites de FPS e consistencia do CS2',
         'Prioridades dos apps em segundo plano',
         'Recuperar estado anterior',
         'Migracao de ajustes antigos',

@@ -2,7 +2,7 @@
 # Temporary config files and a real .lnk only. Never launches Steam/CS2 or changes Windows.
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
-foreach($n in @('Core','GameProfile','Cs2Engine')){. (Join-Path $repo ('lib\'+$n+'.ps1'))}
+foreach($n in @('Core','GameProfile','Cs2Engine','FramePacing')){. (Join-Path $repo ('lib\'+$n+'.ps1'))}
 $base=[IO.Path]::GetFullPath([IO.Path]::GetTempPath());$temp=[IO.Path]::GetFullPath((Join-Path $base ('bnqq-engine-'+[guid]::NewGuid().ToString('N'))))
 if(-not $temp.StartsWith($base,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe fixture path'}
 $script:BnqqDataRoot=Join-Path $temp 'data';$script:checks=0;$script:gameOpen=$false
@@ -34,6 +34,10 @@ try{
  Check ([IO.File]::ReadAllText($autoexec).StartsWith([Text.Encoding]::UTF8.GetString($originalAuto))) 'Existing binds/sensitivity changed'
  $cfg=[IO.File]::ReadAllText((Join-Path $game 'bnqq_competitive.cfg'))
  Check ($cfg -notmatch 'cl_interp|m_rawinput|sv_cheats|r_draw|rate |bind |alias ') 'Generated cfg contains unadmitted commands'
+ Check ($cfg -notmatch '(?m)^fps_max(?:_ui)?\s') 'Engine cfg overrides native frame caps'
+ $caps=Invoke-BnqqFramePacing -Directory $user -Action apply -GameCap 240 -MenuCap 120
+ Check ([IO.File]::ReadAllText((Join-Path $user 'cs2_machine_convars.vcfg')).Contains('"fps_max" "240"') -and [IO.File]::ReadAllText((Join-Path $game 'bnqq_competitive.cfg')) -ceq $cfg) 'Native cap not respected independently of engine cfg'
+ Invoke-BnqqFramePacing -Directory $user -Action restore -BackupFile $caps.Backup|Out-Null
  $link=(New-Object -ComObject WScript.Shell).CreateShortcut($paths.Shortcut)
  Check ($link.TargetPath -ieq $steam -and $link.Arguments -ceq '-applaunch 730 +exec bnqq_competitive.cfg') 'Launch shortcut wrong'
  $hash=(Get-FileHash -LiteralPath $a.Backup -Algorithm SHA256).Hash
@@ -43,6 +47,14 @@ try{
  Check ((Get-BnqqByteHash ([IO.File]::ReadAllBytes($video))) -ceq (Get-BnqqByteHash $original) -and (Get-BnqqByteHash ([IO.File]::ReadAllBytes($autoexec))) -ceq (Get-BnqqByteHash $originalAuto)) 'Byte-exact originals not restored'
  Check (-not [IO.File]::Exists($paths.Shortcut) -and -not [IO.File]::Exists((Join-Path $game 'bnqq_competitive.cfg'))) 'Created files not removed'
  Invoke-BnqqCs2Engine -Action restore -BackupFile $a.Backup|Out-Null
+ # Historical journals had no ConfigVersion and generated the legacy unlimited cfg.
+ $legacy=Invoke-BnqqCs2Engine -Action apply -Directory $user -GameCfgDirectory $game -SteamExe $steam -Mode Minimum
+ $legacyData=Get-Content $legacy.Backup -Raw|ConvertFrom-Json;$legacyData.PSObject.Properties.Remove('ConfigVersion')
+ $legacyEntry=$legacyData.Entries|Where-Object Kind -eq 'Config';$legacyBytes=Get-BnqqCs2EngineCfg -BufferTicks 0 -Version 1
+ $legacyEntry.After=[Convert]::ToBase64String($legacyBytes);$legacyEntry.AfterHash=Get-BnqqByteHash $legacyBytes
+ [IO.File]::WriteAllBytes($legacyEntry.Path,$legacyBytes);Write-BnqqAtomicJson $legacyData $legacy.Backup
+ Invoke-BnqqCs2Engine -Action restore -BackupFile $legacy.Backup|Out-Null
+ Check ((Get-BnqqByteHash ([IO.File]::ReadAllBytes($video))) -ceq (Get-BnqqByteHash $original) -and -not [IO.File]::Exists($legacyEntry.Path)) 'Legacy journal compatibility lost'
  $a=Invoke-BnqqCs2Engine -Action apply -Directory $user -GameCfgDirectory $game -SteamExe $steam -Mode CompetitiveLow
  Check ([IO.File]::ReadAllText($video).Contains('"setting.videocfg_fsr_detail" "0"') -and [IO.File]::ReadAllText($video).Contains('"setting.videocfg_dynamic_shadows" "1"')) 'CompetitiveLow dropped visibility choices'
  [IO.File]::AppendAllText($video,'// external')
