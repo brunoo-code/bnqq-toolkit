@@ -205,3 +205,6 @@ Novo menu 27 e comando `valorant`: sete grupos existentes em Low, selecao explic
 
 ## v2.3.2 - Consistencia de quadros
 O autoexec gerenciado deixa de forcar FPS ilimitado e preserva caps nativos. Menu 6 oferece teste de 240 FPS, com backup. Journals antigos continuam restauraveis. Limitar FPS nao garante melhora de 1% low; [metodo e limites](docs/FRAME-CONSISTENCY.md).
+
+## v2.4.0 - Limpeza conservadora
+Menu 28 e comando `cleanup`: temporarios antigos, previa, protecao de caches/arquivos em uso e relatorio. Lixeira exige opcao explicita. Exclusao definitiva, sem promessa de FPS; [escopo e limites](docs/CLEANUP.md).

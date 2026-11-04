@@ -46,6 +46,7 @@ jobs:
           ./tests/GovernanceScopes.ps1
           ./tests/WorkloadSourceBinding.ps1
           ./tests/Startup.ps1
+          ./tests/Cleanup.ps1
           ./tests/NicActivation.ps1
           ./tests/Maintenance.ps1
           ./tests/ProcessSampling.ps1
