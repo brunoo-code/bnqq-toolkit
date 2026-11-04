@@ -2,7 +2,7 @@
 # Self queries plus priority/rollback on an owned stdin-waiting helper only. No game/stress.
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=Split-Path -Parent $PSScriptRoot
-foreach($n in @('Core','ProcessSampling','BackgroundBudget')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
+foreach($n in @('Core','ProcessSampling','BackgroundBudget','FocusSession')){. (Join-Path $script:BnqqRoot ('lib\'+$n+'.ps1'))}
 $checks=0
 function Check($ok,$message){if(-not $ok){throw $message};$script:checks++}
 function MustThrow([scriptblock]$code){$hit=$false;try{& $code|Out-Null}catch{$hit=$true};Check $hit 'Expected rejection'}
@@ -10,6 +10,7 @@ Initialize-BnqqProcessSampler
 $self=[Diagnostics.Process]::GetCurrentProcess();$watch=$null
 try{
  $identity=[pscustomobject]@{ProcessId=$PID;Name=$self.ProcessName;StartTime=$self.StartTime.ToUniversalTime().ToString('o')}
+ Check (Test-BnqqSameValue (Get-BnqqFocusIdentity $PID) $identity) 'Limited-query identity discovery lost self name/start/scope'
  $watch=New-BnqqFocusGameWatch $identity
  Check ($watch -and (Test-BnqqFocusGameWatchAlive $watch)) 'Live self not observed'
  Check (Test-BnqqFocusGameWatchAlive $watch) 'Repeated wait lost process'
@@ -64,6 +65,7 @@ try{
  Check (-not (Test-BnqqFocusGameWatchAlive $watch)) 'Exited process reported alive'
  Check (-not (Test-BnqqFocusGameWatchAlive $watch)) 'Exited handle changed back to alive'
  Check ($null -eq (Get-BnqqBudgetState $child.Id $priority)) 'Budget getter retained exited helper while its handle remained open'
+ Check ($null -eq (Get-BnqqFocusIdentity $child.Id)) 'Limited-query discovery retained exited process'
 }finally{
  try{if($child){try{$child.StandardInput.Close();if(-not $child.WaitForExit(5000)){throw 'Helper still running'}}finally{$child.Dispose()}}}
  finally{

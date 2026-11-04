@@ -1,4 +1,4 @@
-# BNQQ Competitive (v2.6.0)
+﻿# BNQQ Competitive (v2.6.1)
 
 Dois executáveis com finalidades separadas:
 
@@ -38,7 +38,7 @@ Requisitos de HeavyQA no boot/configuração atual, histórico WHEA, journals pe
 .\BNQQ_Competitive.exe -DryRun
 ```
 
-Os parâmetros são os da entrada dedicada: `FrameProcess`, `KeepApps`, `SessionMinutes`, `DryRun` e `StopSession`. Não oferece os comandos de manutenção do Optimizer. `StopSession` também sinaliza cancelamento durante a espera de abertura do jogo; não encerra o jogo que já iniciou.
+Os parâmetros são os da entrada dedicada: `FrameProcess`, `KeepApps`, `SessionMinutes`, `DryRun`, `StopSession` e `Diagnostics`. Não oferece os comandos de manutenção do Optimizer. `StopSession` também sinaliza cancelamento durante a espera de abertura do jogo; não encerra o jogo que já iniciou.
 
 O Competitive usa manifesto `asInvoker`, sem exigir administrador por padrão. O Optimizer continua com `requireAdministrator`. Os ajustes de prioridade são limitados ao próprio usuário/sessão; acesso negado é tratado com recusa, não elevação automática ou tentativa de tomar posse. Ambientes que restrinjam leitura dos logs podem impedir a prontidão.
 
@@ -54,3 +54,5 @@ O Competitive usa manifesto `asInvoker`, sem exigir administrador por padrão. O
 Cada build atualiza a pasta de staging. Verifique o executável contra seu próprio payload imediatamente após compilá-lo. Os testes verificam entrada correta, manifesto de hashes, extração, rejeição de adulteração e argumentos sem executar Main/UAC. Fixtures de controle verificam tecla de parada, restauração, Alt+Tab, foco e descarte de handles. A prévia da entrada real não inicia jogos nem altera processos.
 
 Os dois EXEs ficam na raiz e em `dist` nas entregas locais. Nenhum ganho de 1% low foi comprovado apenas por separar o executável: o benefício é simplificar o uso e aplicar de forma observável a política já existente quando há disputa por recursos.
+
+O launcher acrescenta os modulos nativos do Windows PowerShell ao ambiente do filho, preservando os caminhos herdados. Isso evita recusa indevida do atestado por ausencia de Get-FileHash ao iniciar pelo PowerShell 7. `-Diagnostics` e somente leitura e ajuda a distinguir ambiente incompleto de atestado reprovado.

@@ -22,7 +22,7 @@ function Show-BnqqCompetitiveConsole {
   if(-not $Game){return [pscustomobject]@{Status='SelectGame';Choices=@('VALORANT','CS2');WouldLaunch=$false;WouldModify=$false}}
   return (Invoke-BnqqCompetitiveStart -Game $Game -KeepApps $KeepApps)
  }
- try{[Console]::Title='BNQQ Competitive v2.6.0'}catch{}
+ try{[Console]::Title='BNQQ Competitive v2.6.1'}catch{}
  Write-Host '';Write-Host '  BNQQ  COMPETITIVE' -ForegroundColor Cyan
  Write-Host '  Sessao temporaria para CS2 / VALORANT' -ForegroundColor Gray
  Write-Host '  Q ou Esc neste console: parar e restaurar. O jogo continua aberto.'

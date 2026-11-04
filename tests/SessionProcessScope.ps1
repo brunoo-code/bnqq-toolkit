@@ -20,6 +20,12 @@ Check ($script:fake.PriorityClass -eq 'BelowNormal') 'Priority did not apply'
 MustThrow {Set-BnqqSessionPriority 20 Normal $before}
 $live=Get-BnqqSessionProcess 20;Set-BnqqSessionPriority 20 Normal $live
 Check ($script:fake.PriorityClass -eq 'Normal' -and $script:fake.Disposals -eq 7) 'Restore/disposal failed'
+function Get-BnqqPriorityProbe {
+ param($ProcessId)
+ Check ($ProcessId -eq 20) 'Wrong limited-query PID'
+ if(-not $script:allowed){throw 'Foreign SID/session fixture'}
+ [pscustomobject]@{ProcessId=$ProcessId;Name=$script:fake.ProcessName;StartTime=$script:fake.StartTime.ToUniversalTime().ToString('o');Priority=$script:fake.PriorityClass}
+}
 $focusIdentity=Get-BnqqFocusIdentity 20
 Check ($focusIdentity.StartTime -eq $before.StartTime) 'Focus identity adapter failed'
 $script:allowed=$false;MustThrow {Get-BnqqFocusIdentity 20}

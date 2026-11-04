@@ -2,7 +2,7 @@
 param(
     [string]$OutputPath,
     [ValidateSet('Optimizer','Competitive')][string]$Mode='Optimizer',
-    [ValidatePattern('^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$')][string]$Version = '2.6.0',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$')][string]$Version = '2.6.1',
     [switch]$KeepBuild
 )
 
@@ -145,6 +145,9 @@ namespace BnqqLauncher
 
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+                string coreModules = Path.Combine(Path.GetDirectoryName(psi.FileName), "Modules");
+                string inheritedModules = Environment.GetEnvironmentVariable("PSModulePath") ?? "";
+                psi.EnvironmentVariables["PSModulePath"] = coreModules + (inheritedModules.Length == 0 ? "" : ";" + inheritedModules);
                 psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\"";
                 foreach(string arg in args) psi.Arguments += " " + Quote(arg);
                 psi.WorkingDirectory = baseDir;

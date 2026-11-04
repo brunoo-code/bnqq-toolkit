@@ -85,3 +85,4 @@ jobs:
         run: |
           ./build-competitive.ps1 -KeepBuild
           ./tests/Launcher.ps1 -Exe ./dist/BNQQ_Competitive.exe -ExpectedEntry bnqq-competitive.ps1
+          ./tests/CompetitiveExecutable.ps1

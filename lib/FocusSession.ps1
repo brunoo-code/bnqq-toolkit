@@ -1,9 +1,10 @@
 ﻿# Bounded, sampled background CPU placement; never touches the game's scheduling.
 function Get-BnqqFocusIdentity {
     param([int]$ProcessId)
-    $p=Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    # Identity only: do not request Process.Handle/ALL_ACCESS to attach to a game.
+    $p=Get-BnqqPriorityProbe -ProcessId $ProcessId
     if(-not $p){return $null}
-    try{$handle=$p.Handle;Assert-BnqqCpuProcessScope $p $handle;[pscustomobject]@{ProcessId=$p.Id;Name=$p.ProcessName;StartTime=$p.StartTime.ToUniversalTime().ToString('o')}}finally{$p.Dispose()}
+    [pscustomobject]@{ProcessId=$p.ProcessId;Name=$p.Name;StartTime=$p.StartTime}
 }
 function Get-BnqqFocusStatus {
     $file=Join-Path (Get-BnqqDataRoot) 'focus-session.json'
