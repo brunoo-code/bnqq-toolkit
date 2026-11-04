@@ -119,7 +119,7 @@ function Invoke-BnqqFocusSession {
         [ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$PauseSearch,[switch]$DeferMaintenance,
         [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',
         [ValidateRange(1,240)][int]$MaxMinutes=120,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets',
-        [string[]]$UploadApps,[ValidateRange(64,1000000)][int]$UploadKbps=512,[scriptblock]$SessionGuard)
+        [string[]]$UploadApps,[ValidateRange(64,1000000)][int]$UploadKbps=512,[scriptblock]$SessionGuard,[scriptblock]$StopRequested,[scriptblock]$SessionObserver)
     if($Action -eq 'stop'){return (Stop-BnqqFocusSession)}
     if($Action -eq 'status'){return (Get-BnqqFocusStatus)}
     $plan=Get-BnqqFocusPlan $Apps $BackgroundCores -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance -Policy $Policy
@@ -159,9 +159,11 @@ function Invoke-BnqqFocusSession {
         $previous=@();$sampleTime=0.0;$nextHealth=0.0;$nextSample=0.0;$quietSamples=0;$admitAfter=0.0;$idleRestores=0
         $sampleCalls=0L;$sampleTotalMs=0.0;$sampleMaxMs=0.0
         while($clock.Elapsed.TotalMinutes -lt $MaxMinutes){
+            if($StopRequested -and (& $StopRequested)){break}
             if(-not (Test-BnqqFocusGameWatchAlive $gameWatch) -or (Test-BnqqFocusStop $id)){break}
             if($clock.Elapsed.TotalSeconds -ge $nextHealth){Assert-BnqqPhaseHealth $since;if($SessionGuard){& $SessionGuard};$nextHealth=$clock.Elapsed.TotalSeconds+10}
-            if((Get-BnqqForegroundPid) -ne $identity.ProcessId){
+            $gameFocused=(Get-BnqqForegroundPid) -eq $identity.ProcessId
+            if(-not $gameFocused){
                 Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0;$quietSamples=0;$admitAfter=0.0
             }elseif(@($Apps).Count -and $clock.Elapsed.TotalSeconds -ge $nextSample){
                 $sampleStarted=[Diagnostics.Stopwatch]::GetTimestamp()
@@ -175,6 +177,7 @@ function Invoke-BnqqFocusSession {
                 }elseif($now -ge $admitAfter){Update-BnqqFocusEpoch $state $Apps $BackgroundCores $previous $current ($now-$sampleTime) -Policy $Policy}
                 $previous=$current;$sampleTime=$now;$nextSample=$now+5
             }
+            if($SessionObserver){& $SessionObserver ([pscustomobject]@{Phase=$(if($gameFocused){'GameFocused'}else{'Desktop'});TrackedParticipants=$state.Touched.Count;Changes=$state.Changes;ElapsedSeconds=$clock.Elapsed.TotalSeconds;Policy=$Policy})}
             Start-Sleep -Seconds 1
         }
     }finally{

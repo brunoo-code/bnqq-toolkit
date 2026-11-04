@@ -36,6 +36,7 @@ $script:BnqqCompetitiveRequestedUtc=[datetime]::UtcNow.AddMinutes(-1);MustThrow 
 $script:BnqqCompetitiveRequestedUtc=[datetime]::UtcNow.AddSeconds(1);Assert-BnqqCompetitiveNotCancelled
 MustThrow {Invoke-BnqqCompetitiveStart -KeepApps 'chrome; shutdown'}
 Check ((Invoke-BnqqCompetitiveStart -KeepApps msedge,chrome,firefox,OneDrive).BlockedReasons -contains 'NoBackgroundTargetsSelected') 'Empty participant selection not explained'
+Check ((Invoke-BnqqCompetitiveStart -KeepApps 'Discord,Spotify,chrome').Apps -notcontains 'chrome') 'EXE comma-separated keep list not normalized'
 function Get-BnqqCompetitiveProcesses {[pscustomobject]@{ProcessName='cs2';Id=1};[pscustomobject]@{ProcessName='cs2';Id=2}}
 MustThrow {Invoke-BnqqCompetitiveStart -Game cs2.exe}
 # A real unsigned local fixture must never be accepted as the launcher.

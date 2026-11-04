@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [string]$OutputPath,
-    [ValidatePattern('^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$')][string]$Version = '2.5.0',
+    [ValidateSet('Optimizer','Competitive')][string]$Mode='Optimizer',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$')][string]$Version = '2.6.0',
     [switch]$KeepBuild
 )
 
@@ -12,10 +13,10 @@ $staging = Join-Path $buildDir 'payload'
 $zipPath = Join-Path $buildDir 'payload.zip'
 $csPath = Join-Path $buildDir 'Launcher.cs'
 $manifestPath = Join-Path $buildDir 'BNQQ_Optimizer.manifest'
-if (-not $OutputPath) { $OutputPath = Join-Path $root 'dist\BNQQ_Optimizer.exe' }
+if (-not $OutputPath) { $OutputPath = Join-Path $root ('dist\BNQQ_'+$Mode+'.exe') }
 if (-not [IO.Path]::IsPathRooted($OutputPath)) { $OutputPath = Join-Path $root $OutputPath }
 
-$required = @('bnqq.ps1', 'bnqq-watch.ps1', 'bnqq-audio.ps1', 'lib', 'config')
+$required = @('bnqq.ps1', 'bnqq-competitive.ps1', 'bnqq-watch.ps1', 'bnqq-audio.ps1', 'lib', 'config')
 foreach ($item in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $item))) { throw "Item obrigatorio ausente: $item" }
 }
@@ -31,7 +32,7 @@ if (Test-Path -LiteralPath $buildDir) { Remove-Item -LiteralPath $buildDir -Recu
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
 
-foreach ($item in @('bnqq.ps1', 'bnqq-watch.ps1', 'bnqq-audio.ps1')) {
+foreach ($item in @('bnqq.ps1', 'bnqq-competitive.ps1', 'bnqq-watch.ps1', 'bnqq-audio.ps1')) {
     Copy-Item -LiteralPath (Join-Path $root $item) -Destination (Join-Path $staging $item) -Force
 }
 foreach ($item in @('lib', 'config')) {
@@ -71,6 +72,7 @@ namespace BnqqLauncher
     internal static class Program
     {
         private const string AppVersion = "__APP_VERSION__";
+        private const string EntryScript = "__ENTRY_SCRIPT__";
         private const string PayloadStamp = "__PAYLOAD_STAMP__";
         private const string ManifestHash = "__MANIFEST_HASH__";
         private static string HashFile(string path) {
@@ -132,7 +134,7 @@ namespace BnqqLauncher
                 string baseDir = EnsurePayload(Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "BNQQ_Optimizer"));
-                string script = Path.Combine(baseDir, "bnqq.ps1");
+                string script = Path.Combine(baseDir, EntryScript);
 
                 if (args.Length > 0 && string.Equals(args[0], "--check", StringComparison.OrdinalIgnoreCase))
                 {
@@ -173,7 +175,8 @@ namespace BnqqLauncher
     }
 }
 '@
-$csharp = $csharp.Replace('__APP_VERSION__', $Version).Replace('__PAYLOAD_STAMP__', $payloadStamp).Replace('__MANIFEST_HASH__', $manifestHash)
+$entry=if($Mode -eq 'Competitive'){'bnqq-competitive.ps1'}else{'bnqq.ps1'}
+$csharp = $csharp.Replace('__APP_VERSION__', $Version).Replace('__PAYLOAD_STAMP__', $payloadStamp).Replace('__MANIFEST_HASH__', $manifestHash).Replace('__ENTRY_SCRIPT__',$entry)
 $csharp | Set-Content -LiteralPath $csPath -Encoding UTF8
 
 $manifest = @'
@@ -183,7 +186,7 @@ $manifest = @'
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+        <requestedExecutionLevel level="__EXECUTION_LEVEL__" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>
@@ -194,6 +197,8 @@ $manifest = @'
   </compatibility>
 </assembly>
 '@
+$executionLevel=if($Mode -eq 'Competitive'){'asInvoker'}else{'requireAdministrator'}
+$manifest=$manifest.Replace('__EXECUTION_LEVEL__',$executionLevel)
 $manifest | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
 $arguments = @(
@@ -213,9 +218,9 @@ if ($LASTEXITCODE -ne 0) { throw "Falha na compilacao C# (csc exit $LASTEXITCODE
 if (-not (Test-Path -LiteralPath $OutputPath)) { throw "Executavel nao gerado: $OutputPath" }
 
 $info = Get-Item -LiteralPath $OutputPath
-Write-Host ('BNQQ_Optimizer.exe gerado: {0}' -f $info.FullName) -ForegroundColor Green
+Write-Host ('{0} gerado: {1}' -f $info.Name,$info.FullName) -ForegroundColor Green
 Write-Host ('Tamanho: {0:N0} bytes' -f $info.Length) -ForegroundColor Gray
-Write-Host 'Manifesto: requireAdministrator (UAC ao clicar)' -ForegroundColor Gray
+Write-Host ('Manifesto: '+$executionLevel) -ForegroundColor Gray
 
 if (-not $KeepBuild) {
     if ([IO.Path]::GetFullPath($buildDir) -ne ([IO.Path]::GetFullPath((Join-Path $root 'build')))) { throw 'Build path invalido' }

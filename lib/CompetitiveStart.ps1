@@ -46,6 +46,7 @@ function Start-BnqqCompetitiveGame {
 }
 function Get-BnqqCompetitiveStartPlan {
  param([ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',[string[]]$KeepApps=@('Discord','Spotify'),[ValidateSet('Priority','CpuSets')][string]$Policy='Priority',[int]$BackgroundCores=2)
+ $KeepApps=@($KeepApps|ForEach-Object {$_ -split ','}|ForEach-Object {$_.Trim()}|Where-Object {$_})
  foreach($app in @($KeepApps)){if($app -notmatch '^[a-zA-Z0-9 _.\-]{1,80}$'){throw 'Nome de app a preservar invalido'}}
  $keep=@(@('Discord','DiscordSystemHelper','discord_clips','Spotify','explorer','msedgewebview2')+@($KeepApps)|Sort-Object -Unique)
  $apps=@(Get-BnqqBudgetAllowedApps|Where-Object {$_ -notin $keep})
@@ -61,7 +62,7 @@ function Get-BnqqCompetitiveStartPlan {
  [pscustomobject]@{Schema='BNQQ.CompetitiveStart.1';Status='Preview';Game=$Game;GameAlreadyOpen=($games.Count -eq 1);Apps=$apps;KeepApps=$keep;PresentParticipants=$present;Policy=$Policy;Focus=$focus;OtherOptimizers=$other;Readiness=$ready;CanRun=($reasons.Count -eq 0 -and $apps.Count -gt 0);BlockedReasons=$reasons;EndsProcesses=$false;ChangesGameAffinity=$false;TouchesAntiCheat=$false;PurgesMemory=$false;FpsGainProven=$false;InputLatencyMeasured=$false;Note='Only selected browser/OneDrive work gets a temporary background policy. Discord/music/shell/WebView stay untouched. No physical-core odd/even mask.'}
 }
 function Invoke-BnqqCompetitiveStart {
- param([ValidateSet('plan','run','stop','status')][string]$Action='plan',[ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',[string[]]$KeepApps=@('Discord','Spotify'),[ValidateSet('Priority','CpuSets')][string]$Policy='Priority',[ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$LaunchGame,[ValidateRange(1,240)][int]$MaxMinutes=120)
+ param([ValidateSet('plan','run','stop','status')][string]$Action='plan',[ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',[string[]]$KeepApps=@('Discord','Spotify'),[ValidateSet('Priority','CpuSets')][string]$Policy='Priority',[ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$LaunchGame,[ValidateRange(1,240)][int]$MaxMinutes=120,[scriptblock]$StopRequested,[scriptblock]$SessionObserver)
  if($Action -eq 'stop'){Write-BnqqCompetitiveStopSignal;return (Stop-BnqqFocusSession)}
  if($Action -eq 'status'){return (Get-BnqqFocusStatus)}
  if($Action -eq 'run'){$script:BnqqCompetitiveRequestedUtc=[datetime]::UtcNow}
@@ -73,6 +74,7 @@ function Invoke-BnqqCompetitiveStart {
   if(-not $LaunchGame){throw 'Abra o jogo normalmente ou selecione LaunchGame explicitamente'}
   Start-BnqqCompetitiveGame $Game;$clock=[Diagnostics.Stopwatch]::StartNew()
   while(-not @(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($Game)) -ErrorAction SilentlyContinue).Count){
+   if($StopRequested -and (& $StopRequested)){throw 'Preparacao cancelada pelo console'}
    Assert-BnqqCompetitiveNotCancelled
    if($clock.Elapsed.TotalSeconds -ge 120){throw 'Jogo nao apareceu em 120s; nenhuma politica de processo aplicada'}
    Start-Sleep -Seconds 1
@@ -80,7 +82,10 @@ function Invoke-BnqqCompetitiveStart {
  }
  Assert-BnqqNoOtherOptimizer;Assert-BnqqCompetitiveNotCancelled
  # Existing engine restores on Alt+Tab, game exit, health failure, cooperative stop or timeout.
- Invoke-BnqqFocusSession -Action run -Apps $plan.Apps -Policy $Policy -BackgroundCores $BackgroundCores -Game $Game -MaxMinutes $MaxMinutes -SessionGuard {Assert-BnqqNoOtherOptimizer;Assert-BnqqCompetitiveNotCancelled}
+ if($StopRequested -and (& $StopRequested)){throw 'Preparacao cancelada pelo console'}
+ $control=@{Action='run';Apps=$plan.Apps;Policy=$Policy;BackgroundCores=$BackgroundCores;Game=$Game;MaxMinutes=$MaxMinutes;SessionGuard={Assert-BnqqNoOtherOptimizer;Assert-BnqqCompetitiveNotCancelled}}
+ if($StopRequested){$control.StopRequested=$StopRequested};if($SessionObserver){$control.SessionObserver=$SessionObserver}
+ Invoke-BnqqFocusSession @control
 }
 function Show-BnqqCompetitiveStartMenu {
  $selection=Read-Host 'Start Competitivo: 1=CS2, 2=Valorant; outro cancela'

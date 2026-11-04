@@ -184,5 +184,10 @@ try{
  Reset;$script:guardCalls=0
  MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -SessionGuard {$script:guardCalls++;if($script:tick -ge 20){throw 'Competing controller appeared'}}}
  Check ($script:guardCalls -ge 3 -and @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count -eq 0 -and $script:watchDisposed -eq 1 -and -not (Test-Path (Join-Path $temp 'focus-session.json'))) 'Session guard failure did not restore priorities/dispose controller'
- ('PASS: focus '+$script:checks+' checks; measured selection, bounded discovery, Alt+Tab, PID reuse, WHEA, partial failure, cooperative stop, competing-controller guard and recovery')
+ Reset;$script:observations=@()
+ $result=Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -StopRequested {$script:tick -ge 20} -SessionObserver {param($s);$script:observations+=@($s)}
+ Check ($script:tick -eq 20 -and @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count -eq 0) 'Console stop failed to restore priorities'
+ Check (@($script:observations|Where-Object Phase -eq 'Desktop').Count -gt 0 -and @($script:observations|Where-Object Phase -eq 'GameFocused').Count -gt 0) 'Observer did not follow focus state'
+ Check ($script:watchDisposed -eq 1 -and -not (Test-Path (Join-Path $temp 'focus-session.json'))) 'Console stop leaked controller resources'
+ ('PASS: focus '+$script:checks+' checks; measured selection, bounded discovery, Alt+Tab, PID reuse, WHEA, partial failure, cooperative stop, console/guard and recovery')
 }finally{if([IO.Directory]::Exists($temp)){[IO.Directory]::Delete($temp,$true)}}

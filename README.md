@@ -211,3 +211,6 @@ Menu 28 e comando `cleanup`: temporarios antigos, previa, protecao de caches/arq
 
 ## v2.5.0 - Start Competitivo e Apps Lite
 Menu 29 inicia/usa o jogo pelo cliente oficial e reutiliza o controlador temporario com protecao de voz, bloqueio de otimizadores concorrentes e restauracao. Menu 30 solicita politicas oficiais Edge/Chrome com backup. Sem encerramento em massa, purga de RAM ou ganho de FPS presumido. [Analise do PRACC, funcionamento e limites](docs/COMPETITIVE-START.md).
+
+## v2.6.0 - Executavel competitivo dedicado
+`BNQQ_Optimizer.exe` continua para manutencao. `BNQQ_Competitive.exe` abre somente a sessao de jogo, detecta um jogo aberto ou oferece CS2/VALORANT e permite parar com Q/Esc, restaurando os ajustes temporarios. Usa entrada propria, carregamento reduzido e os mesmos gates/backups. [Como usar](docs/COMPETITIVE-EXE.md).

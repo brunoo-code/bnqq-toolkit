@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Exe,[string]$Payload)
+param([string]$Exe,[string]$Payload,[ValidateSet('bnqq.ps1','bnqq-competitive.ps1')][string]$ExpectedEntry='bnqq.ps1')
 $ErrorActionPreference='Stop'
 if(-not $Exe){$Exe=Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\BNQQ_Optimizer.exe'}
 if(-not $Payload){$Payload=Join-Path (Split-Path -Parent $PSScriptRoot) 'build\payload'}
@@ -9,6 +9,9 @@ try{
     $assembly=[Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($Exe))
     $type=$assembly.GetType('BnqqLauncher.Program',$true)
     $flags=[Reflection.BindingFlags]'NonPublic,Static'
+    $entry=$type.GetField('EntryScript',$flags)
+    if(-not $entry -or $entry.GetRawConstantValue() -cne $ExpectedEntry){throw 'Launcher entrypoint mismatch'}
+    if(-not (Test-Path -LiteralPath (Join-Path $Payload $ExpectedEntry) -PathType Leaf)){throw 'Entrypoint missing from payload'}
     $verify=$type.GetMethod('Verify',$flags);$quote=$type.GetMethod('Quote',$flags)
     $ensure=$type.GetMethod('EnsurePayload',$flags)
     $verify.Invoke($null,@([IO.Path]::GetFullPath($Payload)))|Out-Null

@@ -49,6 +49,8 @@ jobs:
           ./tests/Cleanup.ps1
           ./tests/AppLite.ps1
           ./tests/CompetitiveStart.ps1
+          ./tests/CompetitiveConsole.ps1
+          ./tests/CompetitiveEntry.ps1
           ./tests/NicActivation.ps1
           ./tests/Maintenance.ps1
           ./tests/ProcessSampling.ps1
@@ -78,3 +80,8 @@ jobs:
       - name: Verify embedded payload and argument quoting without launching
         shell: powershell
         run: ./tests/Launcher.ps1
+      - name: Compile and verify dedicated competitive executable
+        shell: powershell
+        run: |
+          ./build-competitive.ps1 -KeepBuild
+          ./tests/Launcher.ps1 -Exe ./dist/BNQQ_Competitive.exe -ExpectedEntry bnqq-competitive.ps1
