@@ -181,5 +181,8 @@ try{
  MustThrow {Update-BnqqFocusEpoch $state @('msedge') 2 @($b) @($c) 5};Check ($state.Changes -eq 0) '512 entry cap changed processes'
  $state=[pscustomobject]@{Journal=$null;Touched=@{};CpuSetIds=@(999);Epochs=0;Changes=0}
  MustThrow {Update-BnqqFocusEpoch $state @('msedge') 2 @($b) @($c) 5}
- ('PASS: focus '+$script:checks+' checks; measured selection, bounded discovery, Alt+Tab, PID reuse, WHEA, partial failure, cooperative stop and recovery')
+ Reset;$script:guardCalls=0
+ MustThrow {Invoke-BnqqFocusSession -Action run -Apps msedge -Policy Priority -SessionGuard {$script:guardCalls++;if($script:tick -ge 20){throw 'Competing controller appeared'}}}
+ Check ($script:guardCalls -ge 3 -and @($script:priorities.Values|Where-Object {$_ -ne 'Normal'}).Count -eq 0 -and $script:watchDisposed -eq 1 -and -not (Test-Path (Join-Path $temp 'focus-session.json'))) 'Session guard failure did not restore priorities/dispose controller'
+ ('PASS: focus '+$script:checks+' checks; measured selection, bounded discovery, Alt+Tab, PID reuse, WHEA, partial failure, cooperative stop, competing-controller guard and recovery')
 }finally{if([IO.Directory]::Exists($temp)){[IO.Directory]::Delete($temp,$true)}}

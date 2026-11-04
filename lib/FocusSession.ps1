@@ -119,7 +119,7 @@ function Invoke-BnqqFocusSession {
         [ValidateRange(1,16)][int]$BackgroundCores=2,[switch]$PauseSearch,[switch]$DeferMaintenance,
         [ValidateSet('cs2.exe','VALORANT-Win64-Shipping.exe')][string]$Game='cs2.exe',
         [ValidateRange(1,240)][int]$MaxMinutes=120,[ValidateSet('CpuSets','Priority')][string]$Policy='CpuSets',
-        [string[]]$UploadApps,[ValidateRange(64,1000000)][int]$UploadKbps=512)
+        [string[]]$UploadApps,[ValidateRange(64,1000000)][int]$UploadKbps=512,[scriptblock]$SessionGuard)
     if($Action -eq 'stop'){return (Stop-BnqqFocusSession)}
     if($Action -eq 'status'){return (Get-BnqqFocusStatus)}
     $plan=Get-BnqqFocusPlan $Apps $BackgroundCores -PauseSearch:$PauseSearch -DeferMaintenance:$DeferMaintenance -Policy $Policy
@@ -128,6 +128,7 @@ function Invoke-BnqqFocusSession {
     if($Action -eq 'plan'){return $plan}
     if(-not @($Apps).Count -and -not $PauseSearch -and -not $DeferMaintenance -and -not @($UploadApps).Count){throw 'Selecione apps, upload ou manutencao; nenhum alvo implicito'}
     Assert-BnqqHeavyQa -WorkloadOnly
+    if($SessionGuard){& $SessionGuard}
     $script:BnqqFocusSampleErrors=@{}
     if(@($Apps).Count){Initialize-BnqqProcessSampler}
     if(($plan.Maintenance.RequiresAdmin -or @($UploadApps).Count) -and -not (Test-BnqqAdmin)){throw 'Manutencao/upload temporarios exigem administrador'}
@@ -159,7 +160,7 @@ function Invoke-BnqqFocusSession {
         $sampleCalls=0L;$sampleTotalMs=0.0;$sampleMaxMs=0.0
         while($clock.Elapsed.TotalMinutes -lt $MaxMinutes){
             if(-not (Test-BnqqFocusGameWatchAlive $gameWatch) -or (Test-BnqqFocusStop $id)){break}
-            if($clock.Elapsed.TotalSeconds -ge $nextHealth){Assert-BnqqPhaseHealth $since;$nextHealth=$clock.Elapsed.TotalSeconds+10}
+            if($clock.Elapsed.TotalSeconds -ge $nextHealth){Assert-BnqqPhaseHealth $since;if($SessionGuard){& $SessionGuard};$nextHealth=$clock.Elapsed.TotalSeconds+10}
             if((Get-BnqqForegroundPid) -ne $identity.ProcessId){
                 Restore-BnqqFocusEpoch $state;$previous=@();$nextSample=0;$quietSamples=0;$admitAfter=0.0
             }elseif(@($Apps).Count -and $clock.Elapsed.TotalSeconds -ge $nextSample){

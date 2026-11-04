@@ -208,3 +208,6 @@ O autoexec gerenciado deixa de forcar FPS ilimitado e preserva caps nativos. Men
 
 ## v2.4.0 - Limpeza conservadora
 Menu 28 e comando `cleanup`: temporarios antigos, previa, protecao de caches/arquivos em uso e relatorio. Lixeira exige opcao explicita. Exclusao definitiva, sem promessa de FPS; [escopo e limites](docs/CLEANUP.md).
+
+## v2.5.0 - Start Competitivo e Apps Lite
+Menu 29 inicia/usa o jogo pelo cliente oficial e reutiliza o controlador temporario com protecao de voz, bloqueio de otimizadores concorrentes e restauracao. Menu 30 solicita politicas oficiais Edge/Chrome com backup. Sem encerramento em massa, purga de RAM ou ganho de FPS presumido. [Analise do PRACC, funcionamento e limites](docs/COMPETITIVE-START.md).

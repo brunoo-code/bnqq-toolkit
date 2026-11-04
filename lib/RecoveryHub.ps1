@@ -1,6 +1,6 @@
 ﻿function Get-BnqqRecoveryCatalog {
     $root=Get-BnqqDataRoot
-    foreach($folder in @('journals','startup-journals','sessions','gameprofiles','engineprofiles','valorantprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals','nic-journals')){
+    foreach($folder in @('journals','startup-journals','app-lite','sessions','gameprofiles','engineprofiles','valorantprofiles','framepacing','legacy-migrations','network-sessions','nvidia-journals','nic-journals')){
         foreach($file in @(Get-ChildItem -LiteralPath (Join-Path $root $folder) -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)){
             try {
                 $j=Get-Content $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
@@ -14,6 +14,7 @@ function Invoke-BnqqRecovery {
     $j=Get-Content -LiteralPath $File -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
     if($j.Owner -ne (Get-BnqqOwner)){throw 'Backup de outro usuario; nenhuma restauracao iniciada'}
     switch([string]$j.Schema){
+        'BNQQ.AppLite.1' {return (Invoke-BnqqAppLite -Action restore -BackupFile $File)}
         'BNQQ.Nic.1' {
             $action=if($j.Status -eq 'Activated'){'restore-active'}else{'restore'}
             return (Invoke-BnqqNicPolicy -Action $action -File $File)
