@@ -43,7 +43,7 @@ param(
     [ValidateRange(0,16)][int]$SyntheticThreads=0,[ValidateRange(1,120)][int]$SyntheticSeconds=30,
     [ValidateRange(10,90)][int]$SyntheticDuty=50,[ValidateRange(20,1000)][int]$SyntheticCycleMs=100,
     [ValidateRange(1,16)][int]$SyntheticMemoryMiB=4,[ValidateRange(0,30)][int]$SyntheticIdleSeconds=10,[string]$SyntheticReference,
-    [switch]$PauseSearch,[switch]$DeferMaintenance,[ValidateRange(1,240)][int]$SessionMinutes=120
+    [switch]$PauseAfterOptimize,[switch]$PauseSearch,[switch]$DeferMaintenance,[ValidateRange(1,240)][int]$SessionMinutes=120
 )
 $ErrorActionPreference='Stop'
 $script:BnqqRoot=$PSScriptRoot
@@ -63,6 +63,17 @@ try {
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
         [pscustomobject]@{DryRun=$true;Command=$Command;WatcherAction=$WatcherAction;BackupFile=$BackupFile;PinPhysical=[bool]$PinPhysical;AboveNormal=[bool]$AboveNormal;HeavyMinutes=$HeavyMinutes;Action='Preview only: no worker, process, journal or target changed'} | Format-List
+        return
+    }
+    if ($Command -eq 'optimize') {
+        if ($DryRun) {
+            Write-Host 'DryRun: energia, navegadores, apps opcionais, Recall, servicos e armazenamento.'
+            return
+        }
+        if (-not (Test-BnqqAdmin)) { throw 'Abra o BNQQ como administrador.' }
+        $failures = Invoke-BnqqQuickOptimizer -ReturnFailureCount
+        if ($PauseAfterOptimize) { [void](Read-Host 'Pressione Enter para voltar') }
+        if ($failures -gt 0) { exit 1 }
         return
     }
     switch($Command){

@@ -147,6 +147,7 @@ function Disable-BnqqRecall {
 }
 
 function Invoke-BnqqQuickOptimizer {
+    param([switch]$ReturnFailureCount)
     Write-Host 'Optimizer pos-formatacao: funciona antes de instalar jogos ou launchers.'
     Write-Host 'Alto desempenho pode aumentar consumo e temperatura.'
     $steps = [ordered]@{
@@ -177,5 +178,6 @@ function Invoke-BnqqQuickOptimizer {
     Write-Host ('Etapas com pendencias: ' + $failures)
     Write-Host 'Restauracao: menu 31 (energia), 8 (navegadores), 33 (servicos).'
     Write-Host 'Apps opcionais podem ser reinstalados pela Microsoft Store.'
+    if ($ReturnFailureCount) { return $failures }
     Write-Host 'Para GPU e perfil por jogo, veja 12, 26 e 27.'
 }
