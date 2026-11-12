@@ -223,8 +223,10 @@ Corrige descoberta dos modulos do Windows PowerShell quando o EXE e aberto por o
 Depois de formatar, abra o painel e escolha **0** para configurar o Windows.
 Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do painel.
 
-- Aplica Alto desempenho quando o plano existe e configura o Apps Lite no Edge e Chrome.
+- Aplica Alto desempenho quando o plano existe e o PC nao esta na bateria e configura o Apps Lite no Edge e Chrome.
 - Remove Copilot, Clipchamp, Noticias, Clima, Solitaire, hub do Microsoft 365 e novo Outlook da conta atual, quando instalados.
+- Desliga a aceleracao do ponteiro na sessao interativa e preserva a velocidade. O menu 34 restaura o ajuste. Jogos que usam Raw Input podem ignorar a aceleracao do Windows.
+- Desativa os Widgets nas edicoes compativeis quando nao existe uma politica definida. O menu 35 restaura o ajuste.
 - Desativa o Recall quando habilitado. O painel avisa se precisar reiniciar.
 - Para e desabilita o SysMain. Desabilita Telefonia, Servico de Telefone, Fax, Mapas Baixados e o agendador legado do Media Center quando presentes, parados e com inicio manual. O menu 33 recupera o estado anterior.
 - Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia.

@@ -57,8 +57,8 @@ try {
         Show-BnqqConsoleMenu -Version '2.6.1' -Edition 'PUBLIC'
         if([Environment]::UserInteractive){
             $choice=Read-Host 'Escolha'
-            $menuPause=$choice -match '^(?:[1-9]|[12][0-9]|3[0-3]|0|O)$'
-            switch($choice){{ $_ -in @('0','O') }{Invoke-BnqqQuickOptimizer;return}'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Show-BnqqFramePacingMenu;return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}'25'{Show-BnqqStartupMenu;return}'26'{Show-BnqqCs2EngineMenu;return}'27'{Show-BnqqValorantProfileMenu;return}'28'{Show-BnqqCleanupMenu;return}'29'{Show-BnqqCompetitiveStartMenu;return}'30'{Show-BnqqAppLiteMenu;return}'31'{Show-BnqqPowerPlanMenu;return}'32'{Write-Host 'Pausa temporaria do Windows Search. No Focus, escolha SIM para parar o indexador durante o jogo.';Show-BnqqFocusMenu;return}'33'{Set-BnqqOptionalServices -Restore;return}default{return}}
+            $menuPause=$choice -match '^(?:[1-9]|[12][0-9]|3[0-5]|0|O)$'
+            switch($choice){{ $_ -in @('0','O') }{Invoke-BnqqQuickOptimizer;return}'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Show-BnqqFramePacingMenu;return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}'25'{Show-BnqqStartupMenu;return}'26'{Show-BnqqCs2EngineMenu;return}'27'{Show-BnqqValorantProfileMenu;return}'28'{Show-BnqqCleanupMenu;return}'29'{Show-BnqqCompetitiveStartMenu;return}'30'{Show-BnqqAppLiteMenu;return}'31'{Show-BnqqPowerPlanMenu;return}'32'{Write-Host 'Pausa temporaria do Windows Search. No Focus, escolha SIM para parar o indexador durante o jogo.';Show-BnqqFocusMenu;return}'33'{Set-BnqqOptionalServices -Restore;return}'34'{Set-BnqqPointerAcceleration -Restore;return}'35'{Set-BnqqWidgetsPolicy -Restore;return}default{return}}
         }else{$Command='audit'}
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
@@ -67,7 +67,7 @@ try {
     }
     if ($Command -eq 'optimize') {
         if ($DryRun) {
-            Write-Host 'DryRun: energia, navegadores, apps opcionais, Recall, servicos e armazenamento.'
+            Write-Host 'DryRun: energia, navegadores, apps opcionais, Recall, ponteiro, Widgets, servicos e armazenamento.'
             return
         }
         if (-not (Test-BnqqAdmin)) { throw 'Abra o BNQQ como administrador.' }

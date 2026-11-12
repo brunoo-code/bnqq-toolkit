@@ -54,6 +54,8 @@ function Show-BnqqConsoleMenu {
         Write-Host ('  '+('[{0}]' -f ($i+1)).PadRight(5)+$labels[$i]) -ForegroundColor Gray
     }
     Write-Host '  [33] Restaurar servicos opcionais'
+    Write-Host '  [34] Restaurar aceleracao do ponteiro'
+    Write-Host '  [35] Restaurar politica de Widgets'
     Write-Host '  [Q]  Sair' -ForegroundColor DarkGray
     Write-Host ''
 }

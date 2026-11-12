@@ -146,18 +146,143 @@ function Disable-BnqqRecall {
     }
 }
 
+function Get-BnqqPointerAcceleration {
+    Initialize-BnqqPointerNative
+    $state = New-Object 'int[]' 3
+    if (-not [Bnqq.PointerNative]::SystemParametersInfo(3, 0, $state, 0)) {
+        throw 'Nao foi possivel consultar a aceleracao do ponteiro.'
+    }
+    return $state[2]
+}
+
+function Initialize-BnqqPointerNative {
+    if ('Bnqq.PointerNative' -as [type]) { return }
+    Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+
+namespace Bnqq
+{
+    public static class PointerNative
+    {
+        [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW")]
+        public static extern bool SystemParametersInfo(uint action, uint parameter, [In, Out] int[] values, uint flags);
+    }
+}
+'@
+}
+
+function Set-BnqqPointerAcceleration {
+    param([switch]$Restore)
+
+    if (-not [Environment]::UserInteractive) {
+        Write-Host 'Ponteiro: ajuste disponivel na sessao interativa do usuario.'
+        return
+    }
+    $lock = Enter-BnqqStateLock
+    try {
+        $file = Join-Path (Get-BnqqDataRoot) 'optimizer-pointer.json'
+        $current = Get-BnqqPointerAcceleration
+        $saved = if (Test-Path -LiteralPath $file) {
+            Get-Content -LiteralPath $file -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        }
+        if ($Restore -and -not $saved) { Write-Host 'Ponteiro: nenhum backup encontrado.'; return }
+        if ($saved -and ($saved.Owner -cne (Get-BnqqOwner) -or $saved.Acceleration -notin @(1, 2))) {
+            throw 'Backup de ponteiro invalido.'
+        }
+        if (-not $Restore -and $current -eq 0) { Write-Host 'Ponteiro: aceleracao ja desligada.'; return }
+        if ($saved -and $current -notin @(0, $saved.Acceleration)) {
+            throw 'Aceleracao alterada externamente. Backup preservado.'
+        }
+        if (-not $Restore -and -not $saved) {
+            if ($current -notin @(1, 2)) { throw 'Configuracao de aceleracao nao reconhecida.' }
+            Write-BnqqAtomicJson -Value @{Owner = Get-BnqqOwner; Acceleration = $current} -Path $file
+        }
+        $target = if ($Restore) { [int]$saved.Acceleration } else { 0 }
+        if ($current -ne $target) {
+            $state = New-Object 'int[]' 3
+            if (-not [Bnqq.PointerNative]::SystemParametersInfo(3, 0, $state, 0) -or $state[2] -ne $current) {
+                throw 'A configuracao do ponteiro mudou durante a operacao.'
+            }
+            $state[2] = $target
+            if (-not [Bnqq.PointerNative]::SystemParametersInfo(4, 0, $state, 3) -or (Get-BnqqPointerAcceleration) -ne $target) {
+                throw 'Nao foi possivel confirmar o ajuste do ponteiro.'
+            }
+        }
+        if ($Restore) {
+            Remove-Item -LiteralPath $file -ErrorAction Stop
+            Write-Host 'Ponteiro: aceleracao original restaurada.'
+        } else {
+            Write-Host 'Ponteiro: aceleracao do Windows desligada. Velocidade do ponteiro preservada.'
+        }
+    } finally { $lock.Dispose() }
+}
+
+function Set-BnqqWidgetsPolicy {
+    param([switch]$Restore)
+
+    if (-not (Test-BnqqAdmin)) { throw 'A politica de Widgets exige administrador.' }
+    $path = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'
+    $name = 'AllowNewsAndInterests'
+    $lock = Enter-BnqqStateLock
+    try {
+        $file = Join-Path (Get-BnqqDataRoot) 'optimizer-widgets.json'
+        $current = Get-RegSnapshot $path $name
+        $saved = if (Test-Path -LiteralPath $file) {
+            Get-Content -LiteralPath $file -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        }
+        if ($saved -and ($saved.Owner -cne (Get-BnqqOwner) -or $saved.KeyExisted -isnot [bool])) {
+            throw 'Backup de Widgets invalido.'
+        }
+        if ($Restore) {
+            if (-not $saved) { Write-Host 'Widgets: nenhum backup encontrado.'; return }
+            if ($current.Existed -and ($current.Kind -ne 'DWord' -or $current.Value -ne 0)) {
+                throw 'Politica de Widgets alterada externamente. Backup preservado.'
+            }
+            Set-BnqqRegistrySnapshot ([pscustomobject]@{Path=$path;Name=$name;KeyExisted=$saved.KeyExisted;Existed=$false})
+            if ((Get-RegSnapshot $path $name).Existed) { throw 'Falha ao restaurar a politica de Widgets.' }
+            Remove-Item -LiteralPath $file -ErrorAction Stop
+            Write-Host 'Politica de Widgets restaurada. Saia e entre novamente para atualizar a barra.'
+            return
+        }
+        if ($current.Existed) { Write-Host 'Widgets: politica existente preservada.'; return }
+        $version = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+        if ([int]$version.CurrentBuild -lt 22000 -or $version.EditionID -notmatch '^(Professional|Enterprise|Education|IoTEnterprise)') {
+            Write-Host 'Widgets: politica ignorada nesta edicao ou versao do Windows.'
+            return
+        }
+        if (-not $saved) {
+            Write-BnqqAtomicJson -Value @{Owner = Get-BnqqOwner; KeyExisted = $current.KeyExisted} -Path $file
+        }
+        Set-BnqqRegistrySnapshot ([pscustomobject]@{Path=$path;Name=$name;KeyExisted=$true;Existed=$true;Kind='DWord';Value=0})
+        $actual = Get-RegSnapshot $path $name
+        if (-not $actual.Existed -or $actual.Kind -ne 'DWord' -or $actual.Value -ne 0) {
+            throw 'Falha ao confirmar a politica de Widgets.'
+        }
+        Write-Host 'Widgets desativados. Saia e entre novamente para atualizar a barra.'
+    } finally { $lock.Dispose() }
+}
+
 function Invoke-BnqqQuickOptimizer {
     param([switch]$ReturnFailureCount)
     Write-Host 'Optimizer pos-formatacao: funciona antes de instalar jogos ou launchers.'
     Write-Host 'Alto desempenho pode aumentar consumo e temperatura.'
     $steps = [ordered]@{
-        'Energia' = { Set-BnqqWindowsPowerPlan -Action apply }
+        'Energia' = {
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+            if ([System.Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus -eq 'Offline') {
+                Write-Host 'Alto desempenho ignorado: PC funcionando na bateria.'
+            } else {
+                Set-BnqqWindowsPowerPlan -Action apply
+            }
+        }
         'Navegadores' = {
             $result = Invoke-BnqqAppLite -Action apply
             Write-Host "Apps Lite: $($result.Status). Reabra Edge e Chrome para atualizar as politicas."
         }
         'Apps opcionais' = { Remove-BnqqOptionalApps }
         'Recall' = { Disable-BnqqRecall }
+        'Ponteiro' = { Set-BnqqPointerAcceleration }
+        'Widgets' = { Set-BnqqWidgetsPolicy }
         'Servicos opcionais' = { Set-BnqqOptionalServices }
         'Armazenamento' = {
             if (-not (Test-BnqqAdmin)) { throw 'Manutencao de armazenamento exige administrador.' }
@@ -176,7 +301,7 @@ function Invoke-BnqqQuickOptimizer {
         }
     }
     Write-Host ('Etapas com pendencias: ' + $failures)
-    Write-Host 'Restauracao: menu 31 (energia), 8 (navegadores), 33 (servicos).'
+    Write-Host 'Restauracao: menu 31 (energia), 8 (navegadores), 33 (servicos), 34 (ponteiro), 35 (Widgets).'
     Write-Host 'Apps opcionais podem ser reinstalados pela Microsoft Store.'
     if ($ReturnFailureCount) { return $failures }
     Write-Host 'Para GPU e perfil por jogo, veja 12, 26 e 27.'
