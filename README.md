@@ -226,7 +226,7 @@ Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do pai
 - Aplica Alto desempenho quando o plano existe e configura o Apps Lite no Edge e Chrome.
 - Remove Copilot, Clipchamp, Noticias, Clima e Solitaire da conta atual, quando instalados.
 - Desativa o Recall quando habilitado. O painel avisa se precisar reiniciar.
-- Desabilita Fax e Mapas Baixados se estiverem parados e com inicio manual.
+- Para e desabilita o SysMain. Desabilita Telefonia, Servico de Telefone, Fax, Mapas Baixados e o agendador legado do Media Center quando presentes, parados e com inicio manual. O menu 33 recupera o estado anterior.
 - Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia.
 
 Abra o painel como administrador para todas as etapas. Use 31 para restaurar o plano,

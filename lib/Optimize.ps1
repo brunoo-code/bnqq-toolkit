@@ -47,36 +47,67 @@ function Set-BnqqOptionalServices {
 
     if (-not (Test-BnqqAdmin)) { throw 'Servicos opcionais exigem administrador.' }
     $lock = Enter-BnqqStateLock
+    $failures = @()
     try {
-        foreach ($name in @('Fax', 'MapsBroker')) {
-            $file = Join-Path (Get-BnqqDataRoot) "optimizer-service-$name.json"
-            $service = Get-Service -Name $name -ErrorAction SilentlyContinue
-            if (-not $service) { continue }
-            if ($Restore) {
-                if (-not (Test-Path -LiteralPath $file)) { continue }
-                if ($service.StartType -eq 'Disabled') {
-                    Set-Service -Name $name -StartupType Manual -ErrorAction Stop
+        foreach ($name in @('SysMain', 'TapiSrv', 'PhoneSvc', 'Fax', 'MapsBroker', 'ehSched')) {
+            try {
+                $file = Join-Path (Get-BnqqDataRoot) "optimizer-service-$name.json"
+                $service = Get-Service -Name $name -ErrorAction SilentlyContinue
+                if (-not $service) { continue }
+                $saved = if (Test-Path -LiteralPath $file) {
+                    Get-Content -LiteralPath $file -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
                 }
-                if ((Get-Service -Name $name -ErrorAction Stop).StartType -ne 'Manual') {
-                    Write-Warning "Servico $name alterado fora do BNQQ. Backup preservado."
+                if ($Restore) {
+                    if (-not $saved) { continue }
+                    if ($service.StartType -eq 'Disabled') {
+                        if ($saved.Delayed) {
+                            & sc.exe config $name 'start=' 'delayed-auto' | Out-Host
+                            if ($LASTEXITCODE -ne 0) { throw 'Falha ao restaurar inicio automatico atrasado.' }
+                        } else {
+                            Set-Service -Name $name -StartupType $saved.StartupType -ErrorAction Stop
+                        }
+                    }
+                    if ((Get-Service -Name $name -ErrorAction Stop).StartType -ne $saved.StartupType) {
+                        throw 'Tipo de inicio divergente. Backup preservado.'
+                    }
+                    if ($saved.WasRunning -and (Get-Service -Name $name -ErrorAction Stop).Status -ne 'Running') {
+                        Start-Service -Name $name -ErrorAction Stop
+                    }
+                    Remove-Item -LiteralPath $file -ErrorAction Stop
+                    Write-Host "$name restaurado."
                     continue
                 }
-                Remove-Item -LiteralPath $file -ErrorAction Stop
-                Write-Host "$name restaurado para Manual."
-                continue
+                if ($service.StartType -eq 'Disabled') { continue }
+                if ($name -ne 'SysMain' -and ($service.Status -ne 'Stopped' -or $service.StartType -ne 'Manual')) {
+                    Write-Host "$name ignorado (ativo ou com outro tipo de inicializacao)."
+                    continue
+                }
+                if ($service.Status -notin @('Running', 'Stopped') -or $service.StartType -notin @('Manual', 'Automatic')) {
+                    throw 'Servico em transicao ou com tipo de inicio inesperado.'
+                }
+                if (-not $saved) {
+                    $reg = Get-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Services\$name" -ErrorAction Stop
+                    Write-BnqqAtomicJson -Value @{
+                        Name = $name
+                        StartupType = $service.StartType.ToString()
+                        Delayed = $service.StartType -eq 'Automatic' -and $reg.PSObject.Properties['DelayedAutoStart'].Value -eq 1
+                        WasRunning = $service.Status -eq 'Running'
+                    } -Path $file
+                }
+                if ($service.Status -eq 'Running') { Stop-Service -Name $name -ErrorAction Stop }
+                Set-Service -Name $name -StartupType Disabled -ErrorAction Stop
+                $actual = Get-Service -Name $name -ErrorAction Stop
+                if ($actual.StartType -ne 'Disabled' -or $actual.Status -ne 'Stopped') {
+                    throw 'Nao foi possivel confirmar a desativacao.'
+                }
+                Write-Host "$name desativado."
+            } catch {
+                $failures += $name
+                Write-Warning "$name - $($_.Exception.Message)"
             }
-            if ($service.Status -ne 'Stopped' -or $service.StartType -ne 'Manual') {
-                Write-Host "$name ignorado (ativo ou com outro tipo de inicializacao)."
-                continue
-            }
-            Write-BnqqAtomicJson -Value @{ Name = $name; StartupType = 'Manual' } -Path $file
-            Set-Service -Name $name -StartupType Disabled -ErrorAction Stop
-            if ((Get-Service -Name $name -ErrorAction Stop).StartType -ne 'Disabled') {
-                throw "Nao foi possivel confirmar a desativacao de $name."
-            }
-            Write-Host "$name desativado."
         }
     } finally { $lock.Dispose() }
+    if ($failures.Count) { throw ('Servicos com pendencias: ' + ($failures -join ', ')) }
 }
 
 function Remove-BnqqOptionalApps {
