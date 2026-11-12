@@ -116,7 +116,7 @@ function Disable-BnqqRecall {
 }
 
 function Invoke-BnqqQuickOptimizer {
-    Write-Host 'Optimizer: energia, navegadores, apps opcionais, Recall, servicos e armazenamento.'
+    Write-Host 'Optimizer pos-formatacao: funciona antes de instalar jogos ou launchers.'
     Write-Host 'Alto desempenho pode aumentar consumo e temperatura.'
     $steps = [ordered]@{
         'Energia' = { Set-BnqqWindowsPowerPlan -Action apply }

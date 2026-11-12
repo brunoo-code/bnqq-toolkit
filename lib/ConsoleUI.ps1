@@ -14,7 +14,7 @@ function Show-BnqqConsoleMenu {
     Write-Host ('  BNQQ OPTIMIZER v{0} | {1} | {2}' -f $Version,$Edition,(Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host '  CS2 / VALORANT' -ForegroundColor DarkGray
     Write-Host ''
-    Write-Host '  [0]  Optimizer - aplicar ajustes para jogos' -ForegroundColor Cyan
+    Write-Host '  [0]  Optimizer - configurar o Windows apos formatar' -ForegroundColor Cyan
     Write-Host ''
     $labels=@(
         'Diagnostico do PC',
