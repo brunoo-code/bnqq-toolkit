@@ -1,4 +1,4 @@
-﻿$12.0.8
+$12.0.8
 
 Diagnóstico local e experimentos reversíveis para Windows PowerShell 5.1 x64, com foco em CS2 e Valorant. **Esta versão retira os pacotes de tweaks legados.** Não promete zero delay, estabilidade absoluta ou ganho de FPS.
 
@@ -220,9 +220,16 @@ Corrige descoberta dos modulos do Windows PowerShell quando o EXE e aberto por o
 
 ### Optimizer pelo menu
 
-A opcao **O** aplica o plano Alto desempenho, quando disponivel, e as
-preferencias Apps Lite de segundo plano para Edge e Chrome detectados.
-As etapas registram acoes e avisos individualmente. Use o menu 31 para
-restaurar o plano anterior e o menu 8 para restaurar as preferencias.
-A pausa do indexador pode ser selecionada no Focus durante uma partida.
-O perfil rapido nao estabelece ganho de FPS.
+A opcao **0** executa o Optimizer em uma etapa. **Q** sai do painel.
+
+- Aplica Alto desempenho quando o plano existe e configura o Apps Lite no Edge e Chrome.
+- Remove Copilot, Clipchamp, Noticias, Clima e Solitaire da conta atual, quando instalados.
+- Desativa o Recall quando habilitado. O painel avisa se precisar reiniciar.
+- Desabilita Fax e Mapas Baixados se estiverem parados e com inicio manual.
+- Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia.
+
+Abra o painel como administrador para todas as etapas. Use 31 para restaurar o plano,
+8 para restaurar os navegadores e 33 para reativar os servicos alterados pelo preset.
+Os apps podem ser reinstalados pela Microsoft Store. O Recall pode ser reativado em
+Recursos do Windows quando suportado. Use os menus 12, 26 e 27 para perfis especificos
+de GPU e jogo. Ganhos de FPS e latencia dependem de medicao no hardware.
