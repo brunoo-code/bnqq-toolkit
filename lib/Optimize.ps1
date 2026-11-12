@@ -111,19 +111,70 @@ function Set-BnqqOptionalServices {
 }
 
 function Remove-BnqqOptionalApps {
-    $failures = @()
-    foreach ($name in @('Microsoft.Copilot', 'Clipchamp.Clipchamp', 'Microsoft.BingNews', 'Microsoft.BingWeather', 'Microsoft.MicrosoftSolitaireCollection', 'Microsoft.MicrosoftOfficeHub', 'Microsoft.OutlookForWindows')) {
-        try {
-            foreach ($package in @(Get-AppxPackage -Name $name -ErrorAction Stop)) {
-                Remove-AppxPackage -Package $package.PackageFullName -ErrorAction Stop
-                Write-Host "$name removido da conta atual."
-            }
-        } catch {
-            $failures += $name
-            Write-Warning "$name - $($_.Exception.Message)"
+    $names = @(
+        'Microsoft.Copilot', 'Clipchamp.Clipchamp', 'Microsoft.BingNews',
+        'Microsoft.BingWeather', 'Microsoft.MicrosoftSolitaireCollection',
+        'Microsoft.MicrosoftOfficeHub', 'Microsoft.OutlookForWindows',
+        'Microsoft.WindowsSoundRecorder', 'Microsoft.WindowsFeedbackHub',
+        'Microsoft.Windows.DevHome', 'Microsoft.Todos', 'Microsoft.PowerAutomateDesktop'
+    )
+    $lock = Enter-BnqqStateLock
+    try {
+        $file = Join-Path (Get-BnqqDataRoot) ('optional-apps-' + [guid]::NewGuid().ToString('N') + '.json')
+        $report = [ordered]@{
+            StartedUtc = [datetime]::UtcNow.ToString('o')
+            Status = 'Running'
+            Items = @()
         }
+        Write-BnqqAtomicJson -Value $report -Path $file
+        Write-Host "Relatorio de apps: $file"
+        foreach ($name in $names) {
+            $entry = [ordered]@{ Name = $name; Status = 'Checking'; Detected = @(); Removed = @(); Error = $null }
+            $report.Items += $entry
+            try {
+                $packages = @(Get-AppxPackage -Name $name -ErrorAction Stop)
+                $entry.Detected = @($packages | Select-Object -ExpandProperty PackageFullName)
+                if ($packages.Count) {
+                    $entry.Status = 'Removing'
+                    Write-BnqqAtomicJson -Value $report -Path $file
+                    foreach ($package in $packages) {
+                        Remove-AppxPackage -Package $package.PackageFullName -ErrorAction Stop
+                        if (Get-AppxPackage -Name $name -ErrorAction Stop | Where-Object PackageFullName -eq $package.PackageFullName) {
+                            throw "O pacote $($package.PackageFullName) ainda esta registrado."
+                        }
+                        $entry.Removed += $package.PackageFullName
+                        Write-BnqqAtomicJson -Value $report -Path $file
+                    }
+                    $entry.Status = 'Removed'
+                    Write-Host "$name removido da conta atual."
+                } else {
+                    $entry.Status = 'NotInstalled'
+                    Write-Host "$name ausente."
+                }
+            } catch {
+                $entry.Status = 'Failed'
+                $entry.Error = $_.Exception.Message
+                Write-Warning "$name - $($entry.Error)"
+            }
+            Write-BnqqAtomicJson -Value $report -Path $file
+        }
+        $failed = @($report.Items | Where-Object { $_.Status -eq 'Failed' })
+        $report.Status = if ($failed.Count) { 'CompletedWithErrors' } else { 'Completed' }
+        Write-BnqqAtomicJson -Value $report -Path $file
+        if ($failed.Count) { throw ('Falha ao remover: ' + ($failed.Name -join ', ')) }
+    } finally { $lock.Dispose() }
+}
+
+function Show-BnqqBackgroundReadiness {
+    $startup = @(Get-CimInstance Win32_StartupCommand -ErrorAction Stop | Select-Object -ExpandProperty Name -Unique)
+    Write-Host "Entradas de inicializacao detectadas: $($startup.Count)"
+    foreach ($entry in $startup) { Write-Host "  $entry" }
+    $capture = Get-RegSnapshot 'HKCU:\System\GameConfigStore' 'GameDVR_Enabled'
+    if ($capture.Existed) {
+        Write-Host "Preferencia de captura GameDVR_Enabled: $($capture.Value). Confira Jogos > Capturas."
+    } else {
+        Write-Host 'Preferencia de captura ainda nao definida pela conta. Confira Jogos > Capturas.'
     }
-    if ($failures.Count) { throw ('Falha ao remover: ' + ($failures -join ', ')) }
 }
 
 function Disable-BnqqRecall {
@@ -280,6 +331,7 @@ function Invoke-BnqqQuickOptimizer {
             Write-Host "Apps Lite: $($result.Status). Reabra Edge e Chrome para atualizar as politicas."
         }
         'Apps opcionais' = { Remove-BnqqOptionalApps }
+        'Inicializacao e captura' = { Show-BnqqBackgroundReadiness }
         'Recall' = { Disable-BnqqRecall }
         'Ponteiro' = { Set-BnqqPointerAcceleration }
         'Widgets' = { Set-BnqqWidgetsPolicy }
