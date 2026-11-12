@@ -1,7 +1,8 @@
-﻿# Per-user startup preferences only. Never stops apps, services or anti-cheats.
+# Per-user startup preferences only. Never stops apps, services or anti-cheats.
 function Get-BnqqStartupTargets {
     @([pscustomobject]@{Name='Spotify';Executable='Spotify.exe';Publisher='Spotify AB'},
-      [pscustomobject]@{Name='RobloxPlayerBeta';Executable='RobloxPlayerBeta.exe';Publisher='Roblox Corporation'})
+      [pscustomobject]@{Name='RobloxPlayerBeta';Executable='RobloxPlayerBeta.exe';Publisher='Roblox Corporation'},
+      [pscustomobject]@{Name='OneDrive';Executable='OneDrive.exe';Publisher='Microsoft Corporation'})
 }
 function Get-BnqqStartupExecutable {
     param([string]$Command)
@@ -96,7 +97,7 @@ function Invoke-BnqqStartup {
 }
 function Show-BnqqStartupMenu {
     Get-BnqqStartupPlan|Format-List
-    $names=Read-Host 'Apps exatos separados por virgula: Spotify,RobloxPlayerBeta; vazio cancela'
+    $names=Read-Host 'Apps exatos separados por virgula: Spotify,RobloxPlayerBeta,OneDrive; vazio cancela'
     if(-not $names){return}
     $apps=@($names.Split(',')|ForEach-Object {$_.Trim()}|Where-Object {$_})
     if((Read-Host 'Desativar somente abertura automatica no logon? Digite SIM') -ceq 'SIM'){Invoke-BnqqStartup -Action apply -Apps $apps|Format-List}

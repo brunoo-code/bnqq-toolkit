@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # Real journal files; registry and signature adapters are fixtures. No app/startup changes.
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
@@ -77,6 +77,14 @@ try{
  Check ($script:commands.Spotify.EndsWith('--external') -and $script:commands.RobloxPlayerBeta -ceq $script:original.RobloxPlayerBeta) 'Rollback overwrote external state or missed independent entry'
  Reset-Fixture;$plan=Get-BnqqStartupPlan -Apps Spotify;$bad=$plan.Operations[0];$bad.Before.Path='HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'
  MustThrow {Assert-BnqqStartupOperation $bad}
+ Reset-Fixture
+ $oneDriveCommand='"C:\Program Files\Microsoft OneDrive\OneDrive.exe" /background'
+ $script:commands.OneDrive=$oneDriveCommand
+ $script:original.OneDrive=$oneDriveCommand
+ $result=Invoke-BnqqStartup -Action apply -Apps OneDrive
+ Check ($result.Changed -eq 1 -and -not $script:commands.ContainsKey('OneDrive') -and $script:commands.ContainsKey('Spotify')) 'OneDrive selection changed other apps'
+ Invoke-BnqqStartup -Action restore -File $result.Journal | Out-Null
+ Check ($script:commands.OneDrive -ceq $oneDriveCommand) 'OneDrive startup command was not restored'
  "PASS: startup $script:checks checks; exact commands, publishers, durable originals, idempotence, partial failures and conflicts"
 }finally{
  if([IO.Path]::GetFullPath($temp) -ne $temp -or -not $temp.StartsWith($base,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe cleanup'}
