@@ -112,7 +112,7 @@ function Set-BnqqOptionalServices {
 
 function Remove-BnqqOptionalApps {
     $failures = @()
-    foreach ($name in @('Microsoft.Copilot', 'Clipchamp.Clipchamp', 'Microsoft.BingNews', 'Microsoft.BingWeather', 'Microsoft.MicrosoftSolitaireCollection')) {
+    foreach ($name in @('Microsoft.Copilot', 'Clipchamp.Clipchamp', 'Microsoft.BingNews', 'Microsoft.BingWeather', 'Microsoft.MicrosoftSolitaireCollection', 'Microsoft.MicrosoftOfficeHub', 'Microsoft.OutlookForWindows')) {
         try {
             foreach ($package in @(Get-AppxPackage -Name $name -ErrorAction Stop)) {
                 Remove-AppxPackage -Package $package.PackageFullName -ErrorAction Stop
