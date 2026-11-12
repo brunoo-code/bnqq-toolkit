@@ -350,16 +350,9 @@ function Set-BnqqWidgetsPolicy {
 function Invoke-BnqqQuickOptimizer {
     param([switch]$ReturnFailureCount)
     Write-Host 'Optimizer pos-formatacao: funciona antes de instalar jogos ou launchers.'
-    Write-Host 'Alto desempenho pode aumentar consumo e temperatura.'
+    Write-Host 'BNQQ Competitive pode aumentar consumo e temperatura.'
     $steps = [ordered]@{
-        'Energia' = {
-            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
-            if ([System.Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus -eq 'Offline') {
-                Write-Host 'Alto desempenho ignorado: PC funcionando na bateria.'
-            } else {
-                Set-BnqqWindowsPowerPlan -Action apply
-            }
-        }
+        'Energia' = { Set-BnqqWindowsPowerPlan -Action apply }
         'Navegadores' = {
             $result = Invoke-BnqqAppLite -Action apply
             Write-Host "Apps Lite: $($result.Status). Reabra Edge e Chrome para atualizar as politicas."
@@ -367,6 +360,7 @@ function Invoke-BnqqQuickOptimizer {
         'Apps opcionais' = { Remove-BnqqOptionalApps }
         'Inicializacao e captura' = { Show-BnqqBackgroundReadiness }
         'Monitor e driver' = { Show-BnqqPostInstallReadiness }
+        'Memoria' = { Get-BnqqMemoryReport | Select-Object AvailableGiB, CommitHeadroomGiB, SeverePressure | Format-List | Out-Host }
         'Recall' = { Disable-BnqqRecall }
         'Ponteiro' = { Set-BnqqPointerAcceleration }
         'Widgets' = { Set-BnqqWidgetsPolicy }

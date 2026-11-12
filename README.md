@@ -223,7 +223,7 @@ Corrige descoberta dos modulos do Windows PowerShell quando o EXE e aberto por o
 Depois de formatar, abra o painel e escolha **0** para configurar o Windows.
 Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do painel.
 
-- Aplica Alto desempenho quando o plano existe e o PC nao esta na bateria e configura o Apps Lite no Edge e Chrome.
+- Importa e ativa BNQQ Competitive - BnqqOS quando o PC nao esta na bateria e configura o Apps Lite no Edge e Chrome.
 - Remove Copilot, Clipchamp, Noticias, Clima, Solitaire, hub do Microsoft 365, novo Outlook, Gravador de Voz, Hub de Feedback, Dev Home, To Do e Power Automate Desktop da conta atual, quando instalados.
 - Salva o resumo de etapas em `%LOCALAPPDATA%\BNQQ\data\optimizer-run-*.json`. O estado Completed indica que a etapa terminou sem erro, inclusive quando nao havia ajuste a aplicar.
 - Salva um relatorio de apps por execucao em `%LOCALAPPDATA%\BNQQ\data\optional-apps-*.json` com os pacotes encontrados, removidos ou com falha.
@@ -234,7 +234,7 @@ Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do pai
 - Para e desabilita o SysMain. Desabilita Telefonia, Servico de Telefone, Fax, Mapas Baixados e o agendador legado do Media Center quando presentes, parados e com inicio manual. O menu 33 recupera o estado anterior.
 - Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia.
 
-Abra o painel como administrador para todas as etapas. Use 31 para restaurar o plano,
+Abra o painel como administrador para todas as etapas. O plano deriva do BNQQ Competitive original e preserva a ociosidade da CPU. Use 31 para restaurar o plano,
 8 para restaurar os navegadores e 33 para reativar os servicos alterados pelo preset.
 Os apps podem ser reinstalados pela Microsoft Store. O Recall pode ser reativado em
 Recursos do Windows quando suportado. Ganhos de FPS e latencia dependem de medicao no hardware.
