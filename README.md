@@ -233,7 +233,7 @@ Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do pai
 - Desativa os Widgets nas edicoes compativeis quando nao existe uma politica definida. O menu 8 > 5 restaura o ajuste.
 - Desativa o Recall quando habilitado. O painel avisa se precisar reiniciar.
 - Para e desabilita o SysMain. Desabilita Telefonia, Servico de Telefone, Fax, Mapas Baixados e o agendador legado do Media Center quando presentes, parados e com inicio manual. O menu 8 > 3 recupera o estado anterior.
-- Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia.
+- Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia. Uma nova execucao preserva a manutencao concluida pelo BNQQ nos ultimos sete dias.
 
 Abra o painel como administrador para todas as etapas. O plano deriva do BNQQ Competitive original e preserva a ociosidade da CPU. Use 8 > 1 para restaurar o plano,
 8 > 2 para restaurar os navegadores e 8 > 3 para restaurar os servicos alterados pelo preset.

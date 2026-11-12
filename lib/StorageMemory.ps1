@@ -1,3 +1,32 @@
+function Invoke-BnqqSystemVolumeMaintenance {
+    if (-not (Test-BnqqAdmin)) { throw 'Manutencao de armazenamento exige administrador.' }
+    $letter = $env:SystemDrive.TrimEnd(':')
+    Write-Host 'Estado das notificacoes TRIM (0 = habilitadas):'
+    & fsutil.exe behavior query DisableDeleteNotify
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'Nao foi possivel consultar o TRIM.' }
+
+    $lock = Enter-BnqqStateLock
+    try {
+        $file = Join-Path (Get-BnqqDataRoot) 'optimizer-storage-last-run.json'
+        $now = [DateTimeOffset]::UtcNow
+        if (Test-Path -LiteralPath $file) {
+            $previous = Get-Content -LiteralPath $file -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $completed = [DateTimeOffset]$previous.CompletedUtc
+            if ($previous.Computer -eq $env:COMPUTERNAME -and $previous.DriveLetter -eq $letter -and
+                $completed -le $now -and ($now - $completed).TotalDays -lt 7) {
+                Write-Host 'Manutencao ja concluida pelo BNQQ nos ultimos 7 dias.'
+                return
+            }
+        }
+        Optimize-Volume -DriveLetter $letter -Verbose -ErrorAction Stop
+        Write-BnqqAtomicJson -Value @{
+            Computer = $env:COMPUTERNAME
+            DriveLetter = $letter
+            CompletedUtc = [DateTimeOffset]::UtcNow.ToString('o')
+        } -Path $file
+    } finally { $lock.Dispose() }
+}
+
 function Get-BnqqSystemStorage {
     $letter = $env:SystemDrive.TrimEnd(':')
     $disk = Get-Partition -DriveLetter $letter -ErrorAction Stop | Get-Disk -ErrorAction Stop

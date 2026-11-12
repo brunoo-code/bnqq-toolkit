@@ -365,13 +365,7 @@ function Invoke-BnqqQuickOptimizer {
         'Ponteiro' = { Set-BnqqPointerAcceleration }
         'Widgets' = { Set-BnqqWidgetsPolicy }
         'Servicos opcionais' = { Set-BnqqOptionalServices }
-        'Armazenamento' = {
-            if (-not (Test-BnqqAdmin)) { throw 'Manutencao de armazenamento exige administrador.' }
-            Write-Host 'Estado das notificacoes TRIM (0 = habilitadas):'
-            & fsutil.exe behavior query DisableDeleteNotify
-            if ($LASTEXITCODE -ne 0) { Write-Warning 'Nao foi possivel consultar o TRIM.' }
-            Optimize-Volume -DriveLetter ($env:SystemDrive.TrimEnd(':')) -Verbose -ErrorAction Stop
-        }
+        'Armazenamento' = { Invoke-BnqqSystemVolumeMaintenance }
     }
     $file = Join-Path (Get-BnqqDataRoot) ('optimizer-run-' + [guid]::NewGuid().ToString('N') + '.json')
     $report = [ordered]@{
