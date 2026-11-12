@@ -170,7 +170,7 @@ function Invoke-BnqqQuickOptimizer {
     $failures = 0
     foreach ($step in $steps.GetEnumerator()) {
         Write-Host ('--- ' + $step.Key)
-        try { & $step.Value } catch {
+        try { & $step.Value | Out-Host } catch {
             Write-Warning ($step.Key + ': ' + $_.Exception.Message)
             $failures++
         }
