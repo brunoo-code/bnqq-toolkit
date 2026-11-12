@@ -42,7 +42,46 @@ function Invoke-BnqqRecovery {
     }
 }
 function Show-BnqqRecoveryMenu {
-    $items=@(Get-BnqqRecoveryCatalog | Where-Object OwnsBackup)
+    while ($true) {
+        Write-Host 'Restaurar configuracoes'
+        Write-Host '  [1] Plano de energia'
+        Write-Host '  [2] Edge e Chrome'
+        Write-Host '  [3] Servicos opcionais'
+        Write-Host '  [4] Aceleracao do ponteiro'
+        Write-Host '  [5] Widgets'
+        Write-Host '  [6] Inicializacao de aplicativos'
+        Write-Host '  [7] Outros backups'
+        Write-Host '  [0] Voltar'
+        $choice = Read-Host 'Escolha o que restaurar'
+        try {
+            switch ($choice) {
+                '1' { Set-BnqqWindowsPowerPlan -Action restore }
+                '2' { Show-BnqqRecoveryBackups -Category Browsers }
+                '3' { Set-BnqqOptionalServices -Restore }
+                '4' { Set-BnqqPointerAcceleration -Restore }
+                '5' { Set-BnqqWidgetsPolicy -Restore }
+                '6' { Show-BnqqRecoveryBackups -Category Startup }
+                '7' { Show-BnqqRecoveryBackups -Category Other }
+                default { return }
+            }
+        } catch {
+            Write-Warning $_.Exception.Message
+        }
+        Write-Host ''
+    }
+}
+
+function Show-BnqqRecoveryBackups {
+    param([ValidateSet('Browsers','Startup','Other')][string]$Category)
+    $items = @(Get-BnqqRecoveryCatalog | Where-Object {
+        if (-not $_.OwnsBackup -or $_.Status -eq 'Restored') { return $false }
+        $folder = Split-Path (Split-Path $_.File -Parent) -Leaf
+        switch ($Category) {
+            'Browsers' { $folder -eq 'app-lite' }
+            'Startup' { $folder -eq 'startup-journals' }
+            'Other' { $folder -notin @('app-lite','startup-journals') }
+        }
+    })
     if(-not $items.Count){Write-Host 'Sem backups deste usuario';return}
     for($i=0;$i -lt $items.Count;$i++){Write-Host ('[{0}] {1} | {2} | {3} | {4}' -f ($i+1),$items[$i].Schema,$items[$i].Status,$items[$i].Modified,$items[$i].File)}
     $selection=0

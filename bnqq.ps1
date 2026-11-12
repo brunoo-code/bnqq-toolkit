@@ -53,13 +53,28 @@ foreach($file in @('Core','PowerPlan','AppLite','Cleanup','Startup','ConsoleUI',
 $menuPause=$false;$menuError=$false
 try {
     if($Command -eq 'menu' -and $DryRun){Write-Host 'DryRun: menu sem interacao ou alteracoes. Selecione um comando explicito para ver seu plano.';return}
-    if($Command -eq 'menu'){
-        Show-BnqqConsoleMenu -Version '2.6.1' -Edition 'PUBLIC'
-        if([Environment]::UserInteractive){
-            $choice=Read-Host 'Escolha'
-            $menuPause=$choice -match '^(?:[1-9]|[12][0-9]|3[0-6]|0|O)$'
-            switch($choice){{ $_ -in @('0','O') }{Invoke-BnqqQuickOptimizer;return}'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Show-BnqqFramePacingMenu;return}'7'{Show-BnqqSessionMenu;return}'8'{Show-BnqqRecoveryMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}'25'{Show-BnqqStartupMenu;return}'26'{Show-BnqqCs2EngineMenu;return}'27'{Show-BnqqValorantProfileMenu;return}'28'{Show-BnqqCleanupMenu;return}'29'{Show-BnqqCompetitiveStartMenu;return}'30'{Show-BnqqAppLiteMenu;return}'31'{Show-BnqqPowerPlanMenu;return}'32'{Write-Host 'Pausa temporaria do Windows Search. No Focus, escolha SIM para parar o indexador durante o jogo.';Show-BnqqFocusMenu;return}'33'{Set-BnqqOptionalServices -Restore;return}'34'{Set-BnqqPointerAcceleration -Restore;return}'35'{Set-BnqqWidgetsPolicy -Restore;return}'36'{Show-BnqqPostInstallMenu;return}default{return}}
-        }else{$Command='audit'}
+    if ($Command -eq 'menu') {
+        if ([Environment]::UserInteractive) {
+            while ($true) {
+                Show-BnqqConsoleMenu -Version '2.6.1' -Edition 'PUBLIC'
+                $mainChoice = Read-Host 'Escolha'
+                if ($mainChoice -in @('0','O')) {
+                    Invoke-BnqqQuickOptimizer
+                    [void](Read-Host 'Pressione Enter para voltar')
+                    continue
+                }
+                if ($mainChoice -eq '8') { Show-BnqqRecoveryMenu; continue }
+                if ($mainChoice -ne '9') { return }
+                Show-BnqqAdvancedMenu
+                $choice = Read-Host 'Escolha a ferramenta'
+                if ($choice -eq '0') { continue }
+                $menuPause = $choice -match '^(?:[1-79]|[12][0-9]|3[0-2]|36)$'
+                switch($choice){'1'{$Command='audit'}'2'{$Command='network'}'3'{$Command='display'}'4'{$Command='apps'}'5'{Show-BnqqCompetitiveMenu;return}'6'{Show-BnqqFramePacingMenu;return}'7'{Show-BnqqSessionMenu;return}'9'{Show-BnqqLegacyMigrationMenu;return}'10'{Show-BnqqNetworkSessionMenu;return}'11'{Show-BnqqCpuSessionMenu;return}'12'{Show-BnqqGpuMenu;return}'13'{Show-BnqqStorageMenu;return}'14'{Show-BnqqNicMenu;return}'15'{Show-BnqqFocusMenu;return}'16'{$Command='drivers'}'17'{$Command='compete'}'18'{$Command='synthetic'}'19'{$Command='readiness'}'20'{$Command='timers'}'21'{$Command='usb-topology'}'22'{$Command='security'}'23'{$Command='dpc'}'24'{$Command='help'}'25'{Show-BnqqStartupMenu;return}'26'{Show-BnqqCs2EngineMenu;return}'27'{Show-BnqqValorantProfileMenu;return}'28'{Show-BnqqCleanupMenu;return}'29'{Show-BnqqCompetitiveStartMenu;return}'30'{Show-BnqqAppLiteMenu;return}'31'{Show-BnqqPowerPlanMenu;return}'32'{Write-Host 'Pausa temporaria do Windows Search. No Focus, escolha SIM para parar o indexador durante o jogo.';Show-BnqqFocusMenu;return}'36'{Show-BnqqPostInstallMenu;return}default{return}}
+                break
+            }
+        } else {
+            $Command = 'audit'
+        }
     }
     if($DryRun -and $Command -in @('restore','heavyqa','watch')){
         [pscustomobject]@{DryRun=$true;Command=$Command;WatcherAction=$WatcherAction;BackupFile=$BackupFile;PinPhysical=[bool]$PinPhysical;AboveNormal=[bool]$AboveNormal;HeavyMinutes=$HeavyMinutes;Action='Preview only: no worker, process, journal or target changed'} | Format-List

@@ -227,15 +227,15 @@ Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do pai
 - Remove Copilot, Clipchamp, Noticias, Clima, Solitaire, hub do Microsoft 365, novo Outlook, Gravador de Voz, Hub de Feedback, Dev Home, To Do e Power Automate Desktop da conta atual, quando instalados.
 - Salva o resumo de etapas em `%LOCALAPPDATA%\BNQQ\data\optimizer-run-*.json`. O estado Completed indica que a etapa terminou sem erro, inclusive quando nao havia ajuste a aplicar.
 - Salva um relatorio de apps por execucao em `%LOCALAPPDATA%\BNQQ\data\optional-apps-*.json` com os pacotes encontrados, removidos ou com falha.
-- Lista entradas de inicializacao, preferencia de captura, adaptadores graficos e a taxa reportada. O menu 36 abre as configuracoes correspondentes e consulta o Compact OS, identificando a midia e o espaco do volume do Windows.
-- O menu 36 > 7 oferece ajuste reversivel da entrada OneDrive da conta, quando o executavel assinado da Microsoft for confirmado. A mudanca vale no proximo login.
-- Desliga a aceleracao do ponteiro na sessao interativa e preserva a velocidade. O menu 34 restaura o ajuste. Jogos que usam Raw Input podem ignorar a aceleracao do Windows.
-- Desativa os Widgets nas edicoes compativeis quando nao existe uma politica definida. O menu 35 restaura o ajuste.
+- Lista entradas de inicializacao, preferencia de captura, adaptadores graficos e a taxa reportada. O menu 9 > 36 abre as configuracoes correspondentes e consulta o Compact OS, identificando a midia e o espaco do volume do Windows.
+- O menu 9 > 36 > 7 oferece ajuste reversivel da entrada OneDrive da conta, quando o executavel assinado da Microsoft for confirmado. A mudanca vale no proximo login.
+- Desliga a aceleracao do ponteiro na sessao interativa e preserva a velocidade. O menu 8 > 4 restaura o ajuste. Jogos que usam Raw Input podem ignorar a aceleracao do Windows.
+- Desativa os Widgets nas edicoes compativeis quando nao existe uma politica definida. O menu 8 > 5 restaura o ajuste.
 - Desativa o Recall quando habilitado. O painel avisa se precisar reiniciar.
-- Para e desabilita o SysMain. Desabilita Telefonia, Servico de Telefone, Fax, Mapas Baixados e o agendador legado do Media Center quando presentes, parados e com inicio manual. O menu 33 recupera o estado anterior.
+- Para e desabilita o SysMain. Desabilita Telefonia, Servico de Telefone, Fax, Mapas Baixados e o agendador legado do Media Center quando presentes, parados e com inicio manual. O menu 8 > 3 recupera o estado anterior.
 - Consulta o TRIM e aciona a manutencao nativa do volume do Windows conforme o tipo de midia.
 
-Abra o painel como administrador para todas as etapas. O plano deriva do BNQQ Competitive original e preserva a ociosidade da CPU. Use 31 para restaurar o plano,
-8 para restaurar os navegadores e 33 para reativar os servicos alterados pelo preset.
+Abra o painel como administrador para todas as etapas. O plano deriva do BNQQ Competitive original e preserva a ociosidade da CPU. Use 8 > 1 para restaurar o plano,
+8 > 2 para restaurar os navegadores e 8 > 3 para restaurar os servicos alterados pelo preset.
 Os apps podem ser reinstalados pela Microsoft Store. O Recall pode ser reativado em
 Recursos do Windows quando suportado. Ganhos de FPS e latencia dependem de medicao no hardware.

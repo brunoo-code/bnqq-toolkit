@@ -380,7 +380,7 @@ function Invoke-BnqqQuickOptimizer {
         Status = 'Running'
         FailedSteps = 0
         Steps = @()
-        RecoveryMenus = @{ Power = 31; Browsers = 8; Services = 33; Pointer = 34; Widgets = 35 }
+        RecoveryMenus = @{ Main = 8; Power = 1; Browsers = 2; Services = 3; Pointer = 4; Widgets = 5 }
     }
     foreach ($name in $steps.Keys) {
         $report.Steps += [ordered]@{ Name = $name; Status = 'Pending'; Error = $null }
@@ -407,8 +407,8 @@ function Invoke-BnqqQuickOptimizer {
     Write-BnqqAtomicJson -Value $report -Path $file
     $failures = $report.FailedSteps
     Write-Host ('Etapas com pendencias: ' + $failures)
-    Write-Host 'Restauracao: menu 31 (energia), 8 (navegadores), 33 (servicos), 34 (ponteiro), 35 (Widgets).'
+    Write-Host 'Para desfazer um ajuste, abra 8 - Restaurar configuracoes.'
     Write-Host 'Apps opcionais podem ser reinstalados pela Microsoft Store.'
     if ($ReturnFailureCount) { return $failures }
-    Write-Host 'Para GPU e perfil por jogo, veja 12, 26 e 27.'
+    Write-Host 'Ferramentas por jogo: menu 9.'
 }

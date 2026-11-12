@@ -15,7 +15,14 @@ function Show-BnqqConsoleMenu {
     Write-Host '  CS2 / VALORANT' -ForegroundColor DarkGray
     Write-Host ''
     Write-Host '  [0]  Optimizer - configurar o Windows apos formatar' -ForegroundColor Cyan
+    Write-Host '  [8]  Restaurar configuracoes'
+    Write-Host '  [9]  Ferramentas avancadas'
+    Write-Host '  [Q]  Sair' -ForegroundColor DarkGray
     Write-Host ''
+}
+
+function Show-BnqqAdvancedMenu {
+    Write-Host 'Ferramentas avancadas'
     $labels=@(
         'Diagnostico do PC',
         'Analise de rede',
@@ -51,12 +58,10 @@ function Show-BnqqConsoleMenu {
         'Servicos durante o jogo - pausa temporaria (Focus)'
     )
     for($i=0;$i -lt $labels.Count;$i++){
+        if ($i -eq 7) { continue }
         Write-Host ('  '+('[{0}]' -f ($i+1)).PadRight(5)+$labels[$i]) -ForegroundColor Gray
     }
-    Write-Host '  [33] Restaurar servicos opcionais'
-    Write-Host '  [34] Restaurar aceleracao do ponteiro'
-    Write-Host '  [35] Restaurar politica de Widgets'
     Write-Host '  [36] Prontidao pos-formatacao e configuracoes do Windows'
-    Write-Host '  [Q]  Sair' -ForegroundColor DarkGray
+    Write-Host '  [0]  Voltar' -ForegroundColor DarkGray
     Write-Host ''
 }
