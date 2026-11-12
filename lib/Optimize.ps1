@@ -200,8 +200,9 @@ function Show-BnqqPostInstallMenu {
         '6' { Start-Process 'ms-settings:easeofaccess-visualeffects' -ErrorAction Stop }
         '7' { Show-BnqqStartupMenu }
         '5' {
+            Get-BnqqSystemStorage | Format-List | Out-Host
             & compact.exe /CompactOS:query
-            if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel consultar o Compact OS.' }
+            if ($LASTEXITCODE -notin @(0, 102)) { throw "Consulta do Compact OS retornou o codigo $LASTEXITCODE." }
         }
     }
 }

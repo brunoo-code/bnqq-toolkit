@@ -1,4 +1,29 @@
-﻿function Get-BnqqMemorySnapshot {
+function Get-BnqqSystemStorage {
+    $letter = $env:SystemDrive.TrimEnd(':')
+    $disk = Get-Partition -DriveLetter $letter -ErrorAction Stop | Get-Disk -ErrorAction Stop
+    $volume = Get-Volume -DriveLetter $letter -ErrorAction Stop
+    $physical = @()
+    if ($disk.UniqueId) {
+        $physical = @(Get-PhysicalDisk -ErrorAction Stop | Where-Object UniqueId -eq $disk.UniqueId)
+    }
+    $media = if ($physical.Count -eq 1) { [string]$physical[0].MediaType } else { 'Unknown' }
+    $guidance = switch ($media) {
+        'SSD' { 'SSD detectado. Considere testar Compact OS se faltar espaco. Compare boot e carregamento.' }
+        'HDD' { 'HD mecanico detectado. Compact OS nao recomendado.' }
+        default { 'Midia fisica indeterminada. Confirme o disco real antes de avaliar Compact OS.' }
+    }
+    [pscustomobject]@{
+        Volume = $env:SystemDrive
+        Disk = $disk.FriendlyName
+        Bus = [string]$disk.BusType
+        Media = $media
+        FreeGiB = [math]::Round($volume.SizeRemaining / 1GB, 2)
+        TotalGiB = [math]::Round($volume.Size / 1GB, 2)
+        CompactOsGuidance = $guidance
+    }
+}
+
+function Get-BnqqMemorySnapshot {
     if(-not ('Bnqq.MemoryStatus' -as [type])){Add-Type -Path (Join-Path $script:BnqqRoot 'lib\MemoryStatus.cs') -ErrorAction Stop}
     return [Bnqq.MemoryStatus]::Read()
 }
