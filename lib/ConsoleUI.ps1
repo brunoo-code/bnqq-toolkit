@@ -56,6 +56,7 @@ function Show-BnqqConsoleMenu {
     Write-Host '  [33] Restaurar servicos opcionais'
     Write-Host '  [34] Restaurar aceleracao do ponteiro'
     Write-Host '  [35] Restaurar politica de Widgets'
+    Write-Host '  [36] Prontidao pos-formatacao e configuracoes do Windows'
     Write-Host '  [Q]  Sair' -ForegroundColor DarkGray
     Write-Host ''
 }

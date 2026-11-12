@@ -177,6 +177,34 @@ function Show-BnqqBackgroundReadiness {
     }
 }
 
+function Show-BnqqPostInstallReadiness {
+    $adapters = @(Get-CimInstance Win32_VideoController -ErrorAction Stop)
+    if (-not $adapters.Count) { Write-Host 'Nenhum adaptador grafico detectado.' }
+    foreach ($adapter in $adapters) {
+        $refresh = if ($adapter.CurrentRefreshRate -gt 1) { "$($adapter.CurrentRefreshRate) Hz" } else { 'indisponivel' }
+        Write-Host "$($adapter.Name) | driver $($adapter.DriverVersion) | taxa reportada: $refresh"
+    }
+    Write-Host 'Confirme a taxa de cada monitor em Tela avancada.'
+}
+
+function Show-BnqqPostInstallMenu {
+    Show-BnqqBackgroundReadiness
+    Show-BnqqPostInstallReadiness
+    Write-Host '1 Inicializacao | 2 Capturas | 3 Tela | 4 Energia | 5 Consultar Compact OS | 6 Efeitos visuais'
+    $choice = Read-Host 'Escolha (Enter para voltar)'
+    switch ($choice) {
+        '1' { Start-Process 'ms-settings:startupapps' -ErrorAction Stop }
+        '2' { Start-Process 'ms-settings:gaming-gamedvr' -ErrorAction Stop }
+        '3' { Start-Process 'ms-settings:display' -ErrorAction Stop }
+        '4' { Start-Process 'ms-settings:powersleep' -ErrorAction Stop }
+        '6' { Start-Process 'ms-settings:easeofaccess-visualeffects' -ErrorAction Stop }
+        '5' {
+            & compact.exe /CompactOS:query
+            if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel consultar o Compact OS.' }
+        }
+    }
+}
+
 function Disable-BnqqRecall {
     if (-not (Test-BnqqAdmin)) { throw 'Verificar o Recall exige administrador.' }
     $recall = Get-WindowsOptionalFeature -Online -ErrorAction Stop | Where-Object FeatureName -eq 'Recall'
@@ -332,6 +360,7 @@ function Invoke-BnqqQuickOptimizer {
         }
         'Apps opcionais' = { Remove-BnqqOptionalApps }
         'Inicializacao e captura' = { Show-BnqqBackgroundReadiness }
+        'Monitor e driver' = { Show-BnqqPostInstallReadiness }
         'Recall' = { Disable-BnqqRecall }
         'Ponteiro' = { Set-BnqqPointerAcceleration }
         'Widgets' = { Set-BnqqWidgetsPolicy }
