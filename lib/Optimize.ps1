@@ -41,3 +41,32 @@ function Assert-BnqqRecordingCapability {
     $policy=$xml.SelectSingleNode("//*[local-name()='policy' and @name='AllowGameDVR']")
     if(-not $policy -or $policy.key -ne 'Software\Policies\Microsoft\Windows\GameDVR' -or $policy.valueName -ne 'AllowGameDVR'){throw 'Definicao local diverge do alvo auditado'}
 }
+
+function Invoke-BnqqQuickOptimizer {
+    Write-Host 'Optimizer: Alto desempenho e ajustes de segundo plano no Edge e Chrome.'
+    Write-Host 'Alto desempenho pode aumentar consumo e temperatura.'
+    $failures = 0
+    try {
+        Write-Host '[1/2] Plano de energia'
+        Set-BnqqWindowsPowerPlan -Action apply
+    } catch {
+        Write-Warning ('Energia: ' + $_.Exception.Message)
+        $failures++
+    }
+    try {
+        Write-Host '[2/2] Navegadores'
+        $result = Invoke-BnqqAppLite -Action apply
+        if ($result.Status -eq 'Applied') {
+            Write-Host ('Preferencias gravadas: ' + $result.Changed)
+            Write-Host 'Reabra os navegadores para verificar as politicas.'
+        } else {
+            Write-Host 'Nenhuma preferencia de navegador precisou ser gravada.'
+        }
+    } catch {
+        Write-Warning ('Navegadores: ' + $_.Exception.Message)
+        $failures++
+    }
+    Write-Host ('Etapas com pendencias: ' + $failures)
+    Write-Host 'Para desfazer: menu 31 para energia e menu 8 para navegadores.'
+    Write-Host 'Estas etapas nao exigem reiniciar o Windows.'
+}

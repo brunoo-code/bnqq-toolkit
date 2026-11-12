@@ -217,3 +217,12 @@ Menu 29 inicia/usa o jogo pelo cliente oficial e reutiliza o controlador tempora
 
 ### v2.6.1
 Corrige descoberta dos modulos do Windows PowerShell quando o EXE e aberto por outro aplicativo/PowerShell 7. Inclui diagnostico somente leitura e teste do binario real com caminho de modulos vazio, preservando todos os gates do atestado.
+
+### Optimizer pelo menu
+
+A opcao **O** aplica o plano Alto desempenho, quando disponivel, e as
+preferencias Apps Lite de segundo plano para Edge e Chrome detectados.
+As etapas registram acoes e avisos individualmente. Use o menu 31 para
+restaurar o plano anterior e o menu 8 para restaurar as preferencias.
+A pausa do indexador pode ser selecionada no Focus durante uma partida.
+O perfil rapido nao estabelece ganho de FPS.

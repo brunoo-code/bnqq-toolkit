@@ -1,4 +1,4 @@
-﻿function Get-BnqqHardware {
+function Get-BnqqHardware {
     $errors=New-Object 'Collections.Generic.List[string]'
     $values=@{}
     foreach($class in @('Win32_Processor','Win32_BaseBoard','Win32_BIOS','Win32_VideoController','Win32_PhysicalMemory','Win32_OperatingSystem','Win32_PnPEntity')){
@@ -16,7 +16,7 @@
         Declared=$expected;AmdPciEvidence=$amdPci.Count;CpuMatchesDeclared=$matchingCpu
         BoardConfidence='Unverified: SMBIOS can be altered; PCI vendor/CPU count cannot prove B550 model'
         FclkConfidence='Not measured by WMI; any configured value is user-declared'
-        Errors=$errors.ToArray();PerformanceClaim='None: observations are not a benchmark'
+        Errors=$errors.ToArray();PerformanceClaim='Diagnostico somente. Nenhuma configuracao foi alterada.'
     }
 }
 function Show-BnqqDisplayGuidance {

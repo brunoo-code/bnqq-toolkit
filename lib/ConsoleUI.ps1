@@ -1,4 +1,4 @@
-﻿# Presentation only: importing/rendering never probes hardware or applies settings.
+# Presentation only: importing/rendering never probes hardware or applies settings.
 function Show-BnqqConsoleMenu {
     param([string]$Version,[ValidateSet('PUBLIC','PRIVATE')][string]$Edition='PUBLIC')
     $logo=@(
@@ -13,6 +13,8 @@ function Show-BnqqConsoleMenu {
     foreach($line in $logo){Write-Host ('  '+$line) -ForegroundColor Cyan}
     Write-Host ('  BNQQ OPTIMIZER v{0} | {1} | {2}' -f $Version,$Edition,(Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
     Write-Host '  CS2 / VALORANT' -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '  [O]  Optimizer - aplicar energia e ajustes de navegadores' -ForegroundColor Cyan
     Write-Host ''
     $labels=@(
         'Diagnostico do PC',
@@ -44,7 +46,9 @@ function Show-BnqqConsoleMenu {
         'VALORANT: preferencias graficas locais',
         'Limpeza conservadora de temporarios',
         'Start Competitivo CS2 / Valorant',
-        'Apps Lite Edge / Chrome'
+        'Apps Lite Edge / Chrome',
+        'Plano de energia do Windows - aplicar / restaurar',
+        'Servicos durante o jogo - pausa temporaria (Focus)'
     )
     for($i=0;$i -lt $labels.Count;$i++){
         Write-Host ('  '+('[{0}]' -f ($i+1)).PadRight(5)+$labels[$i]) -ForegroundColor Gray
