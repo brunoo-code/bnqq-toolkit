@@ -190,7 +190,7 @@ function Show-BnqqPostInstallReadiness {
 function Show-BnqqPostInstallMenu {
     Show-BnqqBackgroundReadiness
     Show-BnqqPostInstallReadiness
-    Write-Host '1 Inicializacao | 2 Capturas | 3 Tela | 4 Energia | 5 Consultar Compact OS | 6 Efeitos visuais'
+    Write-Host '1 Inicializacao | 2 Capturas | 3 Tela | 4 Energia | 5 Consultar Compact OS | 6 Efeitos visuais | 7 Ajustar inicializacao de apps reconhecidos'
     $choice = Read-Host 'Escolha (Enter para voltar)'
     switch ($choice) {
         '1' { Start-Process 'ms-settings:startupapps' -ErrorAction Stop }
@@ -198,6 +198,7 @@ function Show-BnqqPostInstallMenu {
         '3' { Start-Process 'ms-settings:display' -ErrorAction Stop }
         '4' { Start-Process 'ms-settings:powersleep' -ErrorAction Stop }
         '6' { Start-Process 'ms-settings:easeofaccess-visualeffects' -ErrorAction Stop }
+        '7' { Show-BnqqStartupMenu }
         '5' {
             & compact.exe /CompactOS:query
             if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel consultar o Compact OS.' }
@@ -373,14 +374,39 @@ function Invoke-BnqqQuickOptimizer {
             Optimize-Volume -DriveLetter ($env:SystemDrive.TrimEnd(':')) -Verbose -ErrorAction Stop
         }
     }
-    $failures = 0
-    foreach ($step in $steps.GetEnumerator()) {
-        Write-Host ('--- ' + $step.Key)
-        try { & $step.Value | Out-Host } catch {
-            Write-Warning ($step.Key + ': ' + $_.Exception.Message)
-            $failures++
-        }
+    $file = Join-Path (Get-BnqqDataRoot) ('optimizer-run-' + [guid]::NewGuid().ToString('N') + '.json')
+    $report = [ordered]@{
+        StartedUtc = [datetime]::UtcNow.ToString('o')
+        FinishedUtc = $null
+        Status = 'Running'
+        FailedSteps = 0
+        Steps = @()
+        RecoveryMenus = @{ Power = 31; Browsers = 8; Services = 33; Pointer = 34; Widgets = 35 }
     }
+    foreach ($name in $steps.Keys) {
+        $report.Steps += [ordered]@{ Name = $name; Status = 'Pending'; Error = $null }
+    }
+    Write-BnqqAtomicJson -Value $report -Path $file
+    Write-Host "Relatorio da opcao 0: $file"
+    foreach ($entry in $report.Steps) {
+        Write-Host ('--- ' + $entry.Name)
+        $entry.Status = 'Running'
+        Write-BnqqAtomicJson -Value $report -Path $file
+        try {
+            & $steps[$entry.Name] | Out-Host
+            $entry.Status = 'Completed'
+        } catch {
+            $entry.Status = 'Failed'
+            $entry.Error = $_.Exception.Message
+            $report.FailedSteps++
+            Write-Warning ($entry.Name + ': ' + $entry.Error)
+        }
+        Write-BnqqAtomicJson -Value $report -Path $file
+    }
+    $report.FinishedUtc = [datetime]::UtcNow.ToString('o')
+    $report.Status = if ($report.FailedSteps) { 'CompletedWithErrors' } else { 'Completed' }
+    Write-BnqqAtomicJson -Value $report -Path $file
+    $failures = $report.FailedSteps
     Write-Host ('Etapas com pendencias: ' + $failures)
     Write-Host 'Restauracao: menu 31 (energia), 8 (navegadores), 33 (servicos), 34 (ponteiro), 35 (Widgets).'
     Write-Host 'Apps opcionais podem ser reinstalados pela Microsoft Store.'

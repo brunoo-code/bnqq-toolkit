@@ -225,7 +225,8 @@ Funciona antes de instalar Steam, Riot Client ou qualquer jogo. **Q** sai do pai
 
 - Aplica Alto desempenho quando o plano existe e o PC nao esta na bateria e configura o Apps Lite no Edge e Chrome.
 - Remove Copilot, Clipchamp, Noticias, Clima, Solitaire, hub do Microsoft 365, novo Outlook, Gravador de Voz, Hub de Feedback, Dev Home, To Do e Power Automate Desktop da conta atual, quando instalados.
-- Salva um relatorio por execucao em `%LOCALAPPDATA%\BNQQ\data\optional-apps-*.json` com os pacotes encontrados, removidos ou com falha.
+- Salva o resumo de etapas em `%LOCALAPPDATA%\BNQQ\data\optimizer-run-*.json`. O estado Completed indica que a etapa terminou sem erro, inclusive quando nao havia ajuste a aplicar.
+- Salva um relatorio de apps por execucao em `%LOCALAPPDATA%\BNQQ\data\optional-apps-*.json` com os pacotes encontrados, removidos ou com falha.
 - Lista entradas de inicializacao, preferencia de captura, adaptadores graficos e a taxa reportada. O menu 36 abre as configuracoes correspondentes e consulta o Compact OS.
 - Desliga a aceleracao do ponteiro na sessao interativa e preserva a velocidade. O menu 34 restaura o ajuste. Jogos que usam Raw Input podem ignorar a aceleracao do Windows.
 - Desativa os Widgets nas edicoes compativeis quando nao existe uma politica definida. O menu 35 restaura o ajuste.
