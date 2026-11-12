@@ -1,4 +1,4 @@
-﻿# Windows PowerShell 5.1. No changes are performed by importing this file.
+# Windows PowerShell 5.1. No changes are performed by importing this file.
 function Get-BnqqDataRoot {
     if ($script:BnqqDataRoot) { return $script:BnqqDataRoot }
     return (Join-Path $env:LOCALAPPDATA 'BNQQ\data')
@@ -42,7 +42,9 @@ function Get-RegSnapshot {
 function Set-BnqqRegistrySnapshot {
     param($Snapshot)
     if($Snapshot.Existed){
-        [void](New-Item -Path $Snapshot.Path -Force -ErrorAction Stop)
+        if (-not (Test-Path -LiteralPath $Snapshot.Path -ErrorAction Stop)) {
+            [void](New-Item -Path $Snapshot.Path -Force -ErrorAction Stop)
+        }
         $v=$Snapshot.Value
         if($Snapshot.Kind -eq 'Binary'){$v=[byte[]]@($v)}
         if($Snapshot.Kind -eq 'MultiString'){$v=[string[]]@($v)}

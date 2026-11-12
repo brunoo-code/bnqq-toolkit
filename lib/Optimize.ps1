@@ -334,7 +334,11 @@ function Set-BnqqWidgetsPolicy {
         if (-not $saved) {
             Write-BnqqAtomicJson -Value @{Owner = Get-BnqqOwner; KeyExisted = $current.KeyExisted} -Path $file
         }
-        Set-BnqqRegistrySnapshot ([pscustomobject]@{Path=$path;Name=$name;KeyExisted=$true;Existed=$true;Kind='DWord';Value=0})
+        try {
+            Set-BnqqRegistrySnapshot ([pscustomobject]@{Path=$path;Name=$name;KeyExisted=$true;Existed=$true;Kind='DWord';Value=0})
+        } catch [System.UnauthorizedAccessException], [System.Security.SecurityException] {
+            throw 'Windows negou gravar a politica de Widgets. A permissao da chave foi preservada. Use Configuracoes > Personalizacao > Barra de tarefas se disponivel.'
+        }
         $actual = Get-RegSnapshot $path $name
         if (-not $actual.Existed -or $actual.Kind -ne 'DWord' -or $actual.Value -ne 0) {
             throw 'Falha ao confirmar a politica de Widgets.'
